@@ -1,5 +1,8 @@
 package vn.nhom2.lokap.feature.feed
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import vn.nhom2.lokap.core.designsystem.component.BlockUserDialog
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -43,10 +46,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -177,6 +178,14 @@ fun FeedScreen(
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
 
+    state.pendingBlock?.let { target ->
+        BlockUserDialog(
+            displayName = target.displayName,
+            onConfirm = { onAction(FeedAction.OnConfirmBlock) },
+            onDismiss = { onAction(FeedAction.OnDismissBlockDialog) }
+        )
+    }
+
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -249,6 +258,7 @@ fun FeedScreen(
                         FriendsVerticalPager(
                             posts = state.friendPosts,
                             now = state.now,
+                            currentUserId = state.currentUserId,
                             onAction = onAction
                         )
                     }
@@ -354,6 +364,7 @@ private fun FeedTopBar(
 private fun FriendsVerticalPager(
     posts: List<Post>,
     now: java.time.Instant,
+    currentUserId: String,
     onAction: (FeedAction) -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { posts.size })
@@ -391,7 +402,8 @@ private fun FriendsVerticalPager(
             onLocationClick = { onAction(FeedAction.OnLocationChipClick(post)) },
             onReact = { emoji -> onAction(FeedAction.OnReact(post.id, emoji)) },
             onRetrySend = { onAction(FeedAction.OnRetrySendPost(post.id)) },
-            onReplyClick = { onAction(FeedAction.OnReplyClick(post)) }
+            onReplyClick = { onAction(FeedAction.OnReplyClick(post)) },
+            showReply = post.author.id != currentUserId
         )
     }
 }
@@ -405,7 +417,8 @@ private fun LocketFriendPageItem(
     onLocationClick: () -> Unit,
     onReact: (String) -> Unit,
     onRetrySend: () -> Unit,
-    onReplyClick: () -> Unit
+    onReplyClick: () -> Unit,
+    showReply: Boolean = true
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -607,7 +620,8 @@ private fun LocketFriendPageItem(
                 onSelectEmoji = onReact
             )
 
-            Row(
+            // Không hiện ô Trả lời với bài của chính mình
+            if (showReply) Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(shapes.pill)

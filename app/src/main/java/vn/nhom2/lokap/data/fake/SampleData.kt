@@ -774,7 +774,7 @@ object SampleData {
             id = "mb_wide_danang",
             type = MapBubbleType.PROVINCE_WIDE,
             code = "da-nang",
-            label = "Chung toàn Đà Nẵng",
+            label = "Khắp Đà Nẵng",
             lat = 16.0400,
             lng = 108.1800,
             postCount = 24,

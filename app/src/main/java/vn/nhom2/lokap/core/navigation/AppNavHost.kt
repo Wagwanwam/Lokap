@@ -31,7 +31,10 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.feature.camera.CameraRoute
 import vn.nhom2.lokap.feature.composer.composerScreen
 import vn.nhom2.lokap.feature.feed.feedScreen
+import vn.nhom2.lokap.feature.landmark.landmarkScreen
+import vn.nhom2.lokap.feature.map.mapScreen
 import vn.nhom2.lokap.feature.postdetail.postDetailScreen
+import vn.nhom2.lokap.feature.region.regionAlbumScreen
 
 private const val NAV_ANIM_DURATION = 320
 
@@ -87,28 +90,11 @@ fun AppNavHost(
 
         composerScreen(navController)
 
-        composable<Route.Map> {
-            PlaceholderScreen(
-                title = "Bản đồ 34 Tỉnh/Thành",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        mapScreen(navController)
 
-        composable<Route.RegionAlbum> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.RegionAlbum>()
-            PlaceholderScreen(
-                title = "Album khu vực (${route.level} · ${route.code})",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        regionAlbumScreen(navController)
 
-        composable<Route.Landmark> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.Landmark>()
-            PlaceholderScreen(
-                title = "Địa danh (${route.id})",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        landmarkScreen(navController)
 
         postDetailScreen(navController)
 

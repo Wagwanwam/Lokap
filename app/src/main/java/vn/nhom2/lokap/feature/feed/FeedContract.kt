@@ -22,8 +22,14 @@ data class FeedUiState(
     val isOffline: Boolean = false,
     val errorMessage: String? = null,
     val currentProvinceName: String = "Đà Nẵng",
-    val now: Instant = SampleData.NOW
+    val now: Instant = SampleData.NOW,
+    val currentUserId: String = SampleData.currentUser.id,
+    /** Người đang chờ xác nhận chặn; khác null thì hiện hộp xác nhận. */
+    val pendingBlock: BlockTarget? = null
 )
+
+@Immutable
+data class BlockTarget(val userId: String, val displayName: String)
 
 sealed interface FeedAction {
     data class OnSelectTab(val tab: FeedTab) : FeedAction
@@ -38,7 +44,10 @@ sealed interface FeedAction {
     data class OnReact(val postId: String, val emoji: String) : FeedAction
     data class OnRetrySendPost(val postId: String) : FeedAction
     data class OnReportPost(val postId: String) : FeedAction
+    /** Bấm "Chặn" trong menu: chỉ mở hộp xác nhận. */
     data class OnBlockUser(val userId: String, val displayName: String) : FeedAction
+    data object OnConfirmBlock : FeedAction
+    data object OnDismissBlockDialog : FeedAction
 }
 
 sealed interface FeedEffect {

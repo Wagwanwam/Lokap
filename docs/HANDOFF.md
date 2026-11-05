@@ -93,3 +93,20 @@ Việc cần làm:
 3. Kiểm tra logic: Khám phá KHÔNG hiện bài public đang hẹn giờ; Composer chỉ hiện Hẹn giờ khi Public; chọn "Địa điểm cụ thể" mà chưa chọn địa điểm thì không cho Gửi; Gửi xong quay về Camera và bài mới hiện ở Feed với "Đang gửi…" rồi thành đã gửi.
 4. Chạy emulator: Camera → chụp → Composer → Gửi → vuốt lên Feed thấy bài; mở Chi tiết bài; thử Báo cáo/Chặn. Chụp màn Feed (2 tab), Composer, Chi tiết bài vào `docs/screenshots/`.
 5. Commit `feat: Feed, Soạn bài, Chi tiết bài (dữ liệu giả)`.
+
+## Việc cho Claude Code sau prompt 04 (Bản đồ, Album khu vực, Địa danh)
+Gemini viết trong cuộc trò chuyện MỚI (cuộc cũ quá nặng làm treo trình duyệt), có kèm chữ ký component/model thật trong prompt. Claude (app) đã tách 5 file mới: `data/fake/SampleMapData.kt`, `feature/map/LokapMap.kt` (bản đồ giả bằng Compose, tách lớp để thay VietMap ở tuần 4), `feature/map/MapScreen.kt`, `feature/region/RegionAlbumScreen.kt`, `feature/landmark/LandmarkScreen.kt`. Gốc: `docs/gemini/04-map.md`.
+1. Nối vào AppNavHost: import `vn.nhom2.lokap.feature.map.mapScreen`, `vn.nhom2.lokap.feature.region.regionAlbumScreen`, `vn.nhom2.lokap.feature.landmark.landmarkScreen`; thay 3 PlaceholderScreen của Route.Map / RegionAlbum / Landmark bằng `mapScreen(navController)`, `regionAlbumScreen(navController)`, `landmarkScreen(navController)`.
+2. Build, sửa lỗi biên dịch theo tên thật (không đổi giao diện).
+3. Kiểm tra đúng đặc tả: zoom < 8 tỉnh; 8–12 phường + "Khắp <tỉnh>"; ≥ 13 ghim địa điểm; địa danh từ zoom 8; bài mức "Việt Nam" không lên bản đồ.
+4. Chạy: Camera → nút bản đồ → zoom vào Đà Nẵng → chạm bong bóng phường → Xem album → chạm ảnh; chạm bong bóng địa danh. Chụp màn Bản đồ (3 mức zoom), Album, Địa danh vào `docs/screenshots/`.
+5. Commit `feat: Bản đồ (giả), Album khu vực, Địa danh`.
+
+## Quy trình Gemini (chốt 05/11, từ prompt 05)
+1. Claude (app) viết prompt vào `docs/prompts/0X-*.md`, tự chứa đủ chữ ký component/model thật.
+2. Người dùng dán vào **cuộc trò chuyện Gemini MỚI** (model Argon), gửi; xong bấm nút Sao chép dưới câu trả lời, dán vào `docs/gemini/0X-*.md`.
+3. Tách file: `python tools/split_gemini.py docs/gemini/0X-*.md` (xem trước) rồi thêm `--write`. Script không ghi đè file đã có.
+4. Claude (app) rà code, ghi mục "Việc cho Claude Code sau prompt 0X" vào file này; Claude Code nối AppNavHost, build, sửa lỗi, chạy thử, commit.
+
+## Thiết bị chạy thử (từ prompt 05)
+Điện thoại Android thật qua USB, không dùng emulator nữa. Xem mục "Thiết bị chạy thử" trong CLAUDE.md.

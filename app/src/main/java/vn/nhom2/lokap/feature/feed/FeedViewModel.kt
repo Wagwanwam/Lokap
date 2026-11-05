@@ -137,8 +137,18 @@ class FeedViewModel : ViewModel() {
             }
 
             is FeedAction.OnBlockUser -> {
-                FakePostStore.removePostsByAuthor(action.userId)
-                sendEffect(FeedEffect.ShowMessage("Đã chặn ${action.displayName}"))
+                _uiState.update { it.copy(pendingBlock = BlockTarget(action.userId, action.displayName)) }
+            }
+
+            FeedAction.OnDismissBlockDialog -> {
+                _uiState.update { it.copy(pendingBlock = null) }
+            }
+
+            FeedAction.OnConfirmBlock -> {
+                val target = _uiState.value.pendingBlock ?: return
+                _uiState.update { it.copy(pendingBlock = null) }
+                FakePostStore.removePostsByAuthor(target.userId)
+                sendEffect(FeedEffect.ShowMessage("Đã chặn ${target.displayName}"))
             }
         }
     }

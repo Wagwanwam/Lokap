@@ -1,5 +1,8 @@
 package vn.nhom2.lokap.feature.postdetail
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import vn.nhom2.lokap.core.designsystem.component.BlockUserDialog
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.background
@@ -21,7 +24,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,14 +35,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -352,13 +351,15 @@ fun PostDetailScreen(
                 onSelectEmoji = { emoji -> onAction(PostDetailAction.OnReact(emoji)) }
             )
 
-            // Nút "Trả lời" (-> Chat)
-            PinkButton(
-                text = "Trả lời ${post.author.displayName}",
-                leadingIcon = Icons.AutoMirrored.Rounded.Send,
-                onClick = { onAction(PostDetailAction.OnReplyClick) },
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Nút "Trả lời" (-> Chat); không hiện với bài của chính mình
+            if (post.author.id != state.currentUserId) {
+                PinkButton(
+                    text = "Trả lời ${post.author.displayName}",
+                    leadingIcon = Icons.AutoMirrored.Rounded.Send,
+                    onClick = { onAction(PostDetailAction.OnReplyClick) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
 
         // ModalBottomSheet Báo cáo bài viết
@@ -408,43 +409,12 @@ fun PostDetailScreen(
             }
         }
 
-        // AlertDialog xác nhận Chặn người dùng
+        // Hộp xác nhận Chặn người dùng
         if (state.showBlockConfirmDialog) {
-            AlertDialog(
-                onDismissRequest = { onAction(PostDetailAction.OnDismissBlockDialog) },
-                containerColor = colors.surfaceHigh,
-                titleContentColor = colors.textPrimary,
-                textContentColor = colors.textSecondary,
-                title = {
-                    Text(
-                        text = "Chặn ${post.author.displayName}?",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Họ sẽ không thể gửi ảnh, nhắn tin hoặc xem các khoảnh khắc của bạn trên Lokap nữa.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = { onAction(PostDetailAction.OnConfirmBlock) }) {
-                        Text(
-                            text = "Chặn",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = colors.error
-                        )
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { onAction(PostDetailAction.OnDismissBlockDialog) }) {
-                        Text(
-                            text = "Huỷ",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = colors.textPrimary
-                        )
-                    }
-                }
+            BlockUserDialog(
+                displayName = post.author.displayName,
+                onConfirm = { onAction(PostDetailAction.OnConfirmBlock) },
+                onDismiss = { onAction(PostDetailAction.OnDismissBlockDialog) }
             )
         }
     }

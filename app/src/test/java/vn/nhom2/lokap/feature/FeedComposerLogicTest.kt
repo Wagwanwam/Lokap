@@ -25,6 +25,7 @@ import vn.nhom2.lokap.domain.model.PublishDelay
 import vn.nhom2.lokap.domain.model.toRegionAlbumTarget
 import vn.nhom2.lokap.feature.composer.ComposerAction
 import vn.nhom2.lokap.feature.composer.ComposerViewModel
+import vn.nhom2.lokap.feature.feed.FeedAction
 import vn.nhom2.lokap.feature.feed.FeedViewModel
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -71,6 +72,21 @@ class FeedComposerLogicTest {
 
         val ward = SampleData.posts.first { it.location.level == LocationLevel.WARD }
         assertEquals("WARD" to ward.location.wardCode, ward.location.toRegionAlbumTarget())
+    }
+
+    @Test
+    fun `bấm Chặn chỉ mở hộp xác nhận, Huỷ thì không xoá bài nào`() {
+        val vm = FeedViewModel()
+        val before = FakePostStore.posts.value
+        val author = SampleData.users[1]
+
+        vm.onAction(FeedAction.OnBlockUser(author.id, author.displayName))
+        assertEquals(author.id, vm.uiState.value.pendingBlock?.userId)
+        assertEquals(before, FakePostStore.posts.value)
+
+        vm.onAction(FeedAction.OnDismissBlockDialog)
+        assertNull(vm.uiState.value.pendingBlock)
+        assertEquals(before, FakePostStore.posts.value)
     }
 
     // ---------- Composer ----------

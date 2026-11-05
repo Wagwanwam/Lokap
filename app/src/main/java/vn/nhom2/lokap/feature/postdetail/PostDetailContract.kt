@@ -12,7 +12,8 @@ data class PostDetailUiState(
     val isNotFound: Boolean = false,
     val isReportSheetOpen: Boolean = false,
     val showBlockConfirmDialog: Boolean = false,
-    val now: Instant = SampleData.NOW
+    val now: Instant = SampleData.NOW,
+    val currentUserId: String = SampleData.currentUser.id
 )
 
 sealed interface PostDetailAction {
