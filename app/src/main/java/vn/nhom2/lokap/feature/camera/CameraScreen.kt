@@ -106,14 +106,28 @@ fun CameraRoute(
     val lifecycleOwner = LocalLifecycleOwner.current
     var captureTriggerTick by remember { mutableIntStateOf(0) }
 
+    fun shouldShowRationale(): Boolean = context.findActivity()?.let {
+        ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+    } ?: false
+
+    // Không dùng State: chỉ cần nhớ giữa lúc mở hộp thoại và lúc nhận kết quả, không cần vẽ lại UI
+    val rationaleBeforeRequest = remember { booleanArrayOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        val activity = context.findActivity()
-        val rationale = activity?.let {
-            ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
-        } ?: false
-        viewModel.onAction(CameraAction.OnPermissionResult(isGranted, rationale))
+        viewModel.onAction(
+            CameraAction.OnPermissionResult(
+                isGranted = isGranted,
+                shouldShowRationale = shouldShowRationale(),
+                shouldShowRationaleBefore = rationaleBeforeRequest[0]
+            )
+        )
+    }
+
+    fun requestCameraPermission() {
+        rationaleBeforeRequest[0] = shouldShowRationale()
+        permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     // Kiểm tra quyền khi vào màn hình hoặc quay lại từ Cài đặt
@@ -129,7 +143,7 @@ fun CameraRoute(
                 } else if (viewModel.uiState.value.permission == CameraPermissionState.NOT_REQUESTED) {
                     // Đọc thẳng từ ViewModel: kết quả xin quyền đã ghi vào đây trước ON_RESUME,
                     // còn `state` của Compose chỉ cập nhật ở frame sau → tránh tự xin lại sau khi bị từ chối.
-                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                    requestCameraPermission()
                 }
             }
         }
@@ -141,7 +155,7 @@ fun CameraRoute(
         viewModel.effects.collect { effect ->
             when (effect) {
                 CameraEffect.LaunchPermissionRequest -> {
-                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                    requestCameraPermission()
                 }
 
                 CameraEffect.OpenAppSettings -> {

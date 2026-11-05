@@ -38,7 +38,9 @@ data class CameraUiState(
 sealed interface CameraAction {
     data class OnPermissionResult(
         val isGranted: Boolean,
-        val shouldShowRationale: Boolean
+        val shouldShowRationale: Boolean,
+        /** Giá trị shouldShowRequestPermissionRationale ngay TRƯỚC khi mở hộp thoại. */
+        val shouldShowRationaleBefore: Boolean
     ) : CameraAction
 
     data object OnSyncPermissionGranted : CameraAction

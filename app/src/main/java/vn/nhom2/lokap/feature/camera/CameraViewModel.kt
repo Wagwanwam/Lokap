@@ -30,7 +30,12 @@ class CameraViewModel : ViewModel() {
             is CameraAction.OnPermissionResult -> {
                 val nextPermission = when {
                     action.isGranted -> CameraPermissionState.GRANTED
+                    // Từ chối lần đầu: hệ thống bật rationale → còn hỏi lại được
                     action.shouldShowRationale -> CameraPermissionState.DENIED
+                    // Trước đó có rationale, giờ mất → người dùng từ chối lần 2 (hoặc "Không hỏi lại")
+                    action.shouldShowRationaleBefore -> CameraPermissionState.PERMANENTLY_DENIED
+                    // Lần hỏi đầu mà cả trước và sau đều không có rationale → đóng hộp thoại bằng Back/chạm ra ngoài
+                    _uiState.value.permission == CameraPermissionState.NOT_REQUESTED -> CameraPermissionState.DENIED
                     else -> CameraPermissionState.PERMANENTLY_DENIED
                 }
                 _uiState.update {

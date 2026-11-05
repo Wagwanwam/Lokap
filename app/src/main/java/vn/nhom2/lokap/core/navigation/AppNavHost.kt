@@ -32,6 +32,15 @@ import vn.nhom2.lokap.feature.camera.CameraRoute
 
 private const val NAV_ANIM_DURATION = 320
 
+/** Bấm nhanh 2 lần không mở trùng màn hình. */
+private fun NavHostController.navigateSingleTop(route: Route) =
+    navigate(route) { launchSingleTop = true }
+
+/** Bấm "Quay lại" nhanh 2 lần không pop luôn màn Camera (gây màn trắng). */
+private fun NavHostController.popBackStackSafely() {
+    if (previousBackStackEntry != null) popBackStack()
+}
+
 @Composable
 fun AppNavHost(
     modifier: Modifier = Modifier,
@@ -70,12 +79,12 @@ fun AppNavHost(
     ) {
         composable<Route.Camera> {
             CameraRoute(
-                onNavigateToComposer = { path -> navController.navigate(Route.Composer(path)) },
-                onNavigateToFeed = { navController.navigate(Route.Feed) },
-                onNavigateToMap = { navController.navigate(Route.Map) },
-                onNavigateToFriends = { navController.navigate(Route.Friends) },
-                onNavigateToInbox = { navController.navigate(Route.Inbox) },
-                onNavigateToProfile = { userId -> navController.navigate(Route.Profile(userId)) }
+                onNavigateToComposer = { path -> navController.navigateSingleTop(Route.Composer(path)) },
+                onNavigateToFeed = { navController.navigateSingleTop(Route.Feed) },
+                onNavigateToMap = { navController.navigateSingleTop(Route.Map) },
+                onNavigateToFriends = { navController.navigateSingleTop(Route.Friends) },
+                onNavigateToInbox = { navController.navigateSingleTop(Route.Inbox) },
+                onNavigateToProfile = { userId -> navController.navigateSingleTop(Route.Profile(userId)) }
             )
         }
 
@@ -108,7 +117,7 @@ fun AppNavHost(
             PlaceholderScreen(
                 title = "Bảng tin Bạn bè & Khám phá",
                 subtitle = "Đang xây dựng",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
@@ -117,14 +126,14 @@ fun AppNavHost(
             PlaceholderScreen(
                 title = "Đăng ảnh mới",
                 subtitle = "Đang xây dựng · File: ${route.imagePath.substringAfterLast('/')}",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
         composable<Route.Map> {
             PlaceholderScreen(
                 title = "Bản đồ 34 Tỉnh/Thành",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
@@ -132,7 +141,7 @@ fun AppNavHost(
             val route = backStackEntry.toRoute<Route.RegionAlbum>()
             PlaceholderScreen(
                 title = "Album khu vực (${route.level} · ${route.code})",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
@@ -140,7 +149,7 @@ fun AppNavHost(
             val route = backStackEntry.toRoute<Route.Landmark>()
             PlaceholderScreen(
                 title = "Địa danh (${route.id})",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
@@ -148,7 +157,7 @@ fun AppNavHost(
             val route = backStackEntry.toRoute<Route.PostDetail>()
             PlaceholderScreen(
                 title = "Chi tiết bài đăng (${route.id})",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
@@ -156,28 +165,28 @@ fun AppNavHost(
             val route = backStackEntry.toRoute<Route.Profile>()
             PlaceholderScreen(
                 title = "Hồ sơ cá nhân (${route.userId ?: "Tôi"})",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
         composable<Route.Friends> {
             PlaceholderScreen(
                 title = "Danh sách bạn bè",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
         composable<Route.Notifications> {
             PlaceholderScreen(
                 title = "Thông báo",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
         composable<Route.Inbox> {
             PlaceholderScreen(
                 title = "Hộp thư tin nhắn",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
@@ -185,14 +194,14 @@ fun AppNavHost(
             val route = backStackEntry.toRoute<Route.Chat>()
             PlaceholderScreen(
                 title = "Trò chuyện (${route.conversationId})",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
 
         composable<Route.Settings> {
             PlaceholderScreen(
                 title = "Cài đặt",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStackSafely() }
             )
         }
     }
