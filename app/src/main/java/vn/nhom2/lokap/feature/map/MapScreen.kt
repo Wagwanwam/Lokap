@@ -1,5 +1,11 @@
 package vn.nhom2.lokap.feature.map
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.getValue
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -72,6 +78,7 @@ import vn.nhom2.lokap.domain.model.LocationLevel
 import vn.nhom2.lokap.domain.model.MapBubble
 import vn.nhom2.lokap.domain.model.MapBubbleType
 import vn.nhom2.lokap.domain.model.Post
+import vn.nhom2.lokap.domain.model.PostSendState
 import java.time.Duration
 import kotlin.math.abs
 
@@ -290,7 +297,7 @@ class MapViewModel : ViewModel() {
             code = code,
             regionName = bubble.label.removePrefix("Khắp ").trim(),
             photoUrls = photoUrls,
-            postCount = bubble.postCount.coerceAtLeast(matchingPosts.size),
+            postCount = bubble.postCount,
             visited = bubble.hasFriendPosts || matchingPosts.isNotEmpty()
         )
         _uiState.update { it.copy(selectedRegionPreview = preview) }
@@ -328,32 +335,25 @@ class MapViewModel : ViewModel() {
             else -> SampleMapData.allPlaceBubbles
         }
 
-        // 2. Lọc theo Audience & Thời gian
+        // 2. Đếm bài thật từ FakePostStore theo luật hiển thị + bộ lọc; bong bóng 0 bài thì không vẽ
+        val countablePosts = cachedPosts.filter { post ->
+            post.location.level != LocationLevel.COUNTRY && // bài mức "Việt Nam" không lên bản đồ
+                post.sendState == PostSendState.SENT &&
+                matchesTimeFilter(post, state.timeFilter) &&
+                matchesAudienceFilter(post, state.audienceFilter)
+        }
+        val meId = SampleData.currentUser.id
         val filteredBubbles = rawBubbles.mapNotNull { bubble ->
-            val passesAudience = when (state.audienceFilter) {
-                MapAudienceFilter.ALL -> true
-                MapAudienceFilter.FRIENDS -> bubble.hasFriendPosts
-                MapAudienceFilter.PUBLIC -> true
-            }
-            if (!passesAudience) return@mapNotNull null
-
-            val timeScale = when (state.timeFilter) {
-                MapTimeFilter.ALL -> 1.0f
-                MapTimeFilter.DAYS_30 -> 0.75f
-                MapTimeFilter.DAYS_7 -> 0.45f
-            }
-
-            // Kiểm tra bài viết thực tế trong vùng thời gian (loại bài mức Việt Nam)
-            val matchingRealPosts = cachedPosts.filter { post ->
-                post.location.level != LocationLevel.COUNTRY &&
-                    matchesTimeFilter(post, state.timeFilter) &&
-                    matchesAudienceFilter(post, state.audienceFilter)
-            }
-
-            val adjustedCount = (bubble.postCount * timeScale).toInt()
-                .coerceAtLeast(if (matchingRealPosts.isNotEmpty() && bubble.hasFriendPosts) 1 else 0)
-
-            if (adjustedCount <= 0) null else bubble.copy(postCount = adjustedCount)
+            val posts = postsForBubble(bubble, countablePosts)
+            if (posts.isEmpty()) return@mapNotNull null
+            bubble.copy(
+                postCount = posts.size,
+                hasFriendPosts = posts.any { it.author.id != meId },
+                coverImageUrl = posts.maxByOrNull { it.takenAt }?.imageUrl ?: bubble.coverImageUrl
+            )
+        }
+        val countedLandmarks = SampleData.landmarks.map { lm ->
+            lm.copy(postCount = countablePosts.count { it.location.landmarkId == lm.id })
         }
 
         // 3. Kiểm tra vùng khung nhìn hiện tại có bubble hoặc landmark nào không
@@ -373,17 +373,38 @@ class MapViewModel : ViewModel() {
             it.copy(
                 isLoading = isLoading,
                 visibleBubbles = filteredBubbles,
-                landmarks = SampleData.landmarks,
+                landmarks = countedLandmarks,
                 isViewportEmpty = !isLoading && (!bubblesInViewport && !landmarksInViewport)
             )
         }
     }
 
+    /**
+     * Bài thuộc bong bóng nào: tỉnh gom mọi bài trong tỉnh; phường gom bài mức phường + địa điểm;
+     * "Khắp tỉnh" chỉ bài người đăng chọn mức tỉnh; ghim địa điểm chỉ bài mức địa điểm.
+     */
+    private fun postsForBubble(bubble: MapBubble, posts: List<Post>): List<Post> = when (bubble.type) {
+        MapBubbleType.PROVINCE -> posts.filter { it.location.provinceCode == bubble.code }
+        MapBubbleType.WARD -> posts.filter {
+            it.location.wardCode == bubble.code &&
+                (it.location.level == LocationLevel.WARD || it.location.level == LocationLevel.PLACE)
+        }
+        MapBubbleType.PROVINCE_WIDE -> posts.filter {
+            it.location.provinceCode == bubble.code && it.location.level == LocationLevel.PROVINCE
+        }
+        MapBubbleType.PLACE -> posts.filter {
+            it.location.level == LocationLevel.PLACE &&
+                it.location.placeName?.equals(bubble.label, ignoreCase = true) == true
+        }
+        MapBubbleType.LANDMARK -> posts.filter { it.location.landmarkId == bubble.code }
+    }
+
     private fun matchesAudienceFilter(post: Post, filter: MapAudienceFilter): Boolean {
         return when (filter) {
             MapAudienceFilter.ALL -> true
-            MapAudienceFilter.FRIENDS -> post.audience == Audience.FRIENDS || post.audience == Audience.DIRECT
-            MapAudienceFilter.PUBLIC -> post.audience == Audience.PUBLIC
+            MapAudienceFilter.FRIENDS -> post.author.id != SampleData.currentUser.id
+            MapAudienceFilter.PUBLIC -> post.audience == Audience.PUBLIC &&
+                (post.publicVisibleAt == null || !post.publicVisibleAt.isAfter(SampleData.NOW))
         }
     }
 
@@ -448,6 +469,8 @@ fun MapScreen(
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
     val shapes = LokapTheme.shapes
+    val density = LocalDensity.current
+    var headerHeightPx by remember { mutableIntStateOf(0) }
 
     Box(
         modifier = modifier
@@ -480,7 +503,8 @@ fun MapScreen(
                     onCameraChange = { onAction(MapAction.OnCameraChanged(it)) },
                     onBubbleClick = { onAction(MapAction.OnBubbleClick(it)) },
                     onLandmarkClick = { onAction(MapAction.OnLandmarkClick(it)) },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    topInset = with(density) { headerHeightPx.toDp() }
                 )
             }
         }
@@ -489,6 +513,7 @@ fun MapScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .onSizeChanged { headerHeightPx = it.height }
                 .systemBarsPadding()
                 .padding(horizontal = spacing.md, vertical = spacing.sm),
             verticalArrangement = Arrangement.spacedBy(spacing.sm)
@@ -503,6 +528,7 @@ fun MapScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
+                    modifier = Modifier.weight(1f, fill = false),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.sm)
                 ) {
@@ -530,12 +556,16 @@ fun MapScreen(
                         Text(
                             text = "Bản đồ Lokap",
                             style = MaterialTheme.typography.titleSmall,
-                            color = colors.textPrimary
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = zoomLevelLabel(uiState.camera.zoom),
                             style = MaterialTheme.typography.labelSmall,
-                            color = colors.primary
+                            color = colors.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -692,9 +722,9 @@ private fun MapLoadingSkeleton(modifier: Modifier = Modifier) {
 }
 
 private fun zoomLevelLabel(zoom: Float): String = when {
-    zoom < 8f -> "34 Tỉnh / Thành • Zoom ${"%.1f".format(zoom)}"
-    zoom < 13f -> "Phường / Xã & Địa danh • Zoom ${"%.1f".format(zoom)}"
-    else -> "Ghim địa điểm chi tiết • Zoom ${"%.1f".format(zoom)}"
+    zoom < 8f -> "34 Tỉnh / Thành"
+    zoom < 13f -> "Phường / Xã"
+    else -> "Địa điểm"
 }
 
 @Preview(name = "Map - Tỉnh/Thành (Zoom < 8)", showBackground = true)

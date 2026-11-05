@@ -19,6 +19,8 @@ import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.Audience
 import vn.nhom2.lokap.domain.model.LocationLevel
 import vn.nhom2.lokap.domain.model.MapBubbleType
+import vn.nhom2.lokap.domain.model.PostSendState
+import vn.nhom2.lokap.feature.map.MapAudienceFilter
 import vn.nhom2.lokap.feature.landmark.LandmarkViewModel
 import vn.nhom2.lokap.feature.map.MapAction
 import vn.nhom2.lokap.feature.map.MapCameraState
@@ -63,9 +65,45 @@ class MapLogicTest {
             assertTrue(bubbles.any { it.type == MapBubbleType.WARD })
             val wide = bubbles.filter { it.type == MapBubbleType.PROVINCE_WIDE }
             assertEquals("Trùng \"Khắp tỉnh\": ${wide.map { it.label }}", wide.size, wide.distinctBy { it.code }.size)
-            assertEquals(1, wide.count { it.code == "da-nang" })
             assertTrue("Nhãn phải là \"Khắp <tỉnh>\": ${wide.map { it.label }}", wide.all { it.label.startsWith("Khắp ") })
         }
+    }
+
+    @Test
+    fun `so tren bong bong dem tu bai that, khong go cung`() {
+        val posts = SampleData.posts.filter {
+            it.location.level != LocationLevel.COUNTRY && it.sendState == PostSendState.SENT
+        }
+        // Mức tỉnh: mọi bài trong tỉnh
+        MapViewModel().bubblesAt(6f).forEach { b ->
+            assertEquals(b.label, posts.count { it.location.provinceCode == b.code }, b.postCount)
+        }
+        // Mức phường: bài mức phường + địa điểm; "Khắp tỉnh": chỉ bài người đăng chọn mức tỉnh
+        MapViewModel().bubblesAt(10f).forEach { b ->
+            val expected = if (b.type == MapBubbleType.WARD) {
+                posts.count {
+                    it.location.wardCode == b.code &&
+                        it.location.level in setOf(LocationLevel.WARD, LocationLevel.PLACE)
+                }
+            } else {
+                posts.count { it.location.provinceCode == b.code && it.location.level == LocationLevel.PROVINCE }
+            }
+            assertEquals(b.label, expected, b.postCount)
+            assertTrue("Bong bóng 0 bài không được vẽ: ${b.label}", b.postCount > 0)
+        }
+    }
+
+    @Test
+    fun `loc Public khong dem bai public dang hen gio`() {
+        val vm = MapViewModel()
+        vm.onAction(MapAction.OnAudienceFilterChange(MapAudienceFilter.PUBLIC))
+        val total = vm.bubblesAt(6f).sumOf { it.postCount }
+        val expected = SampleData.posts.count {
+            it.location.level != LocationLevel.COUNTRY && it.sendState == PostSendState.SENT &&
+                it.audience == Audience.PUBLIC && it.location.provinceCode != null &&
+                (it.publicVisibleAt == null || !it.publicVisibleAt!!.isAfter(SampleData.NOW))
+        }
+        assertEquals(expected, total)
     }
 
     @Test

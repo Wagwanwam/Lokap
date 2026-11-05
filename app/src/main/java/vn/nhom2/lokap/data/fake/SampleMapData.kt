@@ -1,5 +1,17 @@
 package vn.nhom2.lokap.data.fake
 
+/*
+ * Tên phường/xã dùng tên SAU sắp xếp (hiệu lực 01/07/2025, không còn cấp quận/huyện). Nguồn:
+ * - Hà Nội: Nghị quyết 1656/NQ-UBTVQH15 (16/6/2025). Hàng Bạc -> phường Hoàn Kiếm (khoản 1);
+ *   Quảng An -> phần lớn vào phường Tây Hồ (khoản 28), một phần vào phường Hồng Hà (khoản 14).
+ * - TP. Hồ Chí Minh: Nghị quyết 1685/NQ-UBTVQH15 (16/6/2025). Bến Nghé -> phường Sài Gòn (khoản 1);
+ *   Thảo Điền -> phường An Khánh (khoản 78).
+ * - TP. Huế: Nghị quyết 1675/NQ-UBTVQH15 (16/6/2025). Phường Thuận Hóa (từ Phú Hội, Phú Nhuận, Phường Đúc,
+ *   Vĩnh Ninh, Phước Vĩnh, Trường An); phường Vỹ Dạ (từ Thủy Vân, Xuân Phú, Vỹ Dạ).
+ * Toàn văn: xaydungchinhsach.chinhphu.vn, congbao.chinhphu.vn. Toạ độ chỉ là điểm gần đúng cho dữ liệu giả.
+ * Số bài KHÔNG lấy từ postCount ở đây: MapViewModel đếm lại từ FakePostStore.
+ */
+
 import vn.nhom2.lokap.domain.model.MapBubble
 import vn.nhom2.lokap.domain.model.MapBubbleType
 
@@ -41,9 +53,42 @@ object SampleMapData {
         )
     )
 
+    // Sinh đủ 34 tỉnh từ ProvinceCatalog (trước đây chỉ gõ tay 6 tỉnh nên bài ở Khánh Hòa, Lào Cai… không lên bản đồ).
+    // Bong bóng gõ tay chỉ còn dùng để lấy ảnh bìa; số bài do MapViewModel đếm, tỉnh 0 bài thì ẩn.
     val allProvinceBubbles: List<MapBubble>
-        get() = (SampleData.provinceMapBubbles + extraProvinceBubbles)
-            .distinctBy { it.code ?: it.id }
+        get() {
+            val handMade = (SampleData.provinceMapBubbles + extraProvinceBubbles).associateBy { it.code }
+            return ProvinceCatalog.allProvinces.map { p ->
+                handMade[p.code]?.copy(label = p.name, lat = p.lat, lng = p.lng)
+                    ?: MapBubble(
+                        id = "prov_${p.code}",
+                        type = MapBubbleType.PROVINCE,
+                        code = p.code,
+                        label = p.name,
+                        lat = p.lat,
+                        lng = p.lng,
+                        postCount = 0,
+                        coverImageUrl = null,
+                        hasFriendPosts = false
+                    )
+            }
+        }
+
+    /** Bong bóng "Khắp <tỉnh>" cho mọi tỉnh, đặt lệch khỏi tâm tỉnh một chút để không đè bong bóng phường. */
+    private val provinceWideBubbles: List<MapBubble>
+        get() = ProvinceCatalog.allProvinces.map { p ->
+            MapBubble(
+                id = "pw_${p.code}",
+                type = MapBubbleType.PROVINCE_WIDE,
+                code = p.code,
+                label = "Khắp ${p.name}",
+                lat = p.lat + 0.02,
+                lng = p.lng - 0.03,
+                postCount = 0,
+                coverImageUrl = null,
+                hasFriendPosts = false
+            )
+        }
 
     private val extraWardBubbles = listOf(
         // Đà Nẵng - Province Wide (nếu chưa có trong SampleData)
@@ -73,8 +118,8 @@ object SampleMapData {
         MapBubble(
             id = "ward_hue_thuanhoa",
             type = MapBubbleType.WARD,
-            code = "hue-thuan-hoa-cu",
-            label = "P. Thuận Hòa",
+            code = "hue-thuan-hoa",
+            label = "P. Thuận Hóa",
             lat = 16.4698,
             lng = 107.5786,
             postCount = 21,
@@ -105,10 +150,10 @@ object SampleMapData {
             hasFriendPosts = true
         ),
         MapBubble(
-            id = "ward_hn_hangbac",
+            id = "ward_hn_hoankiem",
             type = MapBubbleType.WARD,
-            code = "hn-hang-bac",
-            label = "P. Hàng Bạc",
+            code = "hn-hoan-kiem",
+            label = "P. Hoàn Kiếm",
             lat = 21.0328,
             lng = 105.8525,
             postCount = 52,
@@ -116,10 +161,10 @@ object SampleMapData {
             hasFriendPosts = true
         ),
         MapBubble(
-            id = "ward_hn_quangan",
+            id = "ward_hn_tayho",
             type = MapBubbleType.WARD,
-            code = "hn-quang-an",
-            label = "P. Quảng An",
+            code = "hn-tay-ho",
+            label = "P. Tây Hồ",
             lat = 21.0645,
             lng = 105.8235,
             postCount = 38,
@@ -139,10 +184,10 @@ object SampleMapData {
             hasFriendPosts = true
         ),
         MapBubble(
-            id = "ward_hcm_bennghe",
+            id = "ward_hcm_saigon",
             type = MapBubbleType.WARD,
-            code = "hcm-ben-nghe",
-            label = "P. Bến Nghé",
+            code = "hcm-sai-gon",
+            label = "P. Sài Gòn",
             lat = 10.7797,
             lng = 106.7019,
             postCount = 96,
@@ -150,10 +195,10 @@ object SampleMapData {
             hasFriendPosts = true
         ),
         MapBubble(
-            id = "ward_hcm_thaodien",
+            id = "ward_hcm_ankhanh",
             type = MapBubbleType.WARD,
-            code = "hcm-thao-dien",
-            label = "P. Thảo Điền",
+            code = "hcm-an-khanh",
+            label = "P. An Khánh",
             lat = 10.8035,
             lng = 106.7369,
             postCount = 74,
@@ -163,7 +208,7 @@ object SampleMapData {
     )
 
     val allWardAndProvinceWideBubbles: List<MapBubble>
-        get() = (SampleData.wardMapBubblesDaNang + extraWardBubbles)
+        get() = (SampleData.wardMapBubblesDaNang + extraWardBubbles + provinceWideBubbles)
             .distinctBy { it.type to (it.code ?: it.id) }
 
     private val extraPlaceBubbles = listOf(

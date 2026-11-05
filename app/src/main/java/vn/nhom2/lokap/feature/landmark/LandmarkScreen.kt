@@ -323,7 +323,7 @@ fun LandmarkScreen(
                                     selected = false
                                 )
                                 GlassChip(
-                                    label = "${landmark.postCount.coerceAtLeast(uiState.posts.size)} bài đăng",
+                                    label = "${uiState.posts.size} bài đăng",
                                     selected = true
                                 )
                             }

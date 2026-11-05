@@ -1,5 +1,7 @@
 package vn.nhom2.lokap.feature.map
 
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -96,7 +98,9 @@ fun LokapMap(
     onCameraChange: (MapCameraState) -> Unit,
     onBubbleClick: (MapBubble) -> Unit,
     onLandmarkClick: (Landmark) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Chiều cao phần header/thanh lọc phủ trên bản đồ: tâm camera nằm giữa phần còn lại. */
+    topInset: Dp = 0.dp
 ) {
     FakeMapCanvas(
         bubbles = bubbles,
@@ -105,7 +109,8 @@ fun LokapMap(
         onCameraChange = onCameraChange,
         onBubbleClick = onBubbleClick,
         onLandmarkClick = onLandmarkClick,
-        modifier = modifier
+        modifier = modifier,
+        topInset = topInset
     )
 }
 
@@ -117,10 +122,12 @@ private fun FakeMapCanvas(
     onCameraChange: (MapCameraState) -> Unit,
     onBubbleClick: (MapBubble) -> Unit,
     onLandmarkClick: (Landmark) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    topInset: Dp = 0.dp
 ) {
     val colors = LokapTheme.colors
     val density = LocalDensity.current.density
+    val topInsetPx = topInset.value * density
     val currentCamera by rememberUpdatedState(camera)
     val currentOnCameraChange by rememberUpdatedState(onCameraChange)
 
@@ -142,9 +149,11 @@ private fun FakeMapCanvas(
         val cosLat = cos(Math.toRadians(cam.centerLat.coerceIn(-75.0, 75.0))).toFloat()
         val dx = (lng - cam.centerLng).toFloat() * scale * cosLat
         val dy = (cam.centerLat - lat).toFloat() * scale
+        // Tâm camera ở giữa vùng KHÔNG bị header che, để bong bóng không nằm dưới thanh lọc
+        val visibleTop = topInsetPx.coerceIn(0f, heightPx)
         return Offset(
             x = widthPx / 2f + dx,
-            y = heightPx / 2f + dy
+            y = visibleTop + (heightPx - visibleTop) / 2f + dy
         )
     }
 
@@ -286,8 +295,11 @@ private fun FakeMapCanvas(
 
             layout(width, height) {
                 val landmarkCount = visibleLandmarks.size
+                val placedRects = mutableListOf<IntRect>()
 
-                for (i in 0 until landmarkCount) {
+                // Địa danh đặt trước (ưu tiên hiện), trong nhóm địa danh thì cái nhiều bài trước; đè nhau thì ẩn
+                val landmarkOrder = (0 until landmarkCount).sortedByDescending { visibleLandmarks[it].postCount }
+                for (i in landmarkOrder) {
                     val lm = visibleLandmarks[i]
                     val placeable = placeables[i]
                     val pos = projectToPixel(
@@ -299,12 +311,18 @@ private fun FakeMapCanvas(
                     )
                     val x = (pos.x - placeable.width / 2f).roundToInt()
                     val y = (pos.y - placeable.height / 2f).roundToInt()
-                    if (x in -placeable.width..width && y in -placeable.height..height) {
+                    val rect = IntRect(x, y, x + placeable.width, y + placeable.height)
+                    if (x in -placeable.width..width && y in -placeable.height..height &&
+                        placedRects.none { it.overlaps(rect) }
+                    ) {
                         placeable.placeRelative(x, y)
+                        placedRects += rect
                     }
                 }
 
-                for (j in bubbles.indices) {
+                // Bong bóng nhiều bài được đặt trước; bong bóng nào đè lên cái đã đặt (kể cả địa danh) thì ẩn
+                val bubbleOrder = bubbles.indices.sortedByDescending { bubbles[it].postCount }
+                for (j in bubbleOrder) {
                     val bubble = bubbles[j]
                     val placeable = placeables[landmarkCount + j]
                     val pos = projectToPixel(
@@ -316,8 +334,12 @@ private fun FakeMapCanvas(
                     )
                     val x = (pos.x - placeable.width / 2f).roundToInt()
                     val y = (pos.y - placeable.height / 2f).roundToInt()
-                    if (x in -placeable.width..width && y in -placeable.height..height) {
+                    val rect = IntRect(x, y, x + placeable.width, y + placeable.height)
+                    if (x in -placeable.width..width && y in -placeable.height..height &&
+                        placedRects.none { it.overlaps(rect) }
+                    ) {
                         placeable.placeRelative(x, y)
+                        placedRects += rect
                     }
                 }
             }
