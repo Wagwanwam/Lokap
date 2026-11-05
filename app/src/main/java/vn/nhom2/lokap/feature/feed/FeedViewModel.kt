@@ -1,5 +1,6 @@
 package vn.nhom2.lokap.feature.feed
 
+import vn.nhom2.lokap.data.fake.FakeNotificationStore
 import vn.nhom2.lokap.domain.model.toRegionAlbumTarget
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,6 +29,9 @@ class FeedViewModel : ViewModel() {
     val effects: Flow<FeedEffect> = _effects.receiveAsFlow()
 
     init {
+        viewModelScope.launch {
+            FakeNotificationStore.unreadCount.collect { n -> _uiState.update { it.copy(unreadNotificationsCount = n) } }
+        }
         viewModelScope.launch {
             FakePostStore.posts.collect { allPosts ->
                 updatePostsState(allPosts)

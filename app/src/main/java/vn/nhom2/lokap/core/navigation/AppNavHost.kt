@@ -29,11 +29,14 @@ import vn.nhom2.lokap.core.designsystem.component.EmptyState
 import vn.nhom2.lokap.core.designsystem.component.GhostButton
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.feature.camera.CameraRoute
+import vn.nhom2.lokap.feature.chat.chatScreen
 import vn.nhom2.lokap.feature.composer.composerScreen
 import vn.nhom2.lokap.feature.feed.feedScreen
 import vn.nhom2.lokap.feature.friends.friendsScreen
+import vn.nhom2.lokap.feature.inbox.inboxScreen
 import vn.nhom2.lokap.feature.landmark.landmarkScreen
 import vn.nhom2.lokap.feature.map.mapScreen
+import vn.nhom2.lokap.feature.notifications.notificationsScreen
 import vn.nhom2.lokap.feature.postdetail.postDetailScreen
 import vn.nhom2.lokap.feature.profile.profileScreen
 import vn.nhom2.lokap.feature.region.regionAlbumScreen
@@ -105,27 +108,11 @@ fun AppNavHost(
 
         friendsScreen(navController)
 
-        composable<Route.Notifications> {
-            PlaceholderScreen(
-                title = "Thông báo",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        notificationsScreen(navController)
 
-        composable<Route.Inbox> {
-            PlaceholderScreen(
-                title = "Hộp thư tin nhắn",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        inboxScreen(navController)
 
-        composable<Route.Chat> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.Chat>()
-            PlaceholderScreen(
-                title = "Trò chuyện (${route.conversationId})",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        chatScreen(navController)
 
         settingsScreen(navController)
     }
