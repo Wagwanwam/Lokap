@@ -117,3 +117,8 @@ Phân trang bằng cursor (created_at, id), không dùng offset.
 4. Secrets: `supabase secrets set VIETMAP_API_KEY=... FCM_SERVICE_ACCOUNT_JSON=...`
 5. Deploy function: `supabase functions deploy <tên>`.
 6. App Android chỉ nhận `SUPABASE_URL` và `SUPABASE_ANON_KEY` qua `local.properties` → BuildConfig; không commit file này.
+
+## Thiết bị chạy thử (chốt 05/11)
+- Dùng **điện thoại Android thật** qua USB (`adb devices` phải thấy máy). **Không bật emulator**: laptop 16 GB RAM không gánh nổi emulator + Gradle (build từng mất 27 phút).
+- Trước khi chạy thử: `adb devices`. Không thấy máy thì dừng lại, nhắc người dùng kiểm tra cáp, USB debugging và hộp thoại "Cho phép gỡ lỗi USB" trên điện thoại; không tự bật emulator thay thế.
+- Chụp màn hình bằng `adb exec-out screencap -p`, lưu vào `docs/screenshots/`.

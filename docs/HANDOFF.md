@@ -110,3 +110,30 @@ Gemini viết trong cuộc trò chuyện MỚI (cuộc cũ quá nặng làm treo
 
 ## Thiết bị chạy thử (từ prompt 05)
 Điện thoại Android thật qua USB, không dùng emulator nữa. Xem mục "Thiết bị chạy thử" trong CLAUDE.md.
+
+## Việc cho Claude Code: sửa lỗi bản đồ (04b)
+Được phép sửa giao diện nhỏ, không qua Gemini. Commit riêng `fix: bản đồ`.
+1. Phụ đề "Phường / Xã & Địa danh • Zoom 11,2" quá dài làm nút "Vị trí của tôi" bị bẻ dòng: rút gọn phụ đề (bỏ số zoom) và cho nút một dòng.
+2. Thanh lọc / nút quay lại che bong bóng: thêm khoảng đệm phía trên cho vùng vẽ bản đồ (hoặc dời tâm camera) để bong bóng không nằm dưới thanh lọc.
+3. Zoom 9–11 bong bóng phường và địa danh chồng nhau: bong bóng nào đè lên bong bóng có nhiều bài hơn thì ẩn; địa danh ưu tiên hiện.
+4. Tên phường cũ (Hàng Bạc, Bến Nghé, Thảo Điền…): tra nguồn chính thức (Nghị quyết sắp xếp đơn vị hành chính cấp xã năm 2025 của từng tỉnh) rồi đổi sang tên phường MỚI, ghi nguồn trong comment đầu SampleMapData.
+5. Số trên bong bóng và trang Địa danh phải đếm từ FakePostStore, không gõ cứng.
+6. Chạy trên điện thoại, chụp lại bản đồ (zoom tỉnh, phường, gần) thay ảnh 08–09.
+
+## Việc cho Claude Code sau prompt 05 (Hồ sơ, Bạn bè, Cài đặt)
+Claude (app) đã ghi 10 file mới bằng `tools/split_gemini.py`: `data/fake/SampleSocialData.kt`, `feature/profile/*` (3 file), `feature/friends/*` (3 file), `feature/settings/*` (3 file). Gốc: `docs/gemini/05-ca-nhan.md`. Đã rà: không hard-code màu, icon đều có trong material-icons-core, gọi đúng chữ ký component.
+1. Nối AppNavHost: import `vn.nhom2.lokap.feature.profile.profileScreen`, `vn.nhom2.lokap.feature.friends.friendsScreen`, `vn.nhom2.lokap.feature.settings.settingsScreen`; thay 3 PlaceholderScreen của Route.Profile / Friends / Settings.
+2. Build, sửa lỗi biên dịch theo tên thật.
+3. Kiểm tra logic: "Đã đến X/34" đếm tỉnh khác nhau; hồ sơ người khác chỉ hiện bài được phép xem (FRIENDS khi là bạn, PUBLIC đã hiện; không hiện bài public đang hẹn giờ với người lạ); giới hạn 20 bạn khoá nút Kết bạn/Chấp nhận; Xoá tài khoản chỉ bật khi gõ đúng "XOÁ"; Sửa tên 2–30 ký tự.
+4. Thêm unit test cho các luật ở bước 3.
+5. Chạy trên điện thoại: Camera → avatar → Hồ sơ (2 tab) → Cài đặt; Camera → chip Bạn bè → tìm, kết bạn. Chụp ảnh vào `docs/screenshots/`.
+6. Commit `feat: Hồ sơ, Bạn bè, Cài đặt (dữ liệu giả)`; commit riêng `docs/`, `tools/`, `CLAUDE.md` thành `docs: prompt 05–06, script tách file Gemini, quy định thiết bị test`.
+
+## Việc cho Claude Code sau prompt 06 (Tin nhắn, Chat 1-1, Thông báo)
+Claude (app) đã ghi 10 file mới: `data/fake/FakeChatStore.kt`, `feature/inbox/*`, `feature/chat/*`, `feature/notifications/*` (mỗi thư mục 3 file). Gốc: `docs/gemini/06-lien-lac.md` (Gemini gộp cả 10 file vào một khối code; `tools/split_gemini.py` đã được nâng cấp để tách theo từng dòng FILE). Đã rà: không hard-code màu, không dùng Random, có imePadding cho ô nhập, icon đều trong material-icons-core.
+1. Nối AppNavHost: import `vn.nhom2.lokap.feature.inbox.inboxScreen`, `vn.nhom2.lokap.feature.chat.chatScreen`, `vn.nhom2.lokap.feature.notifications.notificationsScreen`; thay 3 PlaceholderScreen của Route.Inbox / Chat / Notifications.
+2. Build, sửa lỗi biên dịch theo tên thật.
+3. Kiểm tra logic: chỉ chat với bạn bè (không còn là bạn → khoá ô nhập); mở chat thì unreadCount về 0; gửi tin PENDING → SENT; "Đang nhập…"/"Đã xem" không ghi vào kho; bạn trả lời theo vòng xoay cố định; thông báo chạm đúng đích và đánh dấu đã đọc; nút camera trong chat tạm về Route.Camera (TODO tuần 4: chế độ gửi riêng). Badge tin nhắn trên Camera và Feed phải lấy từ FakeChatStore.
+4. Unit test cho các luật ở bước 3.
+5. Chạy trên điện thoại: Camera → nút tin nhắn → mở chat → gửi tin; Feed → chuông → thông báo. Chụp ảnh vào `docs/screenshots/`.
+6. Commit `feat: Tin nhắn, Chat 1-1, Thông báo (dữ liệu giả)`.
