@@ -179,10 +179,14 @@ class MessagingLogicTest {
 
     @Test
     fun `chap nhan loi moi tu thong bao cap nhat danh sach ban that`() = runTest(dispatcher) {
-        val n = FakeNotificationStore.notifications.value.first { it.type == NotificationType.FRIEND_REQUEST }
-        SampleSocialData.setFriendStatusesForTest(
-            SampleSocialData.friendStatuses.value + (n.actor!!.id to FriendStatus.REQUEST_RECEIVED)
+        // Dữ liệu mẫu không còn lời mời từ người đã là bạn: dựng một lời mời từ người đang chờ kết bạn
+        val requester = SampleSocialData.directoryUsers.first {
+            SampleSocialData.getFriendStatus(it.id) == FriendStatus.REQUEST_RECEIVED
+        }
+        val n = FakeNotificationStore.notifications.value.first().copy(
+            id = "notif_test_request", type = NotificationType.FRIEND_REQUEST, actor = requester, postId = null, isRead = false
         )
+        FakeNotificationStore.addForTest(n)
         val vm = NotificationsViewModel()
         vm.onAction(NotificationsAction.AcceptFriendRequest(n.id))
         assertEquals(FriendStatus.FRIENDS, SampleSocialData.getFriendStatus(n.actor!!.id))

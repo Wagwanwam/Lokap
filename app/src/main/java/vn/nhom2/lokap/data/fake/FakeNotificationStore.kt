@@ -30,6 +30,11 @@ object FakeNotificationStore {
     }
 
     /** Chỉ dùng trong unit test. */
+    internal fun addForTest(notification: AppNotification) {
+        _notifications.update { listOf(notification) + it }
+    }
+
+    /** Chỉ dùng trong unit test. */
     internal fun resetForTest() {
         _notifications.value = SampleData.notifications.sortedByDescending { it.createdAt }
     }

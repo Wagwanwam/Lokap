@@ -25,6 +25,12 @@ import vn.nhom2.lokap.feature.landmark.LandmarkViewModel
 import vn.nhom2.lokap.feature.map.MapAction
 import vn.nhom2.lokap.feature.map.MapCameraState
 import vn.nhom2.lokap.feature.map.MapViewModel
+import vn.nhom2.lokap.feature.map.MapPlacementCandidate
+import vn.nhom2.lokap.feature.map.MapPlacementKind
+import vn.nhom2.lokap.feature.map.projectLatLngToPixel
+import vn.nhom2.lokap.feature.map.resolveMapPlacement
+import androidx.compose.ui.unit.IntRect
+import kotlin.math.roundToInt
 import vn.nhom2.lokap.feature.region.RegionAlbumAction
 import vn.nhom2.lokap.feature.region.RegionAlbumViewModel
 import vn.nhom2.lokap.feature.region.RegionAudienceFilter
@@ -120,6 +126,62 @@ class MapLogicTest {
         vm.onAction(MapAction.OnBubbleClick(province))
         assertTrue(vm.uiState.value.camera.zoom >= 8f)
         assertTrue(vm.uiState.value.visibleBubbles.all { it.type != MapBubbleType.PROVINCE })
+    }
+
+    // ---------- Xếp chỗ: địa danh 0 bài nhường bong bóng phường (quyết định 06/11) ----------
+
+    private fun cand(i: Int, kind: MapPlacementKind, posts: Int, x: Int) =
+        MapPlacementCandidate(i, IntRect(x, 100, x + 100, 200), kind, posts)
+
+    @Test
+    fun `dia danh 0 bai luon nhuong cho bong bong`() {
+        val emptyLm = cand(0, MapPlacementKind.LANDMARK_EMPTY, 0, 0)
+        val ward = cand(1, MapPlacementKind.BUBBLE, 3, 50)          // đè lên emptyLm
+        for (zoom in listOf(9f, 12f)) {
+            assertEquals(listOf(1), resolveMapPlacement(listOf(emptyLm, ward), 1000, 1000, zoom).map { it.index })
+        }
+        val farEmptyLm = cand(3, MapPlacementKind.LANDMARK_EMPTY, 0, 500) // không đè ai thì vẫn hiện
+        assertTrue(3 in resolveMapPlacement(listOf(ward, farEmptyLm), 1000, 1000, 9f).map { it.index })
+    }
+
+    @Test
+    fun `zoom duoi 11 phuong uu tien, tu 11 dia danh co bai uu tien`() {
+        val ward = cand(1, MapPlacementKind.BUBBLE, 3, 50)
+        val lmWithPosts = cand(2, MapPlacementKind.LANDMARK_WITH_POSTS, 1, 0)
+        assertEquals(listOf(1), resolveMapPlacement(listOf(ward, lmWithPosts), 1000, 1000, 10.9f).map { it.index })
+        assertEquals(listOf(2), resolveMapPlacement(listOf(ward, lmWithPosts), 1000, 1000, 11f).map { it.index })
+    }
+
+    @Test
+    fun `Da Nang zoom 9 den duoi 11 phai thay bong bong phuong`() {
+        // Kích thước gần đúng của MapBubbleItem (56dp + nhãn) và LandmarkBubble (73dp + nhãn) ở mật độ 3.0 (480dpi)
+        val density = 3f
+        val (bw, bh) = (80 * density).roundToInt() to (90 * density).roundToInt()
+        val (lw, lh) = (100 * density).roundToInt() to (110 * density).roundToInt()
+        val (w, h) = 1080 to 2000
+        for (zoom in listOf(9f, 10f, 10.9f)) {
+            val vm = MapViewModel()
+            val cam = MapCameraState(16.05, 108.2, zoom)
+            vm.onAction(MapAction.OnCameraChanged(cam))
+            val state = vm.uiState.value
+            fun rect(lat: Double, lng: Double, rw: Int, rh: Int): IntRect {
+                val p = projectLatLngToPixel(lat, lng, cam, w.toFloat(), h.toFloat(), density)
+                val x = (p.x - rw / 2f).roundToInt(); val y = (p.y - rh / 2f).roundToInt()
+                return IntRect(x, y, x + rw, y + rh)
+            }
+            val landmarks = state.landmarks
+            val candidates = landmarks.mapIndexed { i, lm ->
+                MapPlacementCandidate(i, rect(lm.lat, lm.lng, lw, lh),
+                    if (lm.postCount > 0) MapPlacementKind.LANDMARK_WITH_POSTS else MapPlacementKind.LANDMARK_EMPTY, lm.postCount)
+            } + state.visibleBubbles.mapIndexed { j, b ->
+                MapPlacementCandidate(landmarks.size + j, rect(b.lat, b.lng, bw, bh), MapPlacementKind.BUBBLE, b.postCount)
+            }
+            val placed = resolveMapPlacement(candidates, w, h, zoom).map { it.index }
+            val wardsShown = state.visibleBubbles.filterIndexed { j, b ->
+                b.type == MapBubbleType.WARD && (landmarks.size + j) in placed
+            }
+            assertTrue("Zoom $zoom: không thấy bong bóng phường nào", wardsShown.isNotEmpty())
+        }
     }
 
     // ---------- Album khu vực ----------

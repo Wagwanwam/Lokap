@@ -1046,10 +1046,11 @@ object SampleData {
         ),
         AppNotification(
             id = "notif_4",
-            type = NotificationType.FRIEND_REQUEST,
+            // Đỗ Bảo Ngọc đã là bạn (SampleSocialData) nên không thể còn "gửi lời mời kết bạn"
+            type = NotificationType.REACTION,
             actor = users[5],
-            postId = null,
-            text = "Đỗ Bảo Ngọc đã gửi lời mời kết bạn.",
+            postId = "p_05",
+            text = "Đỗ Bảo Ngọc đã thả 😍 vào ảnh của bạn ở Đại Nội Huế.",
             createdAt = hoursAgo(2),
             isRead = false
         ),

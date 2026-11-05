@@ -131,12 +131,7 @@ private fun FakeMapCanvas(
     val currentCamera by rememberUpdatedState(camera)
     val currentOnCameraChange by rememberUpdatedState(onCameraChange)
 
-    // Mỗi bậc zoom gấp đôi tỉ lệ, ở zoom = 5.0 có 28dp cho mỗi độ vĩ tuyến
-    val basePxPerLatDegree = 28f * density
-
-    fun scaleForZoom(zoom: Float): Float {
-        return basePxPerLatDegree * 2f.pow(zoom - 5f)
-    }
+    fun scaleForZoom(zoom: Float): Float = mapScaleForZoom(zoom, density)
 
     fun projectToPixel(
         lat: Double,
@@ -144,18 +139,7 @@ private fun FakeMapCanvas(
         cam: MapCameraState,
         widthPx: Float,
         heightPx: Float
-    ): Offset {
-        val scale = scaleForZoom(cam.zoom)
-        val cosLat = cos(Math.toRadians(cam.centerLat.coerceIn(-75.0, 75.0))).toFloat()
-        val dx = (lng - cam.centerLng).toFloat() * scale * cosLat
-        val dy = (cam.centerLat - lat).toFloat() * scale
-        // Tâm camera ở giữa vùng KHÔNG bị header che, để bong bóng không nằm dưới thanh lọc
-        val visibleTop = topInsetPx.coerceIn(0f, heightPx)
-        return Offset(
-            x = widthPx / 2f + dx,
-            y = visibleTop + (heightPx - visibleTop) / 2f + dy
-        )
-    }
+    ): Offset = projectLatLngToPixel(lat, lng, cam, widthPx, heightPx, density, topInsetPx)
 
     Box(
         modifier = modifier
@@ -295,54 +279,98 @@ private fun FakeMapCanvas(
 
             layout(width, height) {
                 val landmarkCount = visibleLandmarks.size
-                val placedRects = mutableListOf<IntRect>()
-
-                // Địa danh đặt trước (ưu tiên hiện), trong nhóm địa danh thì cái nhiều bài trước; đè nhau thì ẩn
-                val landmarkOrder = (0 until landmarkCount).sortedByDescending { visibleLandmarks[it].postCount }
-                for (i in landmarkOrder) {
-                    val lm = visibleLandmarks[i]
-                    val placeable = placeables[i]
-                    val pos = projectToPixel(
-                        lat = lm.lat,
-                        lng = lm.lng,
-                        cam = camera,
-                        widthPx = width.toFloat(),
-                        heightPx = height.toFloat()
-                    )
-                    val x = (pos.x - placeable.width / 2f).roundToInt()
-                    val y = (pos.y - placeable.height / 2f).roundToInt()
-                    val rect = IntRect(x, y, x + placeable.width, y + placeable.height)
-                    if (x in -placeable.width..width && y in -placeable.height..height &&
-                        placedRects.none { it.overlaps(rect) }
-                    ) {
-                        placeable.placeRelative(x, y)
-                        placedRects += rect
-                    }
+                fun rectAt(lat: Double, lng: Double, w: Int, h: Int): IntRect {
+                    val pos = projectToPixel(lat, lng, camera, width.toFloat(), height.toFloat())
+                    val x = (pos.x - w / 2f).roundToInt()
+                    val y = (pos.y - h / 2f).roundToInt()
+                    return IntRect(x, y, x + w, y + h)
                 }
-
-                // Bong bóng nhiều bài được đặt trước; bong bóng nào đè lên cái đã đặt (kể cả địa danh) thì ẩn
-                val bubbleOrder = bubbles.indices.sortedByDescending { bubbles[it].postCount }
-                for (j in bubbleOrder) {
-                    val bubble = bubbles[j]
-                    val placeable = placeables[landmarkCount + j]
-                    val pos = projectToPixel(
-                        lat = bubble.lat,
-                        lng = bubble.lng,
-                        cam = camera,
-                        widthPx = width.toFloat(),
-                        heightPx = height.toFloat()
+                val candidates = visibleLandmarks.mapIndexed { i, lm ->
+                    MapPlacementCandidate(
+                        index = i,
+                        rect = rectAt(lm.lat, lm.lng, placeables[i].width, placeables[i].height),
+                        kind = if (lm.postCount > 0) MapPlacementKind.LANDMARK_WITH_POSTS else MapPlacementKind.LANDMARK_EMPTY,
+                        postCount = lm.postCount
                     )
-                    val x = (pos.x - placeable.width / 2f).roundToInt()
-                    val y = (pos.y - placeable.height / 2f).roundToInt()
-                    val rect = IntRect(x, y, x + placeable.width, y + placeable.height)
-                    if (x in -placeable.width..width && y in -placeable.height..height &&
-                        placedRects.none { it.overlaps(rect) }
-                    ) {
-                        placeable.placeRelative(x, y)
-                        placedRects += rect
-                    }
+                } + bubbles.mapIndexed { j, b ->
+                    val pl = placeables[landmarkCount + j]
+                    MapPlacementCandidate(
+                        index = landmarkCount + j,
+                        rect = rectAt(b.lat, b.lng, pl.width, pl.height),
+                        kind = MapPlacementKind.BUBBLE,
+                        postCount = b.postCount
+                    )
+                }
+                resolveMapPlacement(candidates, width, height, camera.zoom).forEach { c ->
+                    placeables[c.index].placeRelative(c.rect.left, c.rect.top)
                 }
             }
         }
     }
+}
+
+// ---------------- Hàm thuần: phép chiếu + luật xếp chỗ (unit test được) ----------------
+
+/** Mỗi bậc zoom gấp đôi tỉ lệ; ở zoom 5.0 có 28dp cho mỗi độ vĩ tuyến. */
+internal fun mapScaleForZoom(zoom: Float, density: Float): Float = 28f * density * 2f.pow(zoom - 5f)
+
+/** Toạ độ -> pixel; tâm camera ở giữa vùng KHÔNG bị header che (topInsetPx). */
+internal fun projectLatLngToPixel(
+    lat: Double,
+    lng: Double,
+    cam: MapCameraState,
+    widthPx: Float,
+    heightPx: Float,
+    density: Float,
+    topInsetPx: Float = 0f
+): Offset {
+    val scale = mapScaleForZoom(cam.zoom, density)
+    val cosLat = cos(Math.toRadians(cam.centerLat.coerceIn(-75.0, 75.0))).toFloat()
+    val dx = (lng - cam.centerLng).toFloat() * scale * cosLat
+    val dy = (cam.centerLat - lat).toFloat() * scale
+    val visibleTop = topInsetPx.coerceIn(0f, heightPx)
+    return Offset(x = widthPx / 2f + dx, y = visibleTop + (heightPx - visibleTop) / 2f + dy)
+}
+
+internal enum class MapPlacementKind { LANDMARK_WITH_POSTS, BUBBLE, LANDMARK_EMPTY }
+
+/** Dưới mức zoom này lớp phường là lối vào chính nên bong bóng phường được ưu tiên hơn địa danh. */
+internal const val LANDMARK_PRIORITY_ZOOM = 11f
+
+/**
+ * Thứ tự ưu tiên khi chồng nhau (quyết định 06/11):
+ * - zoom < 11: bong bóng > địa danh có bài > địa danh 0 bài
+ * - zoom ≥ 11: địa danh có bài > bong bóng > địa danh 0 bài
+ */
+internal fun placementPriority(kind: MapPlacementKind, zoom: Float): Int = when (kind) {
+    MapPlacementKind.BUBBLE -> if (zoom < LANDMARK_PRIORITY_ZOOM) 0 else 1
+    MapPlacementKind.LANDMARK_WITH_POSTS -> if (zoom < LANDMARK_PRIORITY_ZOOM) 1 else 0
+    MapPlacementKind.LANDMARK_EMPTY -> 2
+}
+
+internal data class MapPlacementCandidate(
+    val index: Int,
+    val rect: IntRect,
+    val kind: MapPlacementKind,
+    val postCount: Int
+)
+
+/**
+ * Đặt lần lượt theo [placementPriority] (cùng mức thì nhiều bài trước); mục nào đè lên mục đã đặt
+ * hoặc nằm ngoài màn hình thì ẩn.
+ */
+internal fun resolveMapPlacement(
+    candidates: List<MapPlacementCandidate>,
+    width: Int,
+    height: Int,
+    zoom: Float
+): List<MapPlacementCandidate> {
+    val placed = mutableListOf<MapPlacementCandidate>()
+    candidates
+        .sortedWith(compareBy<MapPlacementCandidate>({ placementPriority(it.kind, zoom) }, { -it.postCount }))
+        .forEach { c ->
+            val onScreen = c.rect.left in -c.rect.width..width && c.rect.top in -c.rect.height..height
+            if (onScreen && placed.none { it.rect.overlaps(c.rect) }) placed += c
+        }
+    return placed
 }
