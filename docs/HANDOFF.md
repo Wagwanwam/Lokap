@@ -69,3 +69,15 @@
    - `SampleData.kt`: 12 bài có `publicVisibleAt` khác null trong khi đặc tả chỉ cần 2 bài public đang hẹn giờ. Kiểm tra: bài FRIENDS/DIRECT phải `publicVisibleAt = null`; chỉ đúng 2 bài PUBLIC có `publicVisibleAt > NOW`.
    - Bỏ khối dependencies Gemini đề xuất (BOM 2025.02.00), giữ version catalog hiện tại.
 5. Chạy `DesignSystemPreview`, chụp màn hình cho người dùng xem.
+
+## Việc cho Claude Code sau prompt 02 (component + điều hướng + Camera)
+Claude (app) đã tách 17 file Gemini vào project (`core/designsystem/component/`, `core/navigation/`, `feature/camera/`), câu trả lời gốc ở `docs/gemini/02-component-camera.md`. Đã sửa tay 2 chỗ Gemini làm hỏng:
+- `AndroidManifest.xml`: Gemini xoá mất theme `@style/Theme.Lokap` (splash nền tối), backup rules và `adjustResize`. Đã khôi phục bản gốc và chỉ thêm quyền CAMERA, INTERNET, `uses-feature camera required=false`.
+- `MainActivity.kt`: giữ `SystemBarStyle.dark` + nền đen; hiển thị `AppNavHost()`; bỏ `safeDrawingPadding` vì các màn hình tự `systemBarsPadding()`.
+
+Việc cần làm:
+1. Thêm vào version catalog + `app/build.gradle.kts` (kiểm tra phiên bản ổn định mới nhất tương thích Kotlin 2.2.10 / AGP 9.3, không đoán): navigation-compose, plugin `org.jetbrains.kotlin.plugin.serialization` + kotlinx-serialization-json, camera-core/camera2/lifecycle/view (cùng một phiên bản), coil3 coil-compose + coil-network-okhttp, lifecycle-viewmodel-compose, lifecycle-runtime-compose.
+2. Build, sửa lỗi biên dịch. Không đổi giao diện khi sửa lỗi.
+3. Rà nhanh: không hard-code màu (đã grep: sạch), Preview không gọi CameraX, quyền camera đủ 3 trạng thái.
+4. Chạy trên emulator Pixel 10: cấp quyền camera, chụp 1 ảnh (phải sang màn Composer placeholder), vuốt lên → Feed placeholder, bấm các nút trên thanh trên. Chụp màn hình Camera + 2 Preview (RegionCard, PhotoCard) vào `docs/screenshots/` để làm slide tuần 2.
+5. Commit: `feat: component dùng chung, điều hướng, màn hình Camera`.
