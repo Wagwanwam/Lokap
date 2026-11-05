@@ -29,17 +29,12 @@ import vn.nhom2.lokap.core.designsystem.component.EmptyState
 import vn.nhom2.lokap.core.designsystem.component.GhostButton
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.feature.camera.CameraRoute
+import vn.nhom2.lokap.feature.composer.composerScreen
+import vn.nhom2.lokap.feature.feed.feedScreen
+import vn.nhom2.lokap.feature.postdetail.postDetailScreen
 
 private const val NAV_ANIM_DURATION = 320
 
-/** Bấm nhanh 2 lần không mở trùng màn hình. */
-private fun NavHostController.navigateSingleTop(route: Route) =
-    navigate(route) { launchSingleTop = true }
-
-/** Bấm "Quay lại" nhanh 2 lần không pop luôn màn Camera (gây màn trắng). */
-private fun NavHostController.popBackStackSafely() {
-    if (previousBackStackEntry != null) popBackStack()
-}
 
 @Composable
 fun AppNavHost(
@@ -88,47 +83,9 @@ fun AppNavHost(
             )
         }
 
-        composable<Route.Feed>(
-            enterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Up,
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                )
-            },
-            exitTransition = {
-                slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Down,
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                )
-            },
-            popEnterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Up,
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                )
-            },
-            popExitTransition = {
-                slideOutOfContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Down,
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                )
-            }
-        ) {
-            PlaceholderScreen(
-                title = "Bảng tin Bạn bè & Khám phá",
-                subtitle = "Đang xây dựng",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        feedScreen(navController)
 
-        composable<Route.Composer> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.Composer>()
-            PlaceholderScreen(
-                title = "Đăng ảnh mới",
-                subtitle = "Đang xây dựng · File: ${route.imagePath.substringAfterLast('/')}",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        composerScreen(navController)
 
         composable<Route.Map> {
             PlaceholderScreen(
@@ -153,13 +110,7 @@ fun AppNavHost(
             )
         }
 
-        composable<Route.PostDetail> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.PostDetail>()
-            PlaceholderScreen(
-                title = "Chi tiết bài đăng (${route.id})",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        postDetailScreen(navController)
 
         composable<Route.Profile> { backStackEntry ->
             val route = backStackEntry.toRoute<Route.Profile>()

@@ -12,6 +12,8 @@ navigation = "2.10.2"
 # Kotlin 2.2.10: serialization 1.10+ và Coil 3.4+ được build bằng Kotlin 2.3/2.4 → giữ bản cuối build bằng Kotlin 2.2
 kotlinxSerialization = "1.9.0"
 camerax = "1.6.2"
+# Khớp kotlinx-coroutines-core mà lifecycle/compose đang kéo về
+coroutines = "1.10.2"
 coil = "3.3.0"
 
 [libraries]
@@ -41,6 +43,7 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

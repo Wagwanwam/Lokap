@@ -81,3 +81,15 @@ Việc cần làm:
 3. Rà nhanh: không hard-code màu (đã grep: sạch), Preview không gọi CameraX, quyền camera đủ 3 trạng thái.
 4. Chạy trên emulator Pixel 10: cấp quyền camera, chụp 1 ảnh (phải sang màn Composer placeholder), vuốt lên → Feed placeholder, bấm các nút trên thanh trên. Chụp màn hình Camera + 2 Preview (RegionCard, PhotoCard) vào `docs/screenshots/` để làm slide tuần 2.
 5. Commit: `feat: component dùng chung, điều hướng, màn hình Camera`.
+
+## Việc cho Claude Code sau prompt 03 (Feed, Soạn bài, Chi tiết bài)
+Claude (app) đã tách 11 file mới (không ghi đè file cũ): `data/fake/SampleData2.kt`, `data/fake/FakePostStore.kt`, `feature/feed/*`, `feature/composer/*`, `feature/postdetail/*`. Câu trả lời gốc: `docs/gemini/03-feed-composer.md`. Gemini KHÔNG sửa AppNavHost; phần cần nối:
+- Import: `vn.nhom2.lokap.feature.feed.feedScreen`, `vn.nhom2.lokap.feature.composer.composerScreen`, `vn.nhom2.lokap.feature.postdetail.postDetailScreen`.
+- Trong `AppNavHost.kt`, thay 3 `composable<Route.Feed|Composer|PostDetail> { PlaceholderScreen(...) }` bằng `feedScreen(navController)`, `composerScreen(navController)`, `postDetailScreen(navController)`. Giữ nguyên launchSingleTop và các chỉnh sửa trước.
+
+Việc cần làm:
+1. Nối 3 màn hình vào AppNavHost như trên.
+2. Build, sửa lỗi biên dịch (Gemini có thể gọi sai tên trong SampleData/component — sửa theo tên thật, không đổi giao diện).
+3. Kiểm tra logic: Khám phá KHÔNG hiện bài public đang hẹn giờ; Composer chỉ hiện Hẹn giờ khi Public; chọn "Địa điểm cụ thể" mà chưa chọn địa điểm thì không cho Gửi; Gửi xong quay về Camera và bài mới hiện ở Feed với "Đang gửi…" rồi thành đã gửi.
+4. Chạy emulator: Camera → chụp → Composer → Gửi → vuốt lên Feed thấy bài; mở Chi tiết bài; thử Báo cáo/Chặn. Chụp màn Feed (2 tab), Composer, Chi tiết bài vào `docs/screenshots/`.
+5. Commit `feat: Feed, Soạn bài, Chi tiết bài (dữ liệu giả)`.
