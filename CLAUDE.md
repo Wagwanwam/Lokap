@@ -122,3 +122,10 @@ Phân trang bằng cursor (created_at, id), không dùng offset.
 - Dùng **điện thoại Android thật** qua USB (`adb devices` phải thấy máy). **Không bật emulator**: laptop 16 GB RAM không gánh nổi emulator + Gradle (build từng mất 27 phút).
 - Trước khi chạy thử: `adb devices`. Không thấy máy thì dừng lại, nhắc người dùng kiểm tra cáp, USB debugging và hộp thoại "Cho phép gỡ lỗi USB" trên điện thoại; không tự bật emulator thay thế.
 - Chụp màn hình bằng `adb exec-out screencap -p`, lưu vào `docs/screenshots/`.
+
+
+## Quy chuẩn giao diện tối giản (chốt 06/11)
+- Bớt chữ: bỏ dòng phụ/giải thích; tiêu đề chỉ giữ danh từ chính (ví dụ chỉ icon vị trí + "Đà Nẵng").
+- Ưu tiên icon hơn chữ; icon ≥ 24dp, nút chính 28–32dp, vùng chạm ≥ 48dp; luôn có contentDescription tiếng Việt.
+- Chữ trên ảnh căn giữa, có nền mờ tối phía sau để đọc được.
+- Áp dụng cho mọi màn mới và khi sửa màn cũ.

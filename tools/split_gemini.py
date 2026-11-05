@@ -52,7 +52,8 @@ def main() -> int:
         while lines and re.match(r"^\s*//\s*=+\s*$", lines[0]):
             lines.pop(0)  # vạch ngăn "// ====" ngay sau dòng FILE
         rest = "\n".join(lines)
-        if not path.startswith("app/"):
+        norm = os.path.normpath(path).replace("\\", "/")
+        if os.path.isabs(path) or ".." in path.replace("\\", "/").split("/") or not norm.startswith("app/"):
             print(f"  ! bỏ qua đường dẫn lạ: {path}")
             continue
         exists = os.path.exists(path)

@@ -137,3 +137,63 @@ Claude (app) đã ghi 10 file mới: `data/fake/FakeChatStore.kt`, `feature/inbo
 4. Unit test cho các luật ở bước 3.
 5. Chạy trên điện thoại: Camera → nút tin nhắn → mở chat → gửi tin; Feed → chuông → thông báo. Chụp ảnh vào `docs/screenshots/`.
 6. Commit `feat: Tin nhắn, Chat 1-1, Thông báo (dữ liệu giả)`.
+
+
+## Việc cho Claude Code sau prompt 07 (Onboarding, Đăng nhập/Đăng ký, Thiết lập hồ sơ)
+
+18 file đã ghi vào project (Claude app tách từ `docs/gemini/07-vao-app.md`, lấy thẳng từ khối code nên lần này không mất generic). Claude app đã sửa sẵn: `FakeAuthStore.kt` import sai `core.model.User/SampleData` → `domain.model.User` (SampleData cùng package). `tools/split_gemini.py` đã chặn đường dẫn có `..` hoặc tuyệt đối.
+
+1. **Nối AppNavHost**: đăng ký `onboardingScreen`, `loginScreen`, `registerScreen`, `forgotPasswordScreen`, `setupProfileScreen`; dùng `rememberStartDestination()` (null → chưa vẽ NavHost, nền đen như cũ).
+2. **Sửa `rememberStartDestination` (lỗi logic quan trọng)**: bản Gemini dùng `remember(onboardingDone, currentUser)` nên startDestination **đổi mỗi khi đăng nhập/đăng xuất/xong onboarding** → NavHost dựng lại graph, back stack bị reset, có thể điều hướng 2 lần. Phải chốt **một lần** lúc mở app (đọc `.value` trong `remember {}`), sau đó chỉ điều hướng bằng `navigate(...){ popUpTo(0) }`. Bỏ mẹo `LaunchedEffect` + `isInitialized` nếu không cần.
+3. **Manifest**: chỉ thêm `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `POST_NOTIFICATIONS`. Giữ nguyên `uses-feature android.hardware.camera required=false` đang có, **không** thay bằng `camera.any` như Gemini gợi ý. Không thêm dependency nếu build đã có activity-compose và lifecycle-runtime-compose.
+4. **Đăng xuất**: nối nút Đăng xuất ở Cài đặt với `FakeAuthStore.logout()` rồi `navigate(LoginRoute){ popUpTo(0) }`. Xoá tài khoản ("XOÁ") cũng về Login.
+5. **Kiểm tra logic**:
+   - Đăng nhập sai: chỉ báo "Email hoặc mật khẩu không đúng", không nói sai ô nào. `offline@lokap.vn` giả mất mạng → OfflineBanner + thử lại.
+   - Quên mật khẩu: luôn báo "Đã gửi link…" kể cả email không tồn tại.
+   - Lỗi ô chỉ hiện sau khi rời ô hoặc bấm nút; nút khoá + loading khi gửi, bấm 2 lần không gọi 2 lần.
+   - Mật khẩu ≥ 8 ký tự và có cả chữ và số; nhập lại phải khớp; chưa tích điều khoản thì không gửi.
+   - Username 3–20 ký tự `[a-z0-9._]`, tự chuyển chữ thường, debounce 400ms, "lokap" và username trong SampleData báo trùng; huỷ job cũ khi gõ tiếp (không để kết quả cũ ghi đè kết quả mới).
+   - Tên hiển thị 2–30 ký tự sau trim.
+   - Quyền: chỉ cho COARSE → hiện "Chỉ đăng được ở mức Tỉnh trở lên"; từ chối hẳn → nút "Mở Cài đặt"; Android < 13 ẩn/tự coi như đã cấp thông báo. Không vòng lặp xin lại quyền (lỗi từng gặp ở Camera).
+   - Sau đăng nhập/đăng ký xong, bấm Back ở Camera phải thoát app, không quay lại Login.
+   - Màu, icon: chỉ `LokapTheme.colors`, chữ trên nền hồng là `onPrimary`; icon chỉ trong material-icons-core.
+6. **Unit test**: `AuthValidators` (email, mật khẩu, username, tên) và `FakeAuthStore` (sai mật khẩu, email trùng, username trùng). Gọi `simulateOffline` thì nhớ reset sau test vì là object dùng chung.
+7. Chạy trên điện thoại thật, chụp màn hình vào `docs/screenshots/` (onboarding 3 trang, xin quyền, login, register có lỗi, quên mật khẩu, setup profile).
+8. Commit: `feat: Onboarding, Đăng nhập/Đăng ký, Thiết lập hồ sơ (dữ liệu giả)`; commit riêng `docs: prompt 07, chặn đường dẫn lạ trong split_gemini`.
+
+Ghi chú: trạng thái đăng nhập giả chỉ nằm trong bộ nhớ, nên mỗi lần mở lại app sẽ thấy onboarding. Giữ vậy cho buổi demo; tuần 3 phiên Supabase sẽ lưu thật.
+
+
+## Quyết định 06/11 (trả lời câu hỏi sau prompt 06)
+1. **Bản đồ**: địa danh **0 bài nhường chỗ** cho bong bóng phường; địa danh có bài vẫn ưu tiên. Sửa + thêm unit test (Đà Nẵng zoom 9–11 phải thấy bong bóng phường).
+2. **Dữ liệu giả**: bỏ/sửa thông báo "Đỗ Bảo Ngọc gửi lời mời kết bạn" vì người này đã là bạn (đổi sang loại khác, ví dụ thả cảm xúc).
+3. **Lặp chú thích ở chat**: giao cho Gemini (prompt 08). Claude Code **không sửa** `FeedScreen.kt`, `PhotoCard.kt`, `ChatScreen.kt` cho tới khi Claude app tách xong 08, để tránh ghi đè.
+4. Ảnh chụp chat có avatar kèm số "13" đè lên tin: đó là bong bóng chat head của Messenger trên điện thoại, không phải lỗi app. Tắt bong bóng chat Messenger trước khi chụp màn hình.
+
+Commit riêng: `fix: địa danh 0 bài nhường bong bóng phường, sửa dữ liệu thông báo`.
+
+
+## Việc cho Claude Code sau prompt 08 (giao diện tối giản: Feed, PhotoCard, Chat)
+
+Làm **sau khi đã commit 07 và mục "Quyết định 06/11"**. Câu trả lời Gemini ở `docs/gemini/08-toi-gian-ui.md` (Claude app đã kiểm: chỉ icon gói core, không màu cứng, chữ ký hàm public và số Preview giữ nguyên).
+
+1. Ghi đè đúng 3 file: `python tools/split_gemini.py docs/gemini/08-toi-gian-ui.md --write --force` (chỉ có 3 file: FeedScreen.kt, PhotoCard.kt, ChatScreen.kt). Xem `git diff --stat` để chắc không file nào khác bị đổi.
+2. Rà `git diff` từng file: chỉ đổi giao diện, không đổi logic/Action/điều hướng. Chỗ nào Gemini lỡ xoá hành vi (ví dụ onClick, chặn bấm 2 lần, cuộn tới tin mới nhất, khoá ô nhập khi hết là bạn) thì khôi phục.
+3. **Khoá chat chỉ còn icon Lock** là quá tối giản: người dùng không hiểu vì sao bị khoá. Giữ icon + chữ ngắn "Chưa là bạn" (quy chuẩn: giữ chữ khi icon dễ hiểu nhầm).
+4. Kiểm tra trên điện thoại:
+   - Khám phá: tiêu đề chỉ còn icon vị trí + "Đà Nẵng", không còn dòng phụ.
+   - Thẻ ảnh: tên + thời gian đọc được trên ảnh sáng (có nền mờ), caption căn giữa, hàng tác giả và chip vị trí thẳng hàng.
+   - Chat: tin có ảnh Locket chỉ hiện caption một lần.
+   - Icon ≥ 24dp, vùng chạm ≥ 48dp.
+5. **Tắt bong bóng chat Messenger trên điện thoại trước khi chụp.** Chụp lại `05-feed-ban-be`, `06-feed-kham-pha`, `21-chat` (ghi đè ảnh cũ).
+6. Commit: `style: giao diện tối giản cho Feed, thẻ ảnh, Chat`.
+
+
+## Việc cho Claude Code sau prompt 09 (màn Giới thiệu + Xin quyền tối giản)
+
+Prompt `docs/prompts/09-xin-quyen.md` gửi kèm `OnboardingScreen.kt` **tại thời điểm 00:55 06/11** (lúc Claude Code đang nối 07). Khi Claude app báo đã có `docs/gemini/09-xin-quyen.md`:
+1. Trước khi ghi đè, lưu bản hiện tại: nếu sau 00:55 bạn đã sửa `OnboardingScreen.kt` thì ghi lại các chỗ sửa để áp lại lên bản mới.
+2. `python tools/split_gemini.py docs/gemini/09-xin-quyen.md --write --force` (chỉ 1 file). Rà `git diff`: logic xin quyền (FINE + COARSE, mở Cài đặt, Android 13+, không vòng lặp xin lại) phải còn nguyên.
+3. Người dùng chốt: **bỏ hết chữ giải thích**, kể cả "Chỉ lấy vị trí lúc chụp". Chỉ còn icon + "Camera / Vị trí / Thông báo"; đã cấp = viền hồng + ✓ hồng; bấm cả ô để cấp.
+4. Kiểm tra TalkBack đọc được trạng thái qua contentDescription ("Camera, đã cấp").
+5. Chụp lại `23-onboarding-1..3`, `24-xin-quyen`. Commit: `style: màn giới thiệu và xin quyền tối giản`.
