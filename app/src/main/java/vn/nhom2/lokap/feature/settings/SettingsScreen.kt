@@ -1,5 +1,7 @@
 package vn.nhom2.lokap.feature.settings
 
+import vn.nhom2.lokap.feature.auth.LoginRoute
+import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -83,7 +85,8 @@ import vn.nhom2.lokap.domain.model.User
 fun NavGraphBuilder.settingsScreen(navController: NavController) {
     composable<Route.Settings> {
         SettingsRoute(
-            onNavigateBack = { navController.popBackStackSafely() }
+            onNavigateBack = { navController.popBackStackSafely() },
+            onNavigateToLogin = { navController.navigateClearingBackStack(LoginRoute) }
         )
     }
 }
@@ -91,6 +94,7 @@ fun NavGraphBuilder.settingsScreen(navController: NavController) {
 @Composable
 fun SettingsRoute(
     onNavigateBack: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -127,6 +131,7 @@ fun SettingsRoute(
         viewModel.effects.collect { effect ->
             when (effect) {
                 SettingsEffect.NavigateBack -> onNavigateBack()
+                SettingsEffect.NavigateToLogin -> onNavigateToLogin()
                 SettingsEffect.RequestNotificationPermissionOrOpenSettings -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)

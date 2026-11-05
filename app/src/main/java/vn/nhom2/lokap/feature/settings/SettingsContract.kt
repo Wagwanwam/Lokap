@@ -53,6 +53,8 @@ sealed interface SettingsAction {
 
 sealed interface SettingsEffect {
     data object NavigateBack : SettingsEffect
+    /** Đăng xuất hoặc xoá tài khoản xong: về Đăng nhập, xoá back stack. */
+    data object NavigateToLogin : SettingsEffect
     data object RequestNotificationPermissionOrOpenSettings : SettingsEffect
     data class ShowMessage(val message: String) : SettingsEffect
 }

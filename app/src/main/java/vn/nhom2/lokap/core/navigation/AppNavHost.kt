@@ -1,5 +1,11 @@
 package vn.nhom2.lokap.core.navigation
 
+import vn.nhom2.lokap.feature.auth.setup.setupProfileScreen
+import vn.nhom2.lokap.feature.auth.forgotPasswordScreen
+import vn.nhom2.lokap.feature.auth.registerScreen
+import vn.nhom2.lokap.feature.auth.loginScreen
+import vn.nhom2.lokap.feature.onboarding.onboardingScreen
+import vn.nhom2.lokap.feature.launch.rememberStartDestination
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -50,9 +56,10 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
 ) {
+    val startDestination = rememberStartDestination()
     NavHost(
         navController = navController,
-        startDestination = Route.Camera,
+        startDestination = startDestination,
         modifier = modifier
             .fillMaxSize()
             .background(LokapTheme.colors.background),
@@ -91,6 +98,16 @@ fun AppNavHost(
                 onNavigateToProfile = { userId -> navController.navigateSingleTop(Route.Profile(userId)) }
             )
         }
+
+        onboardingScreen(navController)
+
+        loginScreen(navController)
+
+        registerScreen(navController)
+
+        forgotPasswordScreen(navController)
+
+        setupProfileScreen(navController)
 
         feedScreen(navController)
 

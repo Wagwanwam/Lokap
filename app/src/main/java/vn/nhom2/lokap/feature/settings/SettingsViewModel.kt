@@ -1,5 +1,6 @@
 package vn.nhom2.lokap.feature.settings
 
+import vn.nhom2.lokap.data.fake.FakeAuthStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.channels.Channel
@@ -111,8 +112,10 @@ class SettingsViewModel : ViewModel() {
 
             SettingsAction.ConfirmLogout -> {
                 _uiState.update { it.copy(showLogoutDialog = false) }
-                _effects.trySend(SettingsEffect.ShowMessage("Đã đăng xuất khỏi tài khoản"))
-                _effects.trySend(SettingsEffect.NavigateBack)
+                viewModelScope.launch {
+                    FakeAuthStore.logout()
+                    _effects.send(SettingsEffect.NavigateToLogin)
+                }
             }
 
             SettingsAction.OpenDeleteAccountDialog -> {
@@ -149,7 +152,10 @@ class SettingsViewModel : ViewModel() {
                 _effects.trySend(
                     SettingsEffect.ShowMessage("Tài khoản, ảnh và tin nhắn của bạn đã được xoá vĩnh viễn")
                 )
-                _effects.trySend(SettingsEffect.NavigateBack)
+                viewModelScope.launch {
+                    FakeAuthStore.logout()
+                    _effects.send(SettingsEffect.NavigateToLogin)
+                }
             }
         }
     }
