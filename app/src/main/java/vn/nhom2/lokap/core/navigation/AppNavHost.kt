@@ -31,10 +31,13 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.feature.camera.CameraRoute
 import vn.nhom2.lokap.feature.composer.composerScreen
 import vn.nhom2.lokap.feature.feed.feedScreen
+import vn.nhom2.lokap.feature.friends.friendsScreen
 import vn.nhom2.lokap.feature.landmark.landmarkScreen
 import vn.nhom2.lokap.feature.map.mapScreen
 import vn.nhom2.lokap.feature.postdetail.postDetailScreen
+import vn.nhom2.lokap.feature.profile.profileScreen
 import vn.nhom2.lokap.feature.region.regionAlbumScreen
+import vn.nhom2.lokap.feature.settings.settingsScreen
 
 private const val NAV_ANIM_DURATION = 320
 
@@ -98,20 +101,9 @@ fun AppNavHost(
 
         postDetailScreen(navController)
 
-        composable<Route.Profile> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.Profile>()
-            PlaceholderScreen(
-                title = "Hồ sơ cá nhân (${route.userId ?: "Tôi"})",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        profileScreen(navController)
 
-        composable<Route.Friends> {
-            PlaceholderScreen(
-                title = "Danh sách bạn bè",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        friendsScreen(navController)
 
         composable<Route.Notifications> {
             PlaceholderScreen(
@@ -135,12 +127,7 @@ fun AppNavHost(
             )
         }
 
-        composable<Route.Settings> {
-            PlaceholderScreen(
-                title = "Cài đặt",
-                onBack = { navController.popBackStackSafely() }
-            )
-        }
+        settingsScreen(navController)
     }
 }
 
