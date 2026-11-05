@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App chỉ có dark mode. windowBackground là nền của splash (cả Android 12+ khi không đặt
+         windowSplashScreenBackground) và nền cửa sổ trước khi Compose vẽ, tránh chớp trắng. -->
+    <style name="Theme.Lokap" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/lokap_background</item>
+    </style>
+</resources>
