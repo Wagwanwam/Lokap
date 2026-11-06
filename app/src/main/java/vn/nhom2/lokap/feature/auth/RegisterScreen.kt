@@ -13,12 +13,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -196,7 +201,11 @@ fun RegisterScreen(
                                 tint = if (uiState.emailError != null) colors.error else colors.primary
                             )
                         },
-                        isError = uiState.emailError != null,
+                        // Kiểm tra email trùng ngay khi gõ (debounce trong RegisterViewModel)
+                        trailingIcon = {
+                            EmailAvailabilityTrailingIcon(availability = uiState.emailAvailability)
+                        },
+                        isError = uiState.emailError != null || uiState.emailAvailability == EmailAvailability.TAKEN,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
@@ -447,6 +456,41 @@ private fun PasswordStrengthBar(strength: PasswordStrength) {
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
                 color = animatedColor
+            )
+        }
+    }
+}
+
+/** Biểu tượng cuối ô email: đang kiểm tra / dùng được / đã có người dùng. */
+@Composable
+private fun EmailAvailabilityTrailingIcon(availability: EmailAvailability) {
+    when (availability) {
+        EmailAvailability.IDLE -> Unit
+        EmailAvailability.CHECKING -> {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(20.dp)
+                    .semantics { contentDescription = "Đang kiểm tra email" },
+                strokeWidth = 2.dp,
+                color = LokapTheme.colors.primary
+            )
+        }
+
+        EmailAvailability.AVAILABLE -> {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = "Email dùng được",
+                tint = LokapTheme.colors.success,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        EmailAvailability.TAKEN -> {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "Email đã được đăng ký",
+                tint = LokapTheme.colors.error,
+                modifier = Modifier.size(24.dp)
             )
         }
     }

@@ -52,6 +52,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -973,6 +977,11 @@ private fun PermissionMinimalCard(
 ) {
     val colors = LokapTheme.colors
     val primaryColor = colors.primary
+    val statusAccessibilityText = when {
+        isGranted -> "$title, đã cấp"
+        isDenied -> "$title, bị từ chối, bấm để mở cài đặt"
+        else -> "$title, chưa cấp, bấm để cấp quyền"
+    }
 
     Surface(
         shape = RoundedCornerShape(22.dp),
@@ -986,6 +995,12 @@ private fun PermissionMinimalCard(
             .aspectRatio(0.95f)
             .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick)
+            // Gộp cả ô thành một mục để TalkBack chỉ đọc tên + trạng thái một lần
+            // (không có dòng này sẽ đọc "Camera, Camera, Đã cấp")
+            .clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = statusAccessibilityText
+            }
     ) {
         Box(
             modifier = Modifier

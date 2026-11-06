@@ -459,6 +459,9 @@ fun MapScreen(
     val shapes = LokapTheme.shapes
     val density = LocalDensity.current
     var headerHeightPx by remember { mutableIntStateOf(0) }
+    // Đáy bản đồ bị thanh tab của app + thanh điều hướng hệ thống che: tâm bản đồ nằm giữa phần còn thấy
+    val bottomBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+        LokapBottomNavBarHeight
 
     Box(
         modifier = modifier
@@ -492,17 +495,20 @@ fun MapScreen(
                     onBubbleClick = { onAction(MapAction.OnBubbleClick(it)) },
                     onLandmarkClick = { onAction(MapAction.OnLandmarkClick(it)) },
                     modifier = Modifier.fillMaxSize(),
-                    topInset = with(density) { headerHeightPx.toDp() }
+                    topInset = with(density) { headerHeightPx.toDp() },
+                    bottomInset = bottomBarHeight
                 )
             }
         }
 
+        // Chỉ đệm cạnh trên + hai bên: systemBarsPadding() cộng cả chiều cao thanh điều hướng
+        // vào header nên tâm bản đồ bị đẩy xuống, bong bóng TP.HCM nằm dưới nút ◀ ● ■.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .onSizeChanged { headerHeightPx = it.height }
-                .systemBarsPadding()
-                .padding(horizontal = spacing.md, vertical = spacing.sm),
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .padding(horizontal = spacing.lg, vertical = spacing.sm),
             verticalArrangement = Arrangement.spacedBy(spacing.sm)
         ) {
             if (uiState.isOffline) {

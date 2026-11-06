@@ -44,6 +44,9 @@ enum class MainTab(val title: String) {
     PROFILE("Hồ sơ")
 }
 
+/** Chiều cao hàng tab (chưa tính thanh điều hướng hệ thống); màn nằm dưới thanh này dùng để chừa chỗ. */
+val LokapBottomNavBarHeight = 64.dp
+
 @Composable
 fun LokapBottomNavBar(
     currentTab: MainTab,
@@ -71,7 +74,7 @@ fun LokapBottomNavBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .height(LokapBottomNavBarHeight)
                     .padding(horizontal = spacing.xs),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically

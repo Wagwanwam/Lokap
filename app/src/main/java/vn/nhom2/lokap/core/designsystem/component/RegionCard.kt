@@ -11,11 +11,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
@@ -35,7 +37,7 @@ fun RegionCard(
     val shapes = LokapTheme.shapes
     val isPreview = LocalInspectionMode.current
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(220.dp)
@@ -45,6 +47,9 @@ fun RegionCard(
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(spacing.lg)
     ) {
+        // Thẻ hẹp (Hộ chiếu vùng miền ở Hồ sơ, rộng ~210dp): thu nhỏ chồng ảnh và tên,
+        // nếu không chồng ảnh đè lên "ĐÃ ĐẾN" và tên khu vực.
+        val compact = maxWidth < 280.dp
 
         val polaroidAngles = listOf(-6f, 6f, 0f)
         val polaroidOffsets = listOf(
@@ -52,16 +57,28 @@ fun RegionCard(
             14.dp to (-6).dp,
             0.dp to 0.dp
         )
+        // Chỉ vẽ đúng số ảnh đang có, ảnh đầu tiên nằm trên cùng.
+        // Luôn vẽ 3 khung thì khu vực có 1–2 ảnh lộ khung trước trống (ô xám).
+        val stack: List<String?> = photoUrls.take(3).ifEmpty { listOf(null) }
 
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = spacing.sm)
+                .graphicsLayer {
+                    if (compact) {
+                        scaleX = 0.72f
+                        scaleY = 0.72f
+                        transformOrigin = TransformOrigin(1f, 0.5f)
+                    }
+                }
         ) {
-            for (i in 0 until 3) {
-                val url = photoUrls.getOrNull(i)
-                val angle = polaroidAngles[i]
-                val (offsetX, offsetY) = polaroidOffsets[i]
+            // Vẽ từ sau ra trước; slot 2 là khung trước (thẳng, không lệch).
+            for (depth in stack.indices.reversed()) {
+                val url = stack[depth]
+                val slot = 2 - depth
+                val angle = polaroidAngles[slot]
+                val (offsetX, offsetY) = polaroidOffsets[slot]
                 val polaroidShape = RoundedCornerShape(10.dp)
 
                 Box(
@@ -132,7 +149,11 @@ fun RegionCard(
 
         Text(
             text = regionName,
-            style = MaterialTheme.typography.displayMedium,
+            style = if (compact) {
+                MaterialTheme.typography.displayMedium.copy(fontSize = 24.sp, lineHeight = 30.sp)
+            } else {
+                MaterialTheme.typography.displayMedium
+            },
             fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
             color = colors.textPrimary,
             modifier = Modifier.align(Alignment.BottomStart)

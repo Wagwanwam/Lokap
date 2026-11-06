@@ -90,8 +90,10 @@ fun LokapMap(
     onBubbleClick: (MapBubble) -> Unit,
     onLandmarkClick: (Landmark) -> Unit,
     modifier: Modifier = Modifier,
-
-    topInset: Dp = 0.dp
+    /** Chiều cao phần header/thanh lọc phủ trên bản đồ: tâm camera nằm giữa phần còn lại. */
+    topInset: Dp = 0.dp,
+    /** Phần đáy bị thanh điều hướng hệ thống che (bong bóng không nằm dưới nút ◀ ● ■). */
+    bottomInset: Dp = 0.dp
 ) {
     FakeMapCanvas(
         bubbles = bubbles,
@@ -101,7 +103,8 @@ fun LokapMap(
         onBubbleClick = onBubbleClick,
         onLandmarkClick = onLandmarkClick,
         modifier = modifier,
-        topInset = topInset
+        topInset = topInset,
+        bottomInset = bottomInset
     )
 }
 
@@ -114,11 +117,13 @@ private fun FakeMapCanvas(
     onBubbleClick: (MapBubble) -> Unit,
     onLandmarkClick: (Landmark) -> Unit,
     modifier: Modifier = Modifier,
-    topInset: Dp = 0.dp
+    topInset: Dp = 0.dp,
+    bottomInset: Dp = 0.dp
 ) {
     val colors = LokapTheme.colors
     val density = LocalDensity.current.density
     val topInsetPx = topInset.value * density
+    val bottomInsetPx = bottomInset.value * density
     val currentCamera by rememberUpdatedState(camera)
     val currentOnCameraChange by rememberUpdatedState(onCameraChange)
 
@@ -130,7 +135,7 @@ private fun FakeMapCanvas(
         cam: MapCameraState,
         widthPx: Float,
         heightPx: Float
-    ): Offset = projectLatLngToPixel(lat, lng, cam, widthPx, heightPx, density, topInsetPx)
+    ): Offset = projectLatLngToPixel(lat, lng, cam, widthPx, heightPx, density, topInsetPx, bottomInsetPx)
 
     Box(
         modifier = modifier
@@ -299,6 +304,10 @@ private fun FakeMapCanvas(
 
 internal fun mapScaleForZoom(zoom: Float, density: Float): Float = 28f * density * 2f.pow(zoom - 5f)
 
+/**
+ * Toạ độ -> pixel; tâm camera ở giữa vùng KHÔNG bị che:
+ * phía trên là header (topInsetPx), phía dưới là thanh điều hướng hệ thống (bottomInsetPx).
+ */
 internal fun projectLatLngToPixel(
     lat: Double,
     lng: Double,
@@ -306,14 +315,16 @@ internal fun projectLatLngToPixel(
     widthPx: Float,
     heightPx: Float,
     density: Float,
-    topInsetPx: Float = 0f
+    topInsetPx: Float = 0f,
+    bottomInsetPx: Float = 0f
 ): Offset {
     val scale = mapScaleForZoom(cam.zoom, density)
     val cosLat = cos(Math.toRadians(cam.centerLat.coerceIn(-75.0, 75.0))).toFloat()
     val dx = (lng - cam.centerLng).toFloat() * scale * cosLat
     val dy = (cam.centerLat - lat).toFloat() * scale
     val visibleTop = topInsetPx.coerceIn(0f, heightPx)
-    return Offset(x = widthPx / 2f + dx, y = visibleTop + (heightPx - visibleTop) / 2f + dy)
+    val visibleBottom = (heightPx - bottomInsetPx).coerceIn(visibleTop, heightPx)
+    return Offset(x = widthPx / 2f + dx, y = (visibleTop + visibleBottom) / 2f + dy)
 }
 
 internal enum class MapPlacementKind { LANDMARK_WITH_POSTS, BUBBLE, LANDMARK_EMPTY }

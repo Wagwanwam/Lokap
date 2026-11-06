@@ -783,11 +783,12 @@ private fun ChatBottomInputBar(
                     imageVector = Icons.Default.Lock,
                     contentDescription = null,
                     tint = colors.textTertiary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(spacing.sm))
+                // Chốt 06/11: icon khoá + chữ ngắn nói rõ lý do bị khoá
                 Text(
-                    text = "Bạn không thể nhắn tin với người này",
+                    text = "Chưa là bạn",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = 13.sp
