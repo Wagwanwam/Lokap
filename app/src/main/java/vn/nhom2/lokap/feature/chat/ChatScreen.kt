@@ -1,6 +1,5 @@
 package vn.nhom2.lokap.feature.chat
 
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,20 +21,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,9 +45,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -170,8 +178,8 @@ fun ChatScreen(
                 uiState.timelineItems.isEmpty() -> {
                     val friendName = uiState.friend?.displayName ?: "bạn mới"
                     EmptyState(
-                        title = "Gửi lời chào đến $friendName 👋",
-                        subtitle = "Chụp một tấm ảnh Locket riêng hoặc nhắn gì đó thật vui",
+                        title = "$friendName 👋",
+                        subtitle = "",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(spacing.lg)
@@ -249,14 +257,18 @@ private fun ChatTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(colors.surface)
-            .padding(horizontal = spacing.sm, vertical = spacing.sm),
+            .padding(horizontal = spacing.sm, vertical = spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBackClick) {
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier.size(48.dp)
+        ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Quay lại",
-                tint = colors.textPrimary
+                tint = colors.textPrimary,
+                modifier = Modifier.size(28.dp)
             )
         }
 
@@ -264,6 +276,7 @@ private fun ChatTopBar(
             Row(
                 modifier = Modifier
                     .weight(1f)
+                    .heightIn(min = 48.dp)
                     .clip(LokapTheme.shapes.pill)
                     .clickable(onClick = onProfileClick)
                     .padding(horizontal = spacing.xs, vertical = spacing.xs),
@@ -276,7 +289,7 @@ private fun ChatTopBar(
                     onClick = onProfileClick
                 )
                 Spacer(modifier = Modifier.width(spacing.sm))
-                Column {
+                Column(verticalArrangement = Arrangement.Center) {
                     Text(
                         text = friend.displayName,
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -286,15 +299,17 @@ private fun ChatTopBar(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    val subtitleText = if (isFriendTyping) "Đang nhập…" else "@${friend.username}"
-                    val subtitleColor = if (isFriendTyping) colors.primary else colors.textSecondary
-                    Text(
-                        text = subtitleText,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = if (isFriendTyping) FontWeight.SemiBold else FontWeight.Normal
-                        ),
-                        color = subtitleColor
-                    )
+                    if (isFriendTyping) {
+                        Text(
+                            text = "•••",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = colors.primary,
+                            // TalkBack đọc "Đang nhập…" thay vì "chấm chấm chấm"
+                            modifier = Modifier.clearAndSetSemantics { contentDescription = "Đang nhập…" }
+                        )
+                    }
                 }
             }
         } else {
@@ -342,6 +357,11 @@ private fun ChatMessageBubbleItem(
     val isPending = message.sendState == PostSendState.PENDING
     val isFailed = message.sendState == PostSendState.FAILED
 
+    val attachedCaption = message.attachedPost?.caption?.trim()
+    val messageBody = message.body?.trim()
+    val shouldShowBodyBubble = !messageBody.isNullOrBlank() &&
+        (message.attachedPost == null || !messageBody.equals(attachedCaption, ignoreCase = false))
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -362,12 +382,12 @@ private fun ChatMessageBubbleItem(
                 post = message.attachedPost,
                 onClick = { onPostClick(message.attachedPost.id) }
             )
-            if (!message.body.isNullOrBlank()) {
+            if (shouldShowBodyBubble) {
                 Spacer(modifier = Modifier.height(spacing.xs))
             }
         }
 
-        if (!message.body.isNullOrBlank()) {
+        if (shouldShowBodyBubble) {
             val bubbleBackground = if (isMine) colors.primary else colors.surfaceHigh
             val bubbleTextColor = if (isMine) colors.onPrimary else colors.textPrimary
 
@@ -412,7 +432,7 @@ private fun ReplyToPostHeader(
         modifier = Modifier
             .clip(shapes.card)
             .background(colors.surface)
-            .border(1.dp, colors.outline, shapes.card)
+            .border(1.dp, if (isMine) colors.primarySoft else colors.outline, shapes.card)
             .clickable(onClick = onClick)
             .padding(spacing.xs),
         verticalAlignment = Alignment.CenterVertically
@@ -423,26 +443,21 @@ private fun ReplyToPostHeader(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(shapes.card)
                 .background(colors.surfaceHigh)
         )
-        Spacer(modifier = Modifier.width(spacing.sm))
-        Column(modifier = Modifier.padding(end = spacing.sm)) {
+        if (!post.caption.isNullOrBlank()) {
+            Spacer(modifier = Modifier.width(spacing.sm))
             Text(
-                text = "Trả lời ảnh",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = if (isMine) colors.primary else colors.accentLilac
+                text = post.caption,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .widthIn(max = 160.dp)
+                    .padding(end = spacing.sm)
             )
-            if (!post.caption.isNullOrBlank()) {
-                Text(
-                    text = post.caption,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 160.dp)
-                )
-            }
         }
     }
 }
@@ -454,14 +469,14 @@ private fun AttachedLocketPostCard(
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
-    val cardShape = RoundedCornerShape(28.dp)
+    val shapes = LokapTheme.shapes
 
     Box(
         modifier = Modifier
             .size(220.dp)
-            .clip(cardShape)
+            .clip(shapes.card)
             .background(colors.surfaceHigh)
-            .border(1.5.dp, colors.primarySoft, cardShape)
+            .border(1.5.dp, colors.primarySoft, shapes.card)
             .clickable(onClick = onClick)
     ) {
         AsyncImage(
@@ -474,21 +489,34 @@ private fun AttachedLocketPostCard(
         if (!post.caption.isNullOrBlank()) {
             Box(
                 modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.60f to colors.background.copy(alpha = 0.0f),
+                            1.0f to colors.background.copy(alpha = 0.85f)
+                        )
+                    )
+            )
+
+            Box(
+                modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(spacing.sm)
+                    .padding(spacing.sm),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = post.caption,
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.textPrimary,
-                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .clip(LokapTheme.shapes.pill)
-                        .background(colors.surface.copy(alpha = 0.82f))
-                        .padding(horizontal = spacing.sm, vertical = spacing.xs)
-                        .align(Alignment.Center)
+                        .clip(shapes.pill)
+                        .background(colors.background.copy(alpha = 0.78f))
+                        .border(1.dp, colors.outline, shapes.pill)
+                        .padding(horizontal = spacing.md, vertical = spacing.xs)
                 )
             }
         }
@@ -510,55 +538,61 @@ private fun MessageDeliveryFooter(
 
     when {
         isMine && isPending -> {
-            Text(
-                text = "Đang gửi…",
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.textTertiary,
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            Box(modifier = Modifier.padding(top = spacing.xs)) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .semantics { contentDescription = "Đang gửi" },
+                    color = colors.textTertiary,
+                    strokeWidth = 2.dp
+                )
+            }
         }
 
         isMine && isFailed -> {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 2.dp)
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                modifier = Modifier.padding(top = spacing.xs)
             ) {
-                Text(
-                    text = "Gửi thất bại",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.error
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Gửi thất bại",
+                    tint = colors.error,
+                    modifier = Modifier.size(24.dp)
                 )
-                Spacer(modifier = Modifier.width(spacing.xs))
-                TextButton(
+                IconButton(
                     onClick = onRetryClick,
-                    contentPadding = PaddingValues(horizontal = spacing.xs, vertical = 0.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
+                        contentDescription = "Thử lại",
                         tint = colors.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Thử lại",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = colors.primary
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
         }
 
         isMine && isLatestMyMessage -> {
-            val statusLabel = if (message.seen) "Đã xem" else "Đã gửi"
-            Text(
-                text = "$statusLabel • ${formatTimeAgo(message.createdAt, now)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (message.seen) colors.primarySoft else colors.textTertiary,
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                modifier = Modifier.padding(top = spacing.xs)
+            ) {
+                Icon(
+                    imageVector = if (message.seen) Icons.Default.CheckCircle else Icons.Default.Check,
+                    contentDescription = if (message.seen) "Đã xem" else "Đã gửi",
+                    tint = if (message.seen) colors.primarySoft else colors.textTertiary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = formatTimeAgo(message.createdAt, now),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (message.seen) colors.primarySoft else colors.textTertiary
+                )
+            }
         }
 
         else -> {
@@ -566,7 +600,7 @@ private fun MessageDeliveryFooter(
                 text = formatTimeAgo(message.createdAt, now),
                 style = MaterialTheme.typography.labelSmall,
                 color = colors.textTertiary,
-                modifier = Modifier.padding(top = 2.dp)
+                modifier = Modifier.padding(top = spacing.xs)
             )
         }
     }
@@ -586,11 +620,13 @@ private fun ChatBottomInputBar(
     val shapes = LokapTheme.shapes
 
     if (!isFriendStatusValid) {
+        // Chỉ có icon khoá thì người dùng không hiểu vì sao bị khoá → giữ chữ ngắn
+        // (quy chuẩn tối giản: giữ chữ cạnh icon khi icon dễ hiểu nhầm)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(colors.surface)
-                .padding(horizontal = spacing.md, vertical = spacing.md),
+                .padding(vertical = spacing.md),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -598,11 +634,11 @@ private fun ChatBottomInputBar(
                 imageVector = Icons.Default.Lock,
                 contentDescription = null,
                 tint = colors.textTertiary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(spacing.sm))
             Text(
-                text = "Bạn không thể nhắn tin với người này",
+                text = "Chưa là bạn",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = colors.textSecondary
             )
@@ -621,14 +657,15 @@ private fun ChatBottomInputBar(
         IconButton(
             onClick = onCameraClick,
             modifier = Modifier
-                .size(42.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .background(colors.surfaceHigh)
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = "Chụp ảnh gửi riêng",
-                tint = colors.primary
+                tint = colors.primary,
+                modifier = Modifier.size(28.dp)
             )
         }
 
@@ -637,10 +674,12 @@ private fun ChatBottomInputBar(
         Box(
             modifier = Modifier
                 .weight(1f)
+                .heightIn(min = 48.dp)
                 .clip(shapes.pill)
                 .background(colors.surfaceHigh)
                 .border(1.dp, colors.outline, shapes.pill)
-                .padding(horizontal = spacing.md, vertical = spacing.sm)
+                .padding(horizontal = spacing.md, vertical = spacing.sm),
+            contentAlignment = Alignment.CenterStart
         ) {
             if (inputText.isEmpty()) {
                 Text(
@@ -669,14 +708,15 @@ private fun ChatBottomInputBar(
             onClick = onSendClick,
             enabled = canSend,
             modifier = Modifier
-                .size(42.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .background(if (canSend) colors.primary else colors.surfaceHigh)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
                 contentDescription = "Gửi tin nhắn",
-                tint = if (canSend) colors.onPrimary else colors.textTertiary
+                tint = if (canSend) colors.onPrimary else colors.textTertiary,
+                modifier = Modifier.size(28.dp)
             )
         }
     }

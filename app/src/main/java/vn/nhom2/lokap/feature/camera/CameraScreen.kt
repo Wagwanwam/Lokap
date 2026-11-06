@@ -337,14 +337,16 @@ private fun CameraTopBar(
     val spacing = LokapTheme.spacing
     val pill = LokapTheme.shapes.pill
 
-    Row(
+    // Box thay cho Row SpaceBetween: nhóm nút bên phải (2 nút) rộng hơn avatar nên chip
+    // "Bạn bè" từng bị đẩy lệch trái ~26dp. Giờ chip nằm đúng tâm, thẳng hàng với nút chụp.
+    Box(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        contentAlignment = Alignment.Center
     ) {
         AvatarRing(
             avatarUrl = state.me.avatarUrl,
             displayName = state.me.displayName,
+            modifier = Modifier.align(Alignment.CenterStart),
             size = 44.dp,
             hasNewPost = true,
             onClick = { onAction(CameraAction.OnProfileClick) }
@@ -352,10 +354,12 @@ private fun CameraTopBar(
 
         GlassChip(
             label = "Bạn bè · ${state.friendCount}",
+            modifier = Modifier.align(Alignment.Center),
             onClick = { onAction(CameraAction.OnFriendsClick) }
         )
 
         Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -18,10 +19,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,12 +42,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -53,6 +60,7 @@ import vn.nhom2.lokap.core.designsystem.component.ErrorState
 import vn.nhom2.lokap.core.designsystem.component.OfflineBanner
 import vn.nhom2.lokap.core.designsystem.component.PinkButton
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
+import vn.nhom2.lokap.data.fake.AuthStoreException
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
 
 fun NavGraphBuilder.registerScreen(navController: NavController) {
@@ -158,7 +166,10 @@ fun RegisterScreen(
             leadingIcon = {
                 Icon(imageVector = Icons.Default.Email, contentDescription = null)
             },
-            isError = uiState.emailError != null,
+            trailingIcon = {
+                EmailAvailabilityTrailingIcon(availability = uiState.emailAvailability)
+            },
+            isError = uiState.emailError != null || uiState.emailAvailability == EmailAvailability.TAKEN,
             supportingText = uiState.emailError?.let { err ->
                 { Text(text = err, color = LokapTheme.colors.error) }
             },
@@ -345,6 +356,40 @@ fun RegisterScreen(
     }
 }
 
+@Composable
+private fun EmailAvailabilityTrailingIcon(availability: EmailAvailability) {
+    when (availability) {
+        EmailAvailability.IDLE -> Unit
+        EmailAvailability.CHECKING -> {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(20.dp)
+                    .semantics { contentDescription = "Đang kiểm tra email" },
+                strokeWidth = 2.dp,
+                color = LokapTheme.colors.primary
+            )
+        }
+
+        EmailAvailability.AVAILABLE -> {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Email dùng được",
+                tint = LokapTheme.colors.success,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        EmailAvailability.TAKEN -> {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Email đã được đăng ký",
+                tint = LokapTheme.colors.error,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
 @Preview(showBackground = true, name = "Register - Default")
 @Composable
 private fun RegisterScreenDefaultPreview() {
@@ -364,13 +409,44 @@ private fun RegisterScreenErrorsPreview() {
             uiState = RegisterUiState(
                 email = "taken@lokap.vn",
                 emailTouched = true,
-                emailError = "Email này đã được đăng ký tài khoản khác",
+                emailAvailability = EmailAvailability.TAKEN,
+                emailError = AuthStoreException.EmailAlreadyTaken.MESSAGE,
                 password = "lokap123",
                 confirmPassword = "lokap999",
                 confirmPasswordTouched = true,
                 confirmPasswordError = "Mật khẩu nhập lại không khớp",
                 termsTouched = true,
                 termsError = "Bạn cần đồng ý Điều khoản & Chính sách riêng tư"
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Register - Checking Email")
+@Composable
+private fun RegisterScreenCheckingEmailPreview() {
+    LokapTheme {
+        RegisterScreen(
+            uiState = RegisterUiState(
+                email = "ban@lokap.vn",
+                emailAvailability = EmailAvailability.CHECKING
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Register - Email Taken While Typing")
+@Composable
+private fun RegisterScreenEmailTakenWhileTypingPreview() {
+    LokapTheme {
+        RegisterScreen(
+            uiState = RegisterUiState(
+                email = "taken@lokap.vn",
+                emailTouched = false,
+                emailAvailability = EmailAvailability.TAKEN,
+                emailError = AuthStoreException.EmailAlreadyTaken.MESSAGE
             ),
             onAction = {}
         )

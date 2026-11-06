@@ -16,31 +16,31 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -54,11 +54,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -74,7 +82,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import vn.nhom2.lokap.core.designsystem.component.GhostButton
 import vn.nhom2.lokap.core.designsystem.component.GlassChip
 import vn.nhom2.lokap.core.designsystem.component.PinkButton
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
@@ -259,11 +266,10 @@ fun OnboardingScreen(
             .systemBarsPadding()
             .padding(horizontal = LokapTheme.spacing.lg, vertical = LokapTheme.spacing.md)
     ) {
-        // Top bar with "Bỏ qua" on first 2 pages (indices 0 and 1)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp),
+                .height(48.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -273,7 +279,8 @@ fun OnboardingScreen(
             )
             if (uiState.currentPage < 2) {
                 TextButton(
-                    onClick = { onAction(OnboardingAction.SkipToPermissionsClicked) }
+                    onClick = { onAction(OnboardingAction.SkipToPermissionsClicked) },
+                    modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                 ) {
                     Text(
                         text = "Bỏ qua",
@@ -292,23 +299,17 @@ fun OnboardingScreen(
         ) { page ->
             when (page) {
                 0 -> IntroSlidePage(
-                    badge = "WIDGET TỨC THÌ",
-                    title = "Chụp & gửi tức thì cho bạn thân",
-                    subtitle = "Mở app là thấy camera. Chụp 1 chạm, ảnh bay thẳng lên màn hình chính của hội bạn thân.",
+                    title = "Chụp & gửi tức thì",
                     illustration = { InstantSnapIllustration() }
                 )
 
                 1 -> IntroSlidePage(
-                    badge = "BẢN ĐỒ SỐNG",
-                    title = "Ghim khoảnh khắc lên bản đồ Việt Nam",
-                    subtitle = "Khám phá ảnh public gom theo từng Tỉnh/Thành → Phường/Xã khắp 3 miền.",
+                    title = "Bản đồ khoảnh khắc",
                     illustration = { VietnamMapIllustration() }
                 )
 
                 2 -> IntroSlidePage(
-                    badge = "QUYỀN RIÊNG TƯ",
-                    title = "Bạn chọn ai thấy, thấy tới đâu",
-                    subtitle = "Tuỳ chỉnh mức hiển thị vị trí (Phường/Xã hoặc chỉ Tỉnh/Thành) và hẹn giờ tự xoá ảnh 24h.",
+                    title = "Làm chủ riêng tư",
                     illustration = { PrivacyControlIllustration() }
                 )
 
@@ -324,7 +325,6 @@ fun OnboardingScreen(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
 
-        // Page indicator dots + bottom action button
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -338,7 +338,7 @@ fun OnboardingScreen(
 
             if (uiState.currentPage < uiState.totalPages - 1) {
                 PinkButton(
-                    text = if (uiState.currentPage == 2) "Thiết lập quyền" else "Tiếp theo",
+                    text = "Tiếp theo",
                     onClick = { onAction(OnboardingAction.NextPageClicked) },
                     leadingIcon = Icons.AutoMirrored.Filled.ArrowForward,
                     modifier = Modifier.fillMaxWidth()
@@ -351,15 +351,6 @@ fun OnboardingScreen(
                     loading = uiState.isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (uiState.cameraStatus != PermissionStatus.GRANTED) {
-                    Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
-                    Text(
-                        text = "Cần cấp quyền Camera để tiếp tục vào Lokap",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LokapTheme.colors.textTertiary,
-                        textAlign = TextAlign.Center
-                    )
-                }
             }
         }
     }
@@ -397,9 +388,7 @@ private fun PageDotsIndicator(
 
 @Composable
 private fun IntroSlidePage(
-    badge: String,
     title: String,
-    subtitle: String,
     illustration: @Composable () -> Unit
 ) {
     Column(
@@ -412,7 +401,7 @@ private fun IntroSlidePage(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(290.dp),
+                .height(340.dp),
             contentAlignment = Alignment.Center
         ) {
             illustration()
@@ -420,25 +409,11 @@ private fun IntroSlidePage(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.xl))
 
-        GlassChip(label = badge, selected = false)
-
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
-
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
             color = LokapTheme.colors.textPrimary,
             textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
-
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyLarge,
-            color = LokapTheme.colors.textSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = LokapTheme.spacing.sm)
         )
     }
 }
@@ -448,84 +423,68 @@ private fun InstantSnapIllustration() {
     val primaryColor = LokapTheme.colors.primary
     val lilacColor = LokapTheme.colors.accentLilac
     Box(
-        modifier = Modifier.size(260.dp),
+        modifier = Modifier
+            .size(320.dp)
+            .semantics { contentDescription = "Minh họa chụp và gửi ảnh tức thì" },
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(
-                color = primaryColor.copy(alpha = 0.14f),
+                color = primaryColor.copy(alpha = 0.16f),
                 radius = size.minDimension * 0.48f
             )
             drawCircle(
-                color = lilacColor.copy(alpha = 0.22f),
-                radius = size.minDimension * 0.36f,
+                color = lilacColor.copy(alpha = 0.25f),
+                radius = size.minDimension * 0.38f,
                 style = Stroke(width = 3.dp.toPx())
             )
         }
 
-        // Back card tilted
         Box(
             modifier = Modifier
-                .size(168.dp)
+                .size(210.dp)
                 .rotate(-8f)
                 .clip(LokapTheme.shapes.cameraFrame)
                 .background(regionGradient("79"))
                 .border(2.dp, LokapTheme.colors.outline, LokapTheme.shapes.cameraFrame)
         )
 
-        // Front Locket-style square camera frame
         Box(
             modifier = Modifier
-                .size(176.dp)
+                .size(220.dp)
                 .rotate(4f)
                 .clip(LokapTheme.shapes.cameraFrame)
                 .background(regionGradient("01"))
                 .border(3.dp, LokapTheme.colors.primary, LokapTheme.shapes.cameraFrame),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "📸", fontSize = 54.sp)
-                Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
-                Box(
-                    modifier = Modifier
-                        .clip(LokapTheme.shapes.pill)
-                        .background(LokapTheme.colors.surface.copy(alpha = 0.8f))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Gửi hội bestie ⚡",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LokapTheme.colors.textPrimary
-                    )
-                }
-            }
+            Text(text = "📷", fontSize = 80.sp)
         }
 
-        // Floating emoji stickers
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .offset(x = (-12).dp, y = 12.dp)
-                .size(48.dp)
+                .offset(x = (-10).dp, y = 14.dp)
+                .size(60.dp)
                 .clip(CircleShape)
                 .background(LokapTheme.colors.surfaceHigh)
-                .border(1.dp, LokapTheme.colors.primary, CircleShape),
+                .border(1.5.dp, LokapTheme.colors.primary, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "💖", fontSize = 22.sp)
+            Text(text = "💖", fontSize = 28.sp)
         }
 
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = 12.dp, y = (-16).dp)
-                .size(48.dp)
+                .offset(x = 14.dp, y = (-14).dp)
+                .size(60.dp)
                 .clip(CircleShape)
                 .background(LokapTheme.colors.surfaceHigh)
-                .border(1.dp, LokapTheme.colors.accentLime, CircleShape),
+                .border(1.5.dp, LokapTheme.colors.accentLime, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "🔥", fontSize = 22.sp)
+            Text(text = "⚡", fontSize = 28.sp)
         }
     }
 }
@@ -535,138 +494,116 @@ private fun VietnamMapIllustration() {
     val cyan = LokapTheme.colors.accentCyan
     val primary = LokapTheme.colors.primary
     Box(
-        modifier = Modifier.size(260.dp),
+        modifier = Modifier
+            .size(320.dp)
+            .semantics { contentDescription = "Minh họa bản đồ khoảnh khắc ba miền" },
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
+            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 12f), 0f)
             drawCircle(
-                color = cyan.copy(alpha = 0.2f),
-                radius = size.minDimension * 0.45f,
-                style = Stroke(width = 2.dp.toPx(), pathEffect = dashEffect)
+                color = cyan.copy(alpha = 0.22f),
+                radius = size.minDimension * 0.46f,
+                style = Stroke(width = 2.5.dp.toPx(), pathEffect = dashEffect)
             )
             drawLine(
-                color = primary.copy(alpha = 0.5f),
-                start = Offset(size.width * 0.28f, size.height * 0.25f),
-                end = Offset(size.width * 0.55f, size.height * 0.5f),
-                strokeWidth = 3.dp.toPx(),
+                color = primary.copy(alpha = 0.6f),
+                start = Offset(size.width * 0.25f, size.height * 0.22f),
+                end = Offset(size.width * 0.68f, size.height * 0.48f),
+                strokeWidth = 3.5.dp.toPx(),
                 pathEffect = dashEffect
             )
             drawLine(
-                color = primary.copy(alpha = 0.5f),
-                start = Offset(size.width * 0.55f, size.height * 0.5f),
-                end = Offset(size.width * 0.38f, size.height * 0.78f),
-                strokeWidth = 3.dp.toPx(),
+                color = primary.copy(alpha = 0.6f),
+                start = Offset(size.width * 0.68f, size.height * 0.48f),
+                end = Offset(size.width * 0.32f, size.height * 0.78f),
+                strokeWidth = 3.5.dp.toPx(),
                 pathEffect = dashEffect
             )
         }
 
-        // North card
-        RegionClusterBubble(
+        RegionClusterPin(
             emoji = "☕",
-            title = "Hà Nội · Hoàn Kiếm",
             provinceCode = "01",
+            borderColor = LokapTheme.colors.primary,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .offset(x = 8.dp, y = 18.dp)
+                .offset(x = 24.dp, y = 20.dp)
         )
 
-        // Central card
-        RegionClusterBubble(
+        RegionClusterPin(
             emoji = "🌊",
-            title = "Đà Nẵng · Hải Châu",
             provinceCode = "48",
-            modifier = Modifier.align(Alignment.CenterEnd)
+            borderColor = LokapTheme.colors.accentCyan,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .offset(x = (-16).dp, y = (-4).dp)
         )
 
-        // South card
-        RegionClusterBubble(
+        RegionClusterPin(
             emoji = "🛵",
-            title = "TP.HCM · Sài Gòn",
             provinceCode = "79",
+            borderColor = LokapTheme.colors.accentLime,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = 16.dp, y = (-12).dp)
+                .offset(x = 40.dp, y = (-20).dp)
         )
     }
 }
 
 @Composable
-private fun RegionClusterBubble(
+private fun RegionClusterPin(
     emoji: String,
-    title: String,
     provinceCode: String,
+    borderColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Box(
         modifier = modifier
+            .size(88.dp)
             .clip(LokapTheme.shapes.card)
             .background(regionGradient(provinceCode))
-            .border(1.5.dp, LokapTheme.colors.outline, LokapTheme.shapes.card)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .border(2.5.dp, borderColor, LokapTheme.shapes.card),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(LokapTheme.colors.background.copy(alpha = 0.55f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = emoji, fontSize = 18.sp)
-        }
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                color = LokapTheme.colors.textPrimary
-            )
-            Text(
-                text = "📍 +28 ảnh mới",
-                style = MaterialTheme.typography.labelSmall,
-                color = LokapTheme.colors.textSecondary
-            )
-        }
+        Text(text = emoji, fontSize = 40.sp)
     }
 }
 
 @Composable
 private fun PrivacyControlIllustration() {
+    val primaryColor = LokapTheme.colors.primary
     Box(
-        modifier = Modifier.size(260.dp),
+        modifier = Modifier
+            .size(320.dp)
+            .semantics { contentDescription = "Minh họa quyền riêng tư và hẹn giờ công khai" },
         contentAlignment = Alignment.Center
     ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                color = primaryColor.copy(alpha = 0.14f),
+                radius = size.minDimension * 0.46f
+            )
+        }
+
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(LokapTheme.shapes.card)
+                .size(230.dp)
+                .clip(LokapTheme.shapes.cameraFrame)
                 .background(regionGradient("92"))
-                .border(2.dp, LokapTheme.colors.primary, LokapTheme.shapes.card)
-                .padding(LokapTheme.spacing.md),
+                .border(3.dp, LokapTheme.colors.primary, LokapTheme.shapes.cameraFrame)
+                .padding(LokapTheme.spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
+            verticalArrangement = Arrangement.Center
         ) {
-            Text(text = "🛡️⏱️", fontSize = 44.sp)
-
-            Text(
-                text = "Chế độ hiển thị thông minh",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = LokapTheme.colors.textPrimary
-            )
-
+            Text(text = "🛡️", fontSize = 76.sp)
+            Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.xs)
+                horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                GlassChip(label = "👑 Bạn thân", selected = true)
-                GlassChip(label = "🌏 Public Tỉnh/Xã", selected = false)
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.xs)
-            ) {
-                GlassChip(label = "⏳ Tự huỷ 24h", selected = true)
-                GlassChip(label = "📍 Ẩn toạ độ nhà", selected = false)
+                GlassChip(label = "👑", selected = true)
+                GlassChip(label = "24h ⏳", selected = true)
             }
         }
     }
@@ -678,218 +615,266 @@ private fun PermissionsPage(
     onRequestCamera: () -> Unit,
     onRequestLocation: () -> Unit,
     onRequestNotification: () -> Unit,
-    onOpenAppSettings: () -> Unit
+    onOpenAppSettings: () -> Unit,
+    showNotificationTile: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = LokapTheme.spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md)
+            .padding(vertical = LokapTheme.spacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Cấp quyền để quẩy Lokap 🚀",
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
-            color = LokapTheme.colors.textPrimary
-        )
-        Text(
-            text = "Lokap tôn trọng quyền riêng tư của bạn. Bạn luôn kiểm soát được từng quyền bên dưới.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = LokapTheme.colors.textSecondary
+            text = "Cấp quyền",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
+            color = LokapTheme.colors.textPrimary,
+            textAlign = TextAlign.Center
         )
 
-        // 1. Camera card (Required)
-        PermissionItemCard(
-            emoji = "📸",
-            title = "Camera",
-            badgeText = "Bắt buộc",
-            badgeColor = LokapTheme.colors.primary,
-            description = "Mở app là chụp ngay khoảnh khắc gửi hội bạn thân.",
-            extraWarning = null,
-            status = uiState.cameraStatus,
-            onRequestPermission = onRequestCamera,
-            onOpenSettings = onOpenAppSettings
-        )
+        Spacer(modifier = Modifier.height(LokapTheme.spacing.xl))
 
-        // 2. Location card (Optional + COARSE note)
-        val coarseNote = if (uiState.locationAccuracy == LocationAccuracyState.COARSE_ONLY) {
-            "Chỉ đăng được ở mức Tỉnh trở lên"
-        } else {
-            null
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(
+                LokapTheme.spacing.md,
+                Alignment.CenterHorizontally
+            ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PermissionTile(
+                title = "Camera",
+                status = uiState.cameraStatus,
+                isCoarseLocation = false,
+                onClick = {
+                    if (uiState.cameraStatus == PermissionStatus.DENIED) {
+                        onOpenAppSettings()
+                    } else {
+                        onRequestCamera()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                iconContent = { tint, contentDesc ->
+                    CameraGlyphIcon(
+                        tint = tint,
+                        contentDescription = contentDesc,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            )
+
+            PermissionTile(
+                title = "Vị trí",
+                status = uiState.locationStatus,
+                isCoarseLocation = uiState.locationStatus == PermissionStatus.GRANTED &&
+                    uiState.locationAccuracy == LocationAccuracyState.COARSE_ONLY,
+                onClick = {
+                    if (uiState.locationStatus == PermissionStatus.DENIED) {
+                        onOpenAppSettings()
+                    } else {
+                        onRequestLocation()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                iconContent = { tint, contentDesc ->
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = contentDesc,
+                        tint = tint,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            )
+
+            if (showNotificationTile) {
+                PermissionTile(
+                    title = "Thông báo",
+                    status = uiState.notificationStatus,
+                    isCoarseLocation = false,
+                    onClick = {
+                        if (uiState.notificationStatus == PermissionStatus.DENIED) {
+                            onOpenAppSettings()
+                        } else {
+                            onRequestNotification()
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    iconContent = { tint, contentDesc ->
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = contentDesc,
+                            tint = tint,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                )
+            }
         }
-        PermissionItemCard(
-            emoji = "📍",
-            title = "Vị trí",
-            badgeText = "Có thể bỏ qua",
-            badgeColor = LokapTheme.colors.accentCyan,
-            description = "Để gắn khu vực Tỉnh/Thành → Phường/Xã. Chỉ lấy vị trí lúc chụp, không theo dõi.",
-            extraWarning = coarseNote,
-            status = uiState.locationStatus,
-            onRequestPermission = onRequestLocation,
-            onOpenSettings = onOpenAppSettings
-        )
-
-        // 3. Notification card (Android 13+, Optional)
-        PermissionItemCard(
-            emoji = "🔔",
-            title = "Thông báo",
-            badgeText = "Có thể bỏ qua",
-            badgeColor = LokapTheme.colors.accentLilac,
-            description = "Báo ngay khi bạn thân vừa thả ảnh mới lên widget của bạn.",
-            extraWarning = null,
-            status = uiState.notificationStatus,
-            onRequestPermission = onRequestNotification,
-            onOpenSettings = onOpenAppSettings
-        )
     }
 }
 
 @Composable
-private fun PermissionItemCard(
-    emoji: String,
+private fun PermissionTile(
     title: String,
-    badgeText: String,
-    badgeColor: Color,
-    description: String,
-    extraWarning: String?,
     status: PermissionStatus,
-    onRequestPermission: () -> Unit,
-    onOpenSettings: () -> Unit
+    isCoarseLocation: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    iconContent: @Composable (tint: Color, contentDescription: String) -> Unit
 ) {
-    val borderColor = when (status) {
-        PermissionStatus.GRANTED -> LokapTheme.colors.success
-        PermissionStatus.DENIED -> LokapTheme.colors.error
-        PermissionStatus.NOT_GRANTED -> LokapTheme.colors.outline
+    val isGranted = status == PermissionStatus.GRANTED
+    val isDenied = status == PermissionStatus.DENIED
+
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            isGranted && isCoarseLocation -> LokapTheme.colors.primarySoft
+            isGranted -> LokapTheme.colors.primary
+            else -> LokapTheme.colors.outline
+        },
+        label = "tile_border_color"
+    )
+
+    val containerColor by animateColorAsState(
+        targetValue = if (isGranted) LokapTheme.colors.surfaceHigh else LokapTheme.colors.surface,
+        label = "tile_bg_color"
+    )
+
+    val iconTint by animateColorAsState(
+        targetValue = when {
+            isGranted && isCoarseLocation -> LokapTheme.colors.primarySoft
+            isGranted -> LokapTheme.colors.primary
+            else -> LokapTheme.colors.textSecondary
+        },
+        label = "tile_icon_tint"
+    )
+
+    val statusAccessibilityText = when {
+        isGranted && isCoarseLocation -> "$title, đã cấp vị trí tương đối"
+        isGranted -> "$title, đã cấp"
+        isDenied -> "$title, bị từ chối, bấm để mở cài đặt"
+        else -> "$title, chưa cấp, bấm để cấp quyền"
     }
+
+    val borderWidth = if (isGranted) 2.5.dp else 1.5.dp
 
     Surface(
         shape = LokapTheme.shapes.card,
-        color = LokapTheme.colors.surface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, borderColor, LokapTheme.shapes.card)
-    ) {
-        Column(
-            modifier = Modifier.padding(LokapTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(LokapTheme.colors.surfaceHigh),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = emoji, fontSize = 20.sp)
-                    }
-                    Column {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = LokapTheme.colors.textPrimary
-                        )
-                        Text(
-                            text = badgeText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = badgeColor
-                        )
-                    }
-                }
-
-                PermissionStatusBadge(status = status)
+        color = containerColor,
+        modifier = modifier
+            .aspectRatio(0.9f)
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clip(LokapTheme.shapes.card)
+            .border(borderWidth, borderColor, LokapTheme.shapes.card)
+            .clickable(onClick = onClick)
+            // Gộp cả ô thành một mục để TalkBack chỉ đọc trạng thái một lần
+            .clearAndSetSemantics {
+                role = Role.Button
+                contentDescription = statusAccessibilityText
             }
-
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = LokapTheme.colors.textSecondary
-            )
-
-            if (extraWarning != null) {
-                Row(
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(LokapTheme.spacing.sm)
+        ) {
+            if (isGranted) {
+                val badgeBg = if (isCoarseLocation) {
+                    LokapTheme.colors.primarySoft
+                } else {
+                    LokapTheme.colors.primary
+                }
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(LokapTheme.shapes.pill)
-                        .background(LokapTheme.colors.surfaceHigh)
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        .align(Alignment.TopEnd)
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(badgeBg),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = LokapTheme.colors.accentYellow,
-                        modifier = Modifier.size(16.dp)
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Đã cấp quyền $title",
+                        tint = LokapTheme.colors.onPrimary,
+                        modifier = Modifier.size(14.dp)
                     )
-                    Text(
-                        text = extraWarning,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LokapTheme.colors.accentYellow
+                }
+            } else if (isDenied) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(LokapTheme.colors.surfaceHigh),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Mở cài đặt cho quyền $title",
+                        tint = LokapTheme.colors.textSecondary,
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
 
-            when (status) {
-                PermissionStatus.NOT_GRANTED -> {
-                    GhostButton(
-                        text = "Cấp quyền $title",
-                        onClick = onRequestPermission,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
+            ) {
+                iconContent(iconTint, statusAccessibilityText)
 
-                PermissionStatus.DENIED -> {
-                    GhostButton(
-                        text = "Mở Cài đặt",
-                        onClick = onOpenSettings,
-                        leadingIcon = Icons.Default.Settings,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                PermissionStatus.GRANTED -> Unit
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = if (isGranted) LokapTheme.colors.textPrimary else LokapTheme.colors.textSecondary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
             }
         }
     }
 }
 
 @Composable
-private fun PermissionStatusBadge(status: PermissionStatus) {
-    val (label, color) = when (status) {
-        PermissionStatus.NOT_GRANTED -> "Chưa cấp" to LokapTheme.colors.textTertiary
-        PermissionStatus.GRANTED -> "Đã cấp" to LokapTheme.colors.success
-        PermissionStatus.DENIED -> "Bị từ chối" to LokapTheme.colors.error
-    }
-
-    Row(
-        modifier = Modifier
-            .clip(LokapTheme.shapes.pill)
-            .background(LokapTheme.colors.surfaceHigh)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        if (status == PermissionStatus.GRANTED) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(14.dp)
-            )
+private fun CameraGlyphIcon(
+    tint: Color,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    Canvas(
+        modifier = modifier.semantics {
+            this.contentDescription = contentDescription
         }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-            color = color
+    ) {
+        val strokeWidth = 2.8.dp.toPx()
+        val bodyWidth = size.width * 0.84f
+        val bodyHeight = size.height * 0.62f
+        val bodyLeft = (size.width - bodyWidth) / 2f
+        val bodyTop = size.height * 0.24f
+
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(bodyLeft, bodyTop),
+            size = Size(bodyWidth, bodyHeight),
+            cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+            style = Stroke(width = strokeWidth)
+        )
+
+        val topBumpWidth = size.width * 0.34f
+        val topBumpHeight = size.height * 0.11f
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset((size.width - topBumpWidth) / 2f, bodyTop - topBumpHeight),
+            size = Size(topBumpWidth, topBumpHeight),
+            cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx()),
+            style = Stroke(width = strokeWidth)
+        )
+
+        drawCircle(
+            color = tint,
+            radius = size.minDimension * 0.17f,
+            center = Offset(size.width / 2f, bodyTop + bodyHeight / 2f),
+            style = Stroke(width = strokeWidth)
         )
     }
 }
@@ -943,6 +928,41 @@ private fun OnboardingSlide2Preview() {
     }
 }
 
+@Preview(showBackground = true, name = "Onboarding - Slide 3 Privacy")
+@Composable
+private fun OnboardingSlide3Preview() {
+    LokapTheme {
+        OnboardingScreen(
+            uiState = OnboardingUiState(currentPage = 2),
+            onAction = {},
+            onRequestCamera = {},
+            onRequestLocation = {},
+            onRequestNotification = {},
+            onOpenAppSettings = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Onboarding - Permissions Not Granted")
+@Composable
+private fun OnboardingPermissionsNotGrantedPreview() {
+    LokapTheme {
+        OnboardingScreen(
+            uiState = OnboardingUiState(
+                currentPage = 3,
+                cameraStatus = PermissionStatus.NOT_GRANTED,
+                locationStatus = PermissionStatus.NOT_GRANTED,
+                notificationStatus = PermissionStatus.NOT_GRANTED
+            ),
+            onAction = {},
+            onRequestCamera = {},
+            onRequestLocation = {},
+            onRequestNotification = {},
+            onOpenAppSettings = {}
+        )
+    }
+}
+
 @Preview(showBackground = true, name = "Onboarding - Permissions Mixed & Coarse")
 @Composable
 private fun OnboardingPermissionsPreview() {
@@ -954,6 +974,27 @@ private fun OnboardingPermissionsPreview() {
                 locationStatus = PermissionStatus.GRANTED,
                 locationAccuracy = LocationAccuracyState.COARSE_ONLY,
                 notificationStatus = PermissionStatus.DENIED
+            ),
+            onAction = {},
+            onRequestCamera = {},
+            onRequestLocation = {},
+            onRequestNotification = {},
+            onOpenAppSettings = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Onboarding - Permissions All Granted (Fine)")
+@Composable
+private fun OnboardingPermissionsAllGrantedPreview() {
+    LokapTheme {
+        OnboardingScreen(
+            uiState = OnboardingUiState(
+                currentPage = 3,
+                cameraStatus = PermissionStatus.GRANTED,
+                locationStatus = PermissionStatus.GRANTED,
+                locationAccuracy = LocationAccuracyState.FINE,
+                notificationStatus = PermissionStatus.GRANTED
             ),
             onAction = {},
             onRequestCamera = {},

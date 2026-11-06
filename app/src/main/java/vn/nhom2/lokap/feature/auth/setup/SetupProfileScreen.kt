@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -134,7 +135,9 @@ fun SetupProfileScreen(
         Text(
             text = "Chọn avatar và đặt chiếc username để hội bạn dễ tìm thấy bạn.",
             style = MaterialTheme.typography.bodyMedium,
-            color = LokapTheme.colors.textSecondary
+            color = LokapTheme.colors.textSecondary,
+            // Tiêu đề và avatar đều căn giữa; dòng phụ căn trái làm khối chữ lệch một bên
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.lg))
@@ -169,9 +172,11 @@ fun SetupProfileScreen(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
 
+        // 6 avatar xếp 3 + 3 ở giữa (trước là 5 + 1, ô thứ 6 lẻ loi bên trái)
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
+            horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm),
+            maxItemsInEachRow = 3
         ) {
             uiState.presetAvatars.forEach { avatarUrl ->
                 val isSelected = uiState.selectedAvatarUrl == avatarUrl

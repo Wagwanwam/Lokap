@@ -197,3 +197,97 @@ Prompt `docs/prompts/09-xin-quyen.md` gửi kèm `OnboardingScreen.kt` **tại t
 3. Người dùng chốt: **bỏ hết chữ giải thích**, kể cả "Chỉ lấy vị trí lúc chụp". Chỉ còn icon + "Camera / Vị trí / Thông báo"; đã cấp = viền hồng + ✓ hồng; bấm cả ô để cấp.
 4. Kiểm tra TalkBack đọc được trạng thái qua contentDescription ("Camera, đã cấp").
 5. Chụp lại `23-onboarding-1..3`, `24-xin-quyen`. Commit: `style: màn giới thiệu và xin quyền tối giản`.
+
+
+## Phiên Claude Code trên Mac (06/11, 01:25–02:05) — đọc mục này trước khi làm tiếp
+
+Một thành viên khác clone repo về MacBook Pro M4 16 GB (macOS 26.2) và làm tiếp từ commit `c75e11d` (commit WIP do bạn trên Windows đẩy lên lúc 01:20).
+
+### Môi trường trên Mac (khác Windows)
+- Repo: `/Users/nguyenduythuan/vscode/Mobile/Lokap`, nhánh `wip/onboarding-ui` (cũng là nhánh mặc định trên GitHub, không có `main`).
+- **Build luôn dùng** `ANDROID_HOME=$HOME/Library/Android/sdk bash ./gradlew --no-daemon assembleDebug testDebugUnitTest` (người dùng chốt). Lý do:
+  - VS Code (extension Java, đang mở dự án PBL4) bật một Gradle 9.5.0 daemon trên JRE riêng thiếu `jlink`. Lokap cũng đòi Java 25 nên Gradle dùng lại daemon đó → lỗi `jlink ... does not exist`. `--no-daemon` né được.
+  - `gradlew` thiếu quyền chạy (mode 644 từ Windows) → gọi `bash ./gradlew`.
+  - Chưa có `local.properties` → truyền `ANDROID_HOME`. Android Studio mở dự án sẽ tự tạo file này.
+- `adb` chưa có trong PATH: `~/Library/Android/sdk/platform-tools/adb`.
+- `python` trên máy là 2.7 → dùng `python3 tools/split_gemini.py ...`.
+- **Chưa cấu hình `git user.name/email`** → muốn commit phải hỏi người dùng trước. CLAUDE.md: chỉ commit khi được bảo.
+- **Thiết bị: người dùng chốt dùng emulator `Pixel_10_Pro_XL` (`emulator-5554`, Android 17, 1344×2992) trên máy này.** Quy định "không bật emulator" trong CLAUDE.md là cho laptop Windows yếu.
+  - Emulator do một phiên Claude khác (dự án PBL4) bật, trên đó có app `com.pbl4.food`: không tắt emulator, không gỡ app đó.
+  - Điện thoại HONOR (`AXSCVB5304005477`) cũng đang cắm nhưng không dùng: máy có user phụ 100 nên một số lệnh `pm` bị từ chối.
+- Chạy thử nhanh trên emulator:
+  - Cài app: `adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk`.
+  - Cấp sẵn quyền: `adb -s emulator-5554 shell pm grant vn.nhom2.lokap android.permission.CAMERA`, làm tương tự cho `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `POST_NOTIFICATIONS`.
+  - Mỗi lần mở app đều thấy onboarding. Bấm "Bỏ qua" → "Bắt đầu" → đăng nhập `demo@lokap.vn` / `lokap123`.
+  - Đọc màn hình: `adb shell uiautomator dump` (Compose có text/content-desc). Chạm: `adb shell input tap x y`. Chụp: `adb exec-out screencap -p > docs/screenshots/<tên>.png`.
+
+### Đã xong trong phiên Mac
+1. Ở HEAD `c75e11d`: build OK, unit test 59/59 pass.
+2. **Quyết định 06/11 (bản đồ):** người dùng chốt **giữ luật trong commit WIP**:
+   - zoom < 11: bong bóng phường ưu tiên hơn cả địa danh có bài;
+   - zoom ≥ 11: địa danh có bài ưu tiên;
+   - địa danh 0 bài luôn nhường chỗ.
+   Kiểm trên emulator:
+   - zoom 9 (chạm bong bóng tỉnh Đà Nẵng) → 2 phường (P. Hải Châu 3, P. Hội An 2), 0 địa danh;
+   - zoom 11 (nút "Vị trí của tôi") → 4 địa danh, 0 phường.
+   Mục này không cần làm thêm.
+3. **Prompt 08 ĐÃ ÁP, CHƯA COMMIT** (chỉ 3 file `FeedScreen.kt`, `PhotoCard.kt`, `ChatScreen.kt`):
+   - Bản code chụp trong prompt 08 khớp HEAD, nên ghi đè bằng `split_gemini.py --write --force` không mất gì. Rà diff: không mất `onAction`/Effect/LaunchedEffect/cuộn tới tin mới/`enabled`/Preview/chữ ký hàm.
+   - Đã sửa thêm trên bản Gemini:
+     - khoá chat = icon Lock 24dp + chữ **"Chưa là bạn"**;
+     - contentDescription "Đang gửi" cho vòng xoay (Feed, PhotoCard, Chat) và "Đang nhập…" cho "•••";
+     - icon đã gửi/đã xem 16→24dp; icon nhãn DIRECT 20→24dp (pill 40dp);
+     - khôi phục 3 comment Gemini xoá: cuộn tin mới nhất, TODO tuần 4 nút camera, `launch` riêng cho snackbar.
+   - Code main biên dịch được. Có 1 cảnh báo `Condition is always 'true'` ở `ChatScreen.kt` (~dòng 390, vế `&& message.body != null` thừa), có thể bỏ.
+   - **Chưa làm:**
+     - chạy unit test (đang đỏ vì việc của phiên khác, xem dưới);
+     - kiểm trên emulator theo mục "sau prompt 08" bước 4;
+     - chụp lại `05-feed-ban-be`, `06-feed-kham-pha`, `21-chat`;
+     - commit `style: giao diện tối giản cho Feed, thẻ ảnh, Chat`.
+
+### ⚠️ Có một phiên Claude Code khác sửa cùng thư mục
+- Từ 01:40, một phiên khác (app Claude desktop) làm tính năng **"kiểm tra email trùng khi đăng ký"**, chưa commit. Phiên đó sửa 4 file: `AuthLogicTest.kt`, `FakeAuthStore.kt`, `RegisterContract.kt`, `RegisterViewModel.kt`.
+- Lúc 01:58 test của phiên đó còn đỏ (chưa có `EmailAvailability`), nên `testDebugUnitTest` lỗi biên dịch cho tới khi phiên đó xong.
+- **Không sửa 4 file trên.** Khi commit chỉ `git add` đúng file của việc mình làm; đừng dùng `git add -A` / `git commit -a`.
+
+### Việc tiếp theo (theo thứ tự)
+1. Hỏi người dùng phiên "kiểm tra email" đã xong và đã dừng chưa. Sau đó chạy lại build + toàn bộ unit test (phải xanh).
+2. Kiểm prompt 08 trên emulator theo bước 4 mục "sau prompt 08", rồi chụp lại 05, 06, 21 (ghi đè).
+3. Làm prompt 09 theo mục "sau prompt 09" ở trên:
+   - Đã kiểm: chỗ sửa sau 00:55 trong `OnboardingScreen.kt` chỉ là "Bến Nghé" → "Sài Gòn", và bản Gemini 09 không còn dòng này, nên ghi đè không mất gì.
+   - Chạy thử (không ghi) cho thấy script chỉ ghi 1 file.
+4. Commit khi người dùng bảo. Trước đó cần `git user.name/email`. Đề xuất thêm commit `git update-index --chmod=+x gradlew`.
+5. Yêu cầu cũ bị ngắt: viết kịch bản slide 5–7 phút từ `docs/screenshots/` + code. Hỏi lại người dùng sau khi có ảnh mới.
+
+### Cập nhật phiên Mac (06/11, 02:05–02:25): đã xong việc 1–3 ở trên, CHƯA commit
+- Build OK, unit test 69/69 (tính cả test của phiên kiểm tra email). Phiên email đã `idle`, nhưng nó sửa **5 file** (thêm `RegisterScreen.kt`) chứ không phải 4. Chưa rõ phiên đó muốn commit lúc nào.
+- **Prompt 08:** đã kiểm trên emulator, chụp lại 05, 06, 21. Ảnh 05 chụp bài thứ 2 vì bài đầu đang ở trạng thái "Đang gửi". Sửa thêm:
+  - `FeedScreen.kt`: chip vị trí bị xuống 2–3 dòng → pill tác giả có `weight(1f, fill = false)`; tên đổi `titleSmall` → `labelLarge` (giống PhotoCard) để hiện đủ.
+  - `PhotoCard.kt`: nút ⋮ lệch vị trí giữa các thẻ → luôn sát mép phải.
+  - `ChatScreen.kt`: bỏ vế `&& message.body != null` thừa.
+- **Prompt 09:** đã ghi đè `OnboardingScreen.kt`; `OnboardingRoute` giống hệt HEAD. Đã chụp lại 23-1..3, 24. Sửa thêm: bỏ mô tả sai "tự hủy sau 24 giờ"; dùng `clearAndSetSemantics` để TalkBack không đọc trạng thái hai lần. Đã thử: từ chối 2 lần → mở Cài đặt, cấp trong Cài đặt rồi quay lại tự cập nhật, vị trí tương đối, thông báo.
+- **Commit khi được bảo** (chỉ `git add` đúng file, không đụng 5 file của phiên email):
+  - `style: giao diện tối giản cho Feed, thẻ ảnh, Chat`: `FeedScreen.kt`, `PhotoCard.kt`, `ChatScreen.kt`, ảnh 05, 06, 21.
+  - `style: màn giới thiệu và xin quyền tối giản`: `OnboardingScreen.kt`, ảnh 23-1..3, 24.
+- **Còn mở, chưa sửa:**
+  - Nút emoji chỉ rộng ~39dp (`EmojiBar`), dưới chuẩn 48dp; icon trong `GlassChip` 16dp, dấu ✓ ô quyền 14dp, dưới chuẩn 24dp. Đây là component dùng chung hoặc huy hiệu nhỏ, cần nhóm quyết.
+  - Minh hoạ trang 3 có nhãn "24h ⏳", có thể bị hiểu là tự huỷ ảnh; thiết kế chỉ có hẹn giờ công khai (1/3/7 ngày).
+  - Một lần `adb swipe` trên thẻ đầu Feed mở nhầm màn Chi tiết; thử lại 4 lần không lặp lại, chưa rõ nguyên nhân.
+  - Chưa bật TalkBack thật, mới kiểm qua `uiautomator dump`. Chưa thử trên điện thoại thật.
+
+### Phiên Mac 06/11 (02:28–03:55): rà căn chỉnh trên emulator + slide tuần 2 — CHƯA commit
+- Emulator `Pixel_10_Pro_XL` (QEMU, `emulator-5554`) chạy sẵn, không tắt. Đã cài APK mới. Bật demo mode thanh trạng thái (9:41) để chụp ảnh rồi đã tắt, `sysui_demo_allowed` trả về 0.
+- Build OK, unit test 69/69. Không đụng 5 file của phiên "kiểm tra email".
+- Đo toạ độ bằng `uiautomator dump` trên mọi màn, sửa 7 file (chỉ giao diện, không đổi logic/Action/điều hướng):
+  - `CameraScreen.kt`: thanh trên dùng `Box` + `align` thay `Row SpaceBetween` → chip "Bạn bè" về đúng tâm (trước lệch trái 26dp so với nút chụp).
+  - `ProfileScreen.kt`: 3 cột thống kê cùng `weight(1f)` (cột đầu 1.3f làm "Bài đăng" lệch phải 19dp so với avatar).
+  - `GlassChip.kt`: `spacedBy(xs, CenterHorizontally)` → chip bị kéo giãn (tab Ảnh/Dấu chân) có chữ ở giữa.
+  - `RegionCard.kt`: chỉ vẽ đúng số ảnh, ảnh đầu nằm trên (trước luôn vẽ 3 khung nên khu vực 1–2 ảnh lộ khung trống); thẻ hẹp < 280dp (Hộ chiếu vùng miền) ẩn sticker, thu nhỏ chồng ảnh, tên 24sp → hết đè badge.
+  - `MapScreen.kt` + `LokapMap.kt`: header chỉ đệm cạnh trên + hai bên (`systemBarsPadding()` cũ cộng cả thanh điều hướng vào chiều cao header); thêm `bottomInset` cho phép chiếu → bong bóng TP.HCM không còn nằm dưới nút ◀ ● ■; lề header 12 → 16dp nên hàng lọc cân hai bên.
+  - `SetupProfileScreen.kt`: dòng phụ căn giữa như tiêu đề; 6 avatar mẫu xếp 3 + 3 ở giữa (trước 5 + 1, ô lẻ bên trái).
+- Commit đề xuất khi được bảo: `style: sửa căn chỉnh Camera, Hồ sơ, Bản đồ, thẻ khu vực, Thiết lập hồ sơ` (chỉ `git add` 7 file trên).
+- Slide tuần 2 nằm ngoài repo, cạnh `a.pptx`: `Lokap-Tuan2-GiaoDien.pptx` (+ `.pdf`, kịch bản trong Notes), `Lokap-Tuan2-KichBan.md`, `Lokap-Tuan2-ThietKe/` (sơ đồ luồng, 6 wireframe, 25 mockup).
+- Còn mở, cần nhóm quyết:
+  - Lề ngang chưa thống nhất: Album, Địa danh, Bạn bè, Tin nhắn, Thông báo, Hồ sơ dùng 12dp; các màn còn lại 16dp.
+  - Ở zoom 9, chạm bong bóng phường → nhảy zoom 11.2, nơi địa danh có bài được ưu tiên nên bong bóng phường bị ẩn: khó mở sheet "Xem album" của phường từ bản đồ.
+  - Ảnh bìa địa danh Cầu Rồng là ảnh dâu tây (dữ liệu giả picsum); màn chờ khởi động vẫn là icon Android mặc định; nút "Tiếp theo" ở màn giới thiệu đặt mũi tên → bên trái chữ.

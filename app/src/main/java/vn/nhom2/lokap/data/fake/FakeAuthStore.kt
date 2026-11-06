@@ -8,7 +8,12 @@ import java.util.UUID
 
 sealed class AuthStoreException(override val message: String) : Exception(message) {
     class InvalidCredentials : AuthStoreException("Email hoặc mật khẩu không đúng")
-    class EmailAlreadyTaken : AuthStoreException("Email này đã được đăng ký tài khoản khác")
+    class EmailAlreadyTaken : AuthStoreException(MESSAGE) {
+        companion object {
+            // Màn Đăng ký dùng lại câu này khi báo trùng lúc đang gõ
+            const val MESSAGE = "Email này đã được đăng ký tài khoản khác"
+        }
+    }
     class UsernameAlreadyTaken : AuthStoreException("Username này đã có người dùng")
     class NetworkError : AuthStoreException("Mất kết nối mạng. Vui lòng kiểm tra và thử lại.")
 }
@@ -82,6 +87,15 @@ object FakeAuthStore {
         )
         currentUser.value = incompleteUser
         return Result.success(incompleteUser)
+    }
+
+    suspend fun isEmailAvailable(email: String): Result<Boolean> {
+        delay(250)
+        if (simulateOffline || email.trim().equals("offline@lokap.vn", ignoreCase = true)) {
+            return Result.failure(AuthStoreException.NetworkError())
+        }
+        val normalizedEmail = email.trim().lowercase()
+        return Result.success(normalizedEmail !in takenEmails)
     }
 
     suspend fun loginWithGoogle(): Result<User> {

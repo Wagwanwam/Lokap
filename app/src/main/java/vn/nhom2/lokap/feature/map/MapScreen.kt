@@ -18,12 +18,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -471,6 +478,7 @@ fun MapScreen(
     val shapes = LokapTheme.shapes
     val density = LocalDensity.current
     var headerHeightPx by remember { mutableIntStateOf(0) }
+    val navBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Box(
         modifier = modifier
@@ -504,18 +512,22 @@ fun MapScreen(
                     onBubbleClick = { onAction(MapAction.OnBubbleClick(it)) },
                     onLandmarkClick = { onAction(MapAction.OnLandmarkClick(it)) },
                     modifier = Modifier.fillMaxSize(),
-                    topInset = with(density) { headerHeightPx.toDp() }
+                    topInset = with(density) { headerHeightPx.toDp() },
+                    bottomInset = navBarHeight
                 )
             }
         }
 
         // Top Controls: OfflineBanner + Header + Bộ lọc GlassChip
+        // Chỉ đệm cạnh trên + hai bên: systemBarsPadding() cũ cộng cả chiều cao thanh điều hướng
+        // vào header nên tâm bản đồ bị đẩy xuống, bong bóng TP.HCM nằm dưới nút ◀ ● ■.
+        // Lề ngang 16dp như các màn khác; hàng lọc vừa khít nên hai mép trái/phải cân nhau.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .onSizeChanged { headerHeightPx = it.height }
-                .systemBarsPadding()
-                .padding(horizontal = spacing.md, vertical = spacing.sm),
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .padding(horizontal = spacing.lg, vertical = spacing.sm),
             verticalArrangement = Arrangement.spacedBy(spacing.sm)
         ) {
             if (uiState.isOffline) {

@@ -1,10 +1,5 @@
 package vn.nhom2.lokap.feature.feed
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
-import vn.nhom2.lokap.core.designsystem.component.BlockUserDialog
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -21,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -30,11 +26,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.LocationOn
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,14 +45,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -61,24 +67,25 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import vn.nhom2.lokap.core.navigation.navigateSingleTop
-import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import androidx.navigation.compose.composable
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.common.formatTimeAgo
 import vn.nhom2.lokap.core.designsystem.component.AvatarRing
 import vn.nhom2.lokap.core.designsystem.component.BadgeDot
+import vn.nhom2.lokap.core.designsystem.component.BlockUserDialog
 import vn.nhom2.lokap.core.designsystem.component.EmojiBar
 import vn.nhom2.lokap.core.designsystem.component.EmptyState
 import vn.nhom2.lokap.core.designsystem.component.ErrorState
 import vn.nhom2.lokap.core.designsystem.component.GlassChip
 import vn.nhom2.lokap.core.designsystem.component.OfflineBanner
 import vn.nhom2.lokap.core.designsystem.component.PhotoCard
-import vn.nhom2.lokap.core.designsystem.component.PinkButton
 import vn.nhom2.lokap.core.designsystem.component.ShimmerBox
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.core.navigation.navigateSingleTop
+import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.Audience
 import vn.nhom2.lokap.domain.model.LocationLevel
@@ -248,9 +255,9 @@ fun FeedScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             EmptyState(
-                                title = "Chưa có bài nào, rủ bạn bè vào Lokap nhé",
-                                subtitle = "Chụp khoảnh khắc đầu tiên hoặc kết bạn để xem ảnh mới mỗi ngày",
-                                actionLabel = "Mở máy ảnh",
+                                title = "Chưa có ảnh",
+                                subtitle = "",
+                                actionLabel = "Chụp ảnh",
                                 onActionClick = { onAction(FeedAction.OnSwipeDownToCamera) }
                             )
                         }
@@ -271,8 +278,8 @@ fun FeedScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             EmptyState(
-                                title = "Chưa có bài nào, rủ bạn bè vào Lokap nhé",
-                                subtitle = "Khám phá các khoảnh khắc công khai quanh ${state.currentProvinceName}"
+                                title = "Chưa có ảnh",
+                                subtitle = ""
                             )
                         }
                     } else {
@@ -307,10 +314,10 @@ private fun FeedTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Nút quay nhanh về Camera
+        // Nút quay nhanh về Camera (vùng chạm 48dp, icon 28dp)
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .clip(pill)
                 .background(colors.surfaceHigh)
                 .border(1.dp, colors.outline, pill)
@@ -318,9 +325,10 @@ private fun FeedTopBar(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Rounded.KeyboardArrowDown,
+                imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = "Về máy ảnh",
-                tint = colors.textPrimary
+                tint = colors.textPrimary,
+                modifier = Modifier.size(28.dp)
             )
         }
 
@@ -338,11 +346,11 @@ private fun FeedTopBar(
             }
         }
 
-        // Chuông thông báo kèm BadgeDot
+        // Chuông thông báo kèm BadgeDot (vùng chạm 48dp, icon 28dp)
         Box(contentAlignment = Alignment.TopEnd) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(pill)
                     .background(colors.surfaceHigh)
                     .border(1.dp, colors.outline, pill)
@@ -350,9 +358,10 @@ private fun FeedTopBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Notifications,
+                    imageVector = Icons.Default.Notifications,
                     contentDescription = "Thông báo",
-                    tint = colors.textPrimary
+                    tint = colors.textPrimary,
+                    modifier = Modifier.size(28.dp)
                 )
             }
             BadgeDot(count = unreadNotificationsCount)
@@ -454,7 +463,7 @@ private fun LocketFriendPageItem(
     ) {
         Spacer(modifier = Modifier.height(spacing.xs))
 
-        // Ảnh vuông lớn bo 28dp ở giữa
+        // Ảnh vuông lớn bo góc ở giữa
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -473,19 +482,35 @@ private fun LocketFriendPageItem(
                 )
             }
 
+            // Lớp phủ gradient phía dưới để caption nổi bật
+            if (!post.caption.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0.65f to colors.background.copy(alpha = 0.0f),
+                                1.0f to colors.background.copy(alpha = 0.82f)
+                            )
+                        )
+                )
+            }
+
             if (post.audience == Audience.DIRECT) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(spacing.md)
+                        .size(40.dp)
                         .clip(shapes.pill)
-                        .background(colors.primary)
-                        .padding(horizontal = spacing.md, vertical = spacing.xs)
+                        .background(colors.primary),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Gửi riêng cho bạn",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colors.onPrimary
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Gửi riêng cho bạn",
+                        tint = colors.onPrimary,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -498,19 +523,21 @@ private fun LocketFriendPageItem(
                         .clip(shapes.pill)
                         .background(colors.background.copy(alpha = 0.78f))
                         .border(1.dp, colors.outline, shapes.pill)
-                        .padding(horizontal = spacing.lg, vertical = spacing.sm)
+                        .padding(horizontal = spacing.lg, vertical = spacing.sm),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = post.caption,
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textPrimary,
+                        textAlign = TextAlign.Center,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
-            // Trạng thái PENDING / FAILED
+            // Trạng thái PENDING / FAILED bằng icon tối giản
             when (post.sendState) {
                 PostSendState.PENDING -> {
                     Box(
@@ -519,24 +546,20 @@ private fun LocketFriendPageItem(
                             .background(colors.background.copy(alpha = 0.65f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Row(
+                        Box(
                             modifier = Modifier
+                                .size(56.dp)
                                 .clip(shapes.pill)
                                 .background(colors.surfaceHigh)
-                                .border(1.dp, colors.outline, shapes.pill)
-                                .padding(horizontal = spacing.lg, vertical = spacing.md),
-                            verticalAlignment = Alignment.CenterVertically
+                                .border(1.dp, colors.outline, shapes.pill),
+                            contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .semantics { contentDescription = "Đang gửi" },
                                 color = colors.primary,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(spacing.sm))
-                            Text(
-                                text = "Đang gửi…",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = colors.textPrimary
+                                strokeWidth = 2.5.dp
                             )
                         }
                     }
@@ -553,16 +576,27 @@ private fun LocketFriendPageItem(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(spacing.md)
                         ) {
-                            Text(
-                                text = "Gửi ảnh không thành công",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = colors.error
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Gửi ảnh không thành công",
+                                tint = colors.error,
+                                modifier = Modifier.size(32.dp)
                             )
-                            PinkButton(
-                                text = "Thử lại",
-                                leadingIcon = Icons.Rounded.Refresh,
-                                onClick = onRetrySend
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(shapes.pill)
+                                    .background(colors.primary)
+                                    .clickable(onClick = onRetrySend),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Thử lại",
+                                    tint = colors.onPrimary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -571,13 +605,21 @@ private fun LocketFriendPageItem(
             }
         }
 
-        // Thông tin tác giả + thời gian + chip vị trí bên dưới ảnh
-        Column(
+        // Hàng tác giả (avatar + tên + thời gian) và chip vị trí căn giữa theo chiều dọc với nhau
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.sm)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.CenterHorizontally)
         ) {
             Row(
+                modifier = Modifier
+                    // Nhường chỗ cho chip vị trí: tên dài thì cắt "…", chip không bị xuống dòng
+                    .weight(1f, fill = false)
+                    .clip(shapes.pill)
+                    .background(colors.background.copy(alpha = 0.78f))
+                    .border(1.dp, colors.outline, shapes.pill)
+                    .clickable(onClick = onAuthorClick)
+                    .padding(start = spacing.xs, end = spacing.md, top = spacing.xs, bottom = spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm)
             ) {
@@ -589,19 +631,23 @@ private fun LocketFriendPageItem(
                 )
                 Text(
                     text = post.author.displayName,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = colors.textPrimary
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "· $timeLabel",
                     style = MaterialTheme.typography.labelLarge,
-                    color = colors.textSecondary
+                    color = colors.textSecondary,
+                    maxLines = 1
                 )
             }
 
             GlassChip(
                 label = locationLabel,
-                leadingIcon = Icons.Rounded.LocationOn,
+                leadingIcon = Icons.Default.LocationOn,
                 onClick = onLocationClick
             )
         }
@@ -621,28 +667,31 @@ private fun LocketFriendPageItem(
             )
 
             // Không hiện ô Trả lời với bài của chính mình
-            if (showReply) Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(shapes.pill)
-                    .background(colors.surfaceHigh)
-                    .border(1.dp, colors.outline, shapes.pill)
-                    .clickable(onClick = onReplyClick)
-                    .padding(horizontal = spacing.lg, vertical = spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Trả lời ${post.author.displayName}…",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textSecondary
-                )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.Send,
-                    contentDescription = "Trả lời",
-                    tint = colors.primary,
-                    modifier = Modifier.size(18.dp)
-                )
+            if (showReply) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .clip(shapes.pill)
+                        .background(colors.surfaceHigh)
+                        .border(1.dp, colors.outline, shapes.pill)
+                        .clickable(onClick = onReplyClick)
+                        .padding(horizontal = spacing.lg, vertical = spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Trả lời…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textSecondary
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Trả lời",
+                        tint = colors.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }
@@ -671,16 +720,20 @@ private fun ExploreLazyColumn(
     ) {
         if (nearbyPosts.isNotEmpty()) {
             item(key = "header_nearby") {
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                    Text(
-                        text = "Gần bạn · $currentProvinceName",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = colors.textPrimary
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = "Vị trí hiện tại",
+                        tint = colors.primary,
+                        modifier = Modifier.size(28.dp)
                     )
                     Text(
-                        text = "Khoảnh khắc công khai mới nhất quanh khu vực của bạn",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = colors.textSecondary
+                        text = currentProvinceName,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = colors.textPrimary
                     )
                 }
             }
@@ -708,16 +761,20 @@ private fun ExploreLazyColumn(
 
         if (landmarkPosts.isNotEmpty()) {
             item(key = "header_landmark") {
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                    Text(
-                        text = "Địa danh nổi bật",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = colors.primary
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Place,
+                        contentDescription = "Địa danh",
+                        tint = colors.primary,
+                        modifier = Modifier.size(28.dp)
                     )
                     Text(
-                        text = "Các điểm check-in được gắn thẻ nhiều nhất trên bản đồ",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = colors.textSecondary
+                        text = "Địa danh",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = colors.primary
                     )
                 }
             }

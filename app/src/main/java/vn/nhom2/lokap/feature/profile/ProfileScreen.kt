@@ -414,7 +414,8 @@ private fun ProfileHeaderSection(
                 value = "${uiState.visitedProvincesCount}/${uiState.totalProvincesCount}",
                 label = "Đã đến ${uiState.visitedProvincesCount}/${uiState.totalProvincesCount} tỉnh",
                 highlight = true,
-                modifier = Modifier.weight(1.3f)
+                // 3 cột bằng nhau: cột giữa "Bài đăng" nằm đúng dưới avatar (weight 1.3 làm lệch phải ~19dp)
+                modifier = Modifier.weight(1f)
             )
 
             Box(

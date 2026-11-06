@@ -5,6 +5,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object RegisterRoute
 
+enum class EmailAvailability {
+    IDLE,
+    CHECKING,
+    AVAILABLE,
+    TAKEN
+}
+
 data class RegisterUiState(
     val email: String = "",
     val password: String = "",
@@ -18,6 +25,7 @@ data class RegisterUiState(
     val passwordError: String? = null,
     val confirmPasswordError: String? = null,
     val termsError: String? = null,
+    val emailAvailability: EmailAvailability = EmailAvailability.IDLE,
     val isPasswordVisible: Boolean = false,
     val isConfirmPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,

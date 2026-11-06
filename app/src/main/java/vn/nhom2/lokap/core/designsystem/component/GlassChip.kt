@@ -50,7 +50,8 @@ fun GlassChip(
             )
             .padding(horizontal = spacing.md, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+        // Khi chip bị kéo giãn (weight/fillMaxWidth, ví dụ tab Hồ sơ) thì nội dung nằm giữa thay vì dồn trái
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs, Alignment.CenterHorizontally)
     ) {
         if (leadingIcon != null) {
             Icon(

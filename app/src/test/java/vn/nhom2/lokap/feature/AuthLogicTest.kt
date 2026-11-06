@@ -6,11 +6,13 @@ import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -21,9 +23,12 @@ import vn.nhom2.lokap.data.fake.AuthStoreException
 import vn.nhom2.lokap.data.fake.FakeAuthStore
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.feature.auth.AuthValidators
+import vn.nhom2.lokap.feature.auth.EmailAvailability
 import vn.nhom2.lokap.feature.auth.LoginAction
 import vn.nhom2.lokap.feature.auth.LoginRoute
 import vn.nhom2.lokap.feature.auth.LoginViewModel
+import vn.nhom2.lokap.feature.auth.RegisterAction
+import vn.nhom2.lokap.feature.auth.RegisterViewModel
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileAction
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileViewModel
@@ -38,6 +43,9 @@ import vn.nhom2.lokap.feature.onboarding.PermissionStatus
 class AuthLogicTest {
 
     private lateinit var dispatcher: TestDispatcher
+
+    // Báo trùng lúc đang gõ phải cùng câu với lỗi register() trả về khi bấm Tạo tài khoản
+    private val emailTakenMessage = AuthStoreException.EmailAlreadyTaken().message
 
     @Before
     fun setUp() {
@@ -60,6 +68,12 @@ class AuthLogicTest {
     }
 
     private fun uniqueEmail() = "u${System.nanoTime()}@lokap.vn"
+
+    private fun fillValidPasswordAndTerms(vm: RegisterViewModel) {
+        vm.onAction(RegisterAction.PasswordChanged("lokap123"))
+        vm.onAction(RegisterAction.ConfirmPasswordChanged("lokap123"))
+        vm.onAction(RegisterAction.AcceptedTermsChanged(true))
+    }
 
     // ---------- AuthValidators ----------
 
@@ -117,6 +131,20 @@ class AuthLogicTest {
     }
 
     @Test
+    fun `kiem tra email truoc khi dang ky bao trung, email moi dung duoc, mat mang thi loi mang`() = runTest(dispatcher) {
+        assertEquals(false, FakeAuthStore.isEmailAvailable("taken@lokap.vn").getOrNull())
+        assertEquals(false, FakeAuthStore.isEmailAvailable("demo@lokap.vn").getOrNull())
+        val email = uniqueEmail()
+        assertEquals(true, FakeAuthStore.isEmailAvailable(email).getOrNull())
+        FakeAuthStore.register(email, "lokap123")
+        assertEquals(false, FakeAuthStore.isEmailAvailable(email).getOrNull())
+
+        assertTrue(FakeAuthStore.isEmailAvailable(" OFFLINE@lokap.vn").exceptionOrNull() is AuthStoreException.NetworkError)
+        FakeAuthStore.simulateOffline = true
+        assertTrue(FakeAuthStore.isEmailAvailable(uniqueEmail()).exceptionOrNull() is AuthStoreException.NetworkError)
+    }
+
+    @Test
     fun `username lokap va username trong SampleData da co nguoi dung`() = runTest(dispatcher) {
         assertEquals(false, FakeAuthStore.isUsernameAvailable("lokap").getOrNull())
         assertEquals(false, FakeAuthStore.isUsernameAvailable(SampleData.users[1].username.uppercase()).getOrNull())
@@ -146,6 +174,120 @@ class AuthLogicTest {
         vm.onAction(LoginAction.SubmitClicked) // bị chặn vì đang gửi
         advanceUntilIdle()
         assertEquals("Email hoặc mật khẩu không đúng", vm.uiState.value.serverError)
+    }
+
+    // ---------- Màn Đăng ký ----------
+
+    @Test
+    fun `go email da dang ky thi bao trung ngay, khong can roi o`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        vm.onAction(RegisterAction.EmailChanged("taken@lokap.vn"))
+        assertEquals(EmailAvailability.CHECKING, vm.uiState.value.emailAvailability)
+        assertNull(vm.uiState.value.emailError)
+        advanceUntilIdle()
+        assertEquals(EmailAvailability.TAKEN, vm.uiState.value.emailAvailability)
+        assertEquals(emailTakenMessage, vm.uiState.value.emailError)
+        assertFalse(vm.uiState.value.emailTouched)
+    }
+
+    @Test
+    fun `email trung van bi bat khi co khoang trang va chu hoa`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        vm.onAction(RegisterAction.EmailChanged("  TAKEN@Lokap.vn "))
+        advanceUntilIdle()
+        assertEquals("  TAKEN@Lokap.vn ", vm.uiState.value.email) // giữ nguyên chữ người dùng gõ
+        assertEquals(EmailAvailability.TAKEN, vm.uiState.value.emailAvailability)
+        assertEquals(emailTakenMessage, vm.uiState.value.emailError)
+    }
+
+    @Test
+    fun `email chua ai dung thi bao dung duoc, khong loi`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        vm.onAction(RegisterAction.EmailChanged(uniqueEmail()))
+        advanceUntilIdle()
+        assertEquals(EmailAvailability.AVAILABLE, vm.uiState.value.emailAvailability)
+        assertNull(vm.uiState.value.emailError)
+    }
+
+    @Test
+    fun `go tiep email thi huy lan kiem tra cu, ket qua cu khong ghi de`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        vm.onAction(RegisterAction.EmailChanged("taken@lokap.vn"))
+        advanceTimeBy(200)
+        vm.onAction(RegisterAction.EmailChanged(uniqueEmail())) // gõ tiếp trước khi hết 400ms
+        advanceTimeBy(500) // đã qua lúc kết quả cũ về (650ms), kết quả mới chưa về (850ms)
+        assertEquals(EmailAvailability.CHECKING, vm.uiState.value.emailAvailability)
+        assertNull(vm.uiState.value.emailError)
+        advanceUntilIdle()
+        assertEquals(EmailAvailability.AVAILABLE, vm.uiState.value.emailAvailability)
+        assertNull(vm.uiState.value.emailError)
+    }
+
+    @Test
+    fun `email sai dinh dang thi khong kiem tra trung, loi chi hien sau khi roi o`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        vm.onAction(RegisterAction.EmailChanged("ban@lokap"))
+        advanceUntilIdle()
+        assertEquals(EmailAvailability.IDLE, vm.uiState.value.emailAvailability)
+        assertEquals(0L, currentTime) // không hẹn lần kiểm tra nào
+        assertNull(vm.uiState.value.emailError)
+        vm.onAction(RegisterAction.EmailFocusLost)
+        assertNotNull(vm.uiState.value.emailError)
+    }
+
+    @Test
+    fun `roi o email khong xoa loi email da dang ky`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        vm.onAction(RegisterAction.EmailChanged("taken@lokap.vn"))
+        advanceUntilIdle()
+        vm.onAction(RegisterAction.EmailFocusLost)
+        assertTrue(vm.uiState.value.emailTouched)
+        assertEquals(EmailAvailability.TAKEN, vm.uiState.value.emailAvailability)
+        assertEquals(emailTakenMessage, vm.uiState.value.emailError)
+    }
+
+    @Test
+    fun `mat mang khi kiem tra email thi bao mat mang, khong hien loi server`() = runTest(dispatcher) {
+        FakeAuthStore.simulateOffline = true
+        val vm = RegisterViewModel()
+        vm.onAction(RegisterAction.EmailChanged(uniqueEmail()))
+        advanceUntilIdle()
+        assertEquals(EmailAvailability.IDLE, vm.uiState.value.emailAvailability)
+        assertTrue(vm.uiState.value.isOffline)
+        assertNull(vm.uiState.value.serverError) // nút Thử lại của serverError gửi cả form
+        assertNull(vm.uiState.value.emailError)
+    }
+
+    @Test
+    fun `email da dang ky thi bam Tao tai khoan khong goi dang ky`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        fillValidPasswordAndTerms(vm)
+        vm.onAction(RegisterAction.EmailChanged("taken@lokap.vn"))
+        advanceUntilIdle()
+        assertEquals(EmailAvailability.TAKEN, vm.uiState.value.emailAvailability)
+
+        vm.onAction(RegisterAction.SubmitClicked)
+        assertFalse(vm.uiState.value.isLoading) // register() không được gọi
+        assertTrue(vm.uiState.value.emailTouched)
+        assertEquals(emailTakenMessage, vm.uiState.value.emailError)
+    }
+
+    @Test
+    fun `bam Tao tai khoan luc dang kiem tra thi huy kiem tra, dang ky bao trung thi danh dau trung`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        fillValidPasswordAndTerms(vm)
+        vm.onAction(RegisterAction.EmailChanged("taken@lokap.vn"))
+        vm.onAction(RegisterAction.SubmitClicked) // bấm trước khi hết 400ms
+        advanceTimeBy(700) // qua lúc lần kiểm tra cũ lẽ ra có kết quả (650ms), register() chưa xong (800ms)
+        assertTrue(vm.uiState.value.isLoading)
+        assertEquals(EmailAvailability.IDLE, vm.uiState.value.emailAvailability)
+        assertNull(vm.uiState.value.emailError)
+
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isLoading)
+        assertEquals(EmailAvailability.TAKEN, vm.uiState.value.emailAvailability)
+        assertEquals(emailTakenMessage, vm.uiState.value.emailError)
+        assertNull(vm.uiState.value.serverError)
     }
 
     // ---------- Thiết lập hồ sơ ----------
