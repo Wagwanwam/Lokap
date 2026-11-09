@@ -3,7 +3,6 @@ package vn.nhom2.lokap.feature.camera
 import androidx.compose.runtime.Immutable
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.User
-
 enum class CameraPermissionState {
     NOT_REQUESTED,
     GRANTED,
@@ -39,7 +38,7 @@ sealed interface CameraAction {
     data class OnPermissionResult(
         val isGranted: Boolean,
         val shouldShowRationale: Boolean,
-        /** Giá trị shouldShowRequestPermissionRationale ngay TRƯỚC khi mở hộp thoại. */
+
         val shouldShowRationaleBefore: Boolean
     ) : CameraAction
 

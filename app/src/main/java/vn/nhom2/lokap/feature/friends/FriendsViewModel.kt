@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.data.fake.SampleSocialData
 import vn.nhom2.lokap.domain.model.FriendStatus
-
 @OptIn(FlowPreview::class)
 class FriendsViewModel : ViewModel() {
 
@@ -57,7 +56,7 @@ class FriendsViewModel : ViewModel() {
                 val searchResults = if (normalizedQuery.isBlank()) {
                     emptyList()
                 } else {
-                    // Người mình đã chặn không hiện trong kết quả tìm kiếm
+
                     allOthers.filter { user ->
                         statuses[user.id] != FriendStatus.BLOCKED &&
                             (user.username.lowercase().contains(normalizedQuery) ||

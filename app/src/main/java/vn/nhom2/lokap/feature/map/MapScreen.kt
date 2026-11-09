@@ -1,56 +1,52 @@
 package vn.nhom2.lokap.feature.map
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.runtime.getValue
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import vn.nhom2.lokap.core.navigation.navigateSingleTop
-import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import androidx.navigation.compose.composable
+import java.time.Duration
+import kotlin.math.abs
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,32 +56,19 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.core.designsystem.component.ErrorState
-import vn.nhom2.lokap.core.designsystem.component.GhostButton
-import vn.nhom2.lokap.core.designsystem.component.GlassChip
-import vn.nhom2.lokap.core.designsystem.component.OfflineBanner
-import vn.nhom2.lokap.core.designsystem.component.PinkButton
-import vn.nhom2.lokap.core.designsystem.component.RegionCard
-import vn.nhom2.lokap.core.designsystem.component.ShimmerBox
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.core.navigation.navigateSingleTop
+import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.data.fake.FakePostStore
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.data.fake.SampleMapData
-import vn.nhom2.lokap.domain.model.Audience
-import vn.nhom2.lokap.domain.model.Landmark
-import vn.nhom2.lokap.domain.model.LocationLevel
-import vn.nhom2.lokap.domain.model.MapBubble
-import vn.nhom2.lokap.domain.model.MapBubbleType
-import vn.nhom2.lokap.domain.model.Post
-import vn.nhom2.lokap.domain.model.PostSendState
-import java.time.Duration
-import kotlin.math.abs
-
+import vn.nhom2.lokap.domain.model.*
 enum class MapAudienceFilter(val label: String) {
     ALL("Tất cả"),
     FRIENDS("Bạn bè"),
-    PUBLIC("Public")
+    PUBLIC("Công khai")
 }
 
 enum class MapTimeFilter(val label: String, val days: Long?) {
@@ -234,7 +217,7 @@ class MapViewModel : ViewModel() {
         when (bubble.type) {
             MapBubbleType.PROVINCE -> {
                 if (currentZoom < 8f) {
-                    // Zoom qua ngưỡng 8 để chuyển sang bong bóng phường/xã (zoom 7.6 vẫn là mức tỉnh)
+
                     _uiState.update {
                         it.copy(
                             camera = MapCameraState(
@@ -269,7 +252,7 @@ class MapViewModel : ViewModel() {
             }
 
             MapBubbleType.PLACE -> {
-                // Không có bài khớp thì không mở gì (trước đây mở bừa bài đầu tiên)
+
                 val postId = findPostIdForPlaceBubble(bubble) ?: return
                 viewModelScope.launch {
                     _effect.send(MapEffect.NavigateToPostDetail(postId))
@@ -304,7 +287,7 @@ class MapViewModel : ViewModel() {
     }
 
     private fun filterPostsForRegion(level: String, code: String): List<Post> {
-        // Loại bỏ bài ở mức "Việt Nam" (COUNTRY)
+
         val validPosts = cachedPosts.filter { it.location.level != LocationLevel.COUNTRY }
         return validPosts.filter { post ->
             if (level == "PROVINCE") {
@@ -328,16 +311,14 @@ class MapViewModel : ViewModel() {
         val state = _uiState.value
         val zoom = state.camera.zoom
 
-        // 1. Lấy danh sách bubble theo mức zoom (Bài mức Việt Nam không lên bản đồ)
         val rawBubbles = when {
             zoom < 8f -> SampleMapData.allProvinceBubbles
             zoom < 13f -> SampleMapData.allWardAndProvinceWideBubbles
             else -> SampleMapData.allPlaceBubbles
         }
 
-        // 2. Đếm bài thật từ FakePostStore theo luật hiển thị + bộ lọc; bong bóng 0 bài thì không vẽ
         val countablePosts = cachedPosts.filter { post ->
-            post.location.level != LocationLevel.COUNTRY && // bài mức "Việt Nam" không lên bản đồ
+            post.location.level != LocationLevel.COUNTRY &&
                 post.sendState == PostSendState.SENT &&
                 matchesTimeFilter(post, state.timeFilter) &&
                 matchesAudienceFilter(post, state.audienceFilter)
@@ -356,7 +337,6 @@ class MapViewModel : ViewModel() {
             lm.copy(postCount = countablePosts.count { it.location.landmarkId == lm.id })
         }
 
-        // 3. Kiểm tra vùng khung nhìn hiện tại có bubble hoặc landmark nào không
         val latSpan = 12.0 / Math.pow(2.0, (zoom - 5f).toDouble())
         val lngSpan = 10.0 / Math.pow(2.0, (zoom - 5f).toDouble())
 
@@ -379,10 +359,6 @@ class MapViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Bài thuộc bong bóng nào: tỉnh gom mọi bài trong tỉnh; phường gom bài mức phường + địa điểm;
-     * "Khắp tỉnh" chỉ bài người đăng chọn mức tỉnh; ghim địa điểm chỉ bài mức địa điểm.
-     */
     private fun postsForBubble(bubble: MapBubble, posts: List<Post>): List<Post> = when (bubble.type) {
         MapBubbleType.PROVINCE -> posts.filter { it.location.provinceCode == bubble.code }
         MapBubbleType.WARD -> posts.filter {
@@ -427,6 +403,15 @@ fun NavGraphBuilder.mapScreen(navController: NavController) {
             },
             onNavigateToPostDetail = { postId ->
                 navController.navigateSingleTop(Route.PostDetail(id = postId))
+            },
+            onNavigateToTab = { tab ->
+                when (tab) {
+                    MainTab.FEED -> navController.navigateSingleTop(Route.Feed)
+                    MainTab.MAP -> Unit
+                    MainTab.CAMERA -> navController.navigateSingleTop(Route.Camera)
+                    MainTab.INBOX -> navController.navigateSingleTop(Route.Inbox)
+                    MainTab.PROFILE -> navController.navigateSingleTop(Route.Profile())
+                }
             }
         )
     }
@@ -438,6 +423,7 @@ fun MapRoute(
     onNavigateToRegionAlbum: (level: String, code: String) -> Unit,
     onNavigateToLandmark: (landmarkId: String) -> Unit,
     onNavigateToPostDetail: (postId: String) -> Unit,
+    onNavigateToTab: (MainTab) -> Unit = {},
     viewModel: MapViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -455,7 +441,8 @@ fun MapRoute(
 
     MapScreen(
         uiState = uiState,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onNavigateToTab = onNavigateToTab
     )
 }
 
@@ -464,7 +451,8 @@ fun MapRoute(
 fun MapScreen(
     uiState: MapUiState,
     onAction: (MapAction) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToTab: (MainTab) -> Unit = {}
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -509,7 +497,6 @@ fun MapScreen(
             }
         }
 
-        // Top Controls: OfflineBanner + Header + Bộ lọc GlassChip
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -522,92 +509,242 @@ fun MapScreen(
                 OfflineBanner(modifier = Modifier.fillMaxWidth())
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = colors.surface.copy(alpha = 0.92f),
+                border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.22f)),
+                shadowElevation = 4.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier = Modifier.weight(1f, fill = false),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(shapes.pill)
-                            .background(colors.surfaceHigh.copy(alpha = 0.9f))
-                            .clickable { onAction(MapAction.OnBackClick) },
-                        contentAlignment = Alignment.Center
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Quay lại",
-                            tint = colors.textPrimary
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = colors.surfaceHigh,
+                            border = BorderStroke(0.8.dp, colors.outline.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable { onAction(MapAction.OnBackClick) }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Quay lại",
+                                    tint = colors.textPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Bản đồ Lokap",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.5.sp
+                                ),
+                                color = colors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.primary)
+                                )
+                                Text(
+                                    text = zoomLevelLabel(uiState.camera.zoom),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    color = colors.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = colors.primary.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .height(34.dp)
+                                .clip(CircleShape)
+                                .clickable { onAction(MapAction.OnMyLocationClick) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.MyLocation,
+                                    contentDescription = null,
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Vị trí của tôi",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 11.5.sp
+                                    ),
+                                    color = colors.primary
+                                )
+                            }
+                        }
                     }
 
-                    Column(
-                        modifier = Modifier
-                            .clip(shapes.pill)
-                            .background(colors.surfaceHigh.copy(alpha = 0.9f))
-                            .padding(horizontal = spacing.md, vertical = spacing.xs)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "Bản đồ Lokap",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = zoomLevelLabel(uiState.camera.zoom),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = colors.surfaceHigh.copy(alpha = 0.75f),
+                            border = BorderStroke(0.8.dp, colors.outline.copy(alpha = 0.18f)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(34.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                MapAudienceFilter.entries.forEach { filter ->
+                                    val isSelected = uiState.audienceFilter == filter
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (isSelected) colors.surface else Color.Transparent,
+                                        border = if (isSelected) BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f)) else null,
+                                        shadowElevation = if (isSelected) 1.5.dp else 0.dp,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .clickable { onAction(MapAction.OnAudienceFilterChange(filter)) }
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            Text(
+                                                text = filter.label,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    fontSize = 11.5.sp
+                                                ),
+                                                color = if (isSelected) colors.primary else colors.textSecondary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Box {
+                            var showTimeMenu by remember { mutableStateOf(false) }
+
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = colors.surfaceHigh.copy(alpha = 0.75f),
+                                border = BorderStroke(0.8.dp, colors.outline.copy(alpha = 0.18f)),
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { showTimeMenu = true }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Schedule,
+                                        contentDescription = null,
+                                        tint = if (uiState.timeFilter != MapTimeFilter.ALL) colors.primary else colors.textSecondary,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Text(
+                                        text = uiState.timeFilter.label,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 11.5.sp
+                                        ),
+                                        color = if (uiState.timeFilter != MapTimeFilter.ALL) colors.primary else colors.textPrimary
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Rounded.ArrowDropDown,
+                                        contentDescription = null,
+                                        tint = colors.textTertiary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = showTimeMenu,
+                                onDismissRequest = { showTimeMenu = false },
+                                modifier = Modifier.background(colors.surfaceHigh)
+                            ) {
+                                MapTimeFilter.entries.forEach { timeFilter ->
+                                    val isSelected = uiState.timeFilter == timeFilter
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Check,
+                                                        contentDescription = null,
+                                                        tint = colors.primary,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = timeFilter.label,
+                                                    style = MaterialTheme.typography.bodySmall.copy(
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) colors.primary else colors.textPrimary
+                                                    )
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            onAction(MapAction.OnTimeFilterChange(timeFilter))
+                                            showTimeMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
-                }
-
-                GlassChip(
-                    label = "Vị trí của tôi",
-                    leadingIcon = Icons.Default.LocationOn,
-                    selected = true,
-                    onClick = { onAction(MapAction.OnMyLocationClick) }
-                )
-            }
-
-            // Hàng lọc 1: Tất cả / Bạn bè / Public
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                MapAudienceFilter.entries.forEach { filter ->
-                    GlassChip(
-                        label = filter.label,
-                        selected = uiState.audienceFilter == filter,
-                        onClick = { onAction(MapAction.OnAudienceFilterChange(filter)) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(spacing.xs))
-
-                // Hàng lọc 2: 7 ngày / 30 ngày / Tất cả
-                MapTimeFilter.entries.forEach { timeFilter ->
-                    GlassChip(
-                        label = timeFilter.label,
-                        selected = uiState.timeFilter == timeFilter,
-                        onClick = { onAction(MapAction.OnTimeFilterChange(timeFilter)) }
-                    )
                 }
             }
         }
 
-        // Chip nổi khi vùng bản đồ không có bài
         AnimatedVisibility(
             visible = !uiState.isLoading && uiState.errorMessage == null && uiState.isViewportEmpty,
             enter = fadeIn(),
@@ -615,7 +752,7 @@ fun MapScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .systemBarsPadding()
-                .padding(bottom = spacing.xl)
+                .padding(bottom = 76.dp)
         ) {
             GlassChip(
                 label = "Chưa có bài ở khu vực này",
@@ -625,7 +762,6 @@ fun MapScreen(
             )
         }
 
-        // ModalBottomSheet xem trước RegionCard + nút "Xem album"
         val regionPreview = uiState.selectedRegionPreview
         if (regionPreview != null) {
             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -685,6 +821,7 @@ fun MapScreen(
                 }
             }
         }
+
     }
 }
 

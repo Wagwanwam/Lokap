@@ -1,11 +1,10 @@
 package vn.nhom2.lokap.data.fake
 
+import java.io.IOException
+import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import vn.nhom2.lokap.domain.model.User
-import java.io.IOException
-import java.util.UUID
-
 sealed class AuthStoreException(override val message: String) : Exception(message) {
     class InvalidCredentials : AuthStoreException("Email hoặc mật khẩu không đúng")
     class EmailAlreadyTaken : AuthStoreException("Email này đã được đăng ký tài khoản khác")
@@ -63,7 +62,12 @@ object FakeAuthStore {
         return Result.success(user)
     }
 
-    suspend fun register(email: String, password: String): Result<User> {
+    suspend fun register(
+        email: String,
+        password: String,
+        displayName: String = "",
+        username: String = ""
+    ): Result<User> {
         delay(800)
         if (simulateOffline || email.trim().equals("offline@lokap.vn", ignoreCase = true)) {
             return Result.failure(AuthStoreException.NetworkError())
@@ -72,16 +76,24 @@ object FakeAuthStore {
         if (normalizedEmail in takenEmails) {
             return Result.failure(AuthStoreException.EmailAlreadyTaken())
         }
+        val normalizedUsername = username.trim().lowercase()
+        if (normalizedUsername.isNotEmpty() && normalizedUsername in takenUsernames) {
+            return Result.failure(AuthStoreException.UsernameAlreadyTaken())
+        }
         registeredCredentials[normalizedEmail] = password
         takenEmails.add(normalizedEmail)
-        val incompleteUser = User(
+        if (normalizedUsername.isNotEmpty()) {
+            takenUsernames.add(normalizedUsername)
+        }
+        val defaultUsername = normalizedUsername.ifEmpty { "" }
+        val newUser = User(
             id = UUID.randomUUID().toString(),
-            username = "",
-            displayName = "",
-            avatarUrl = null
+            username = defaultUsername,
+            displayName = displayName.trim().ifEmpty { normalizedEmail.substringBefore("@").replaceFirstChar { it.uppercase() } },
+            avatarUrl = if (defaultUsername.isNotEmpty()) "https://picsum.photos/seed/$defaultUsername/200/200" else null
         )
-        currentUser.value = incompleteUser
-        return Result.success(incompleteUser)
+        currentUser.value = newUser
+        return Result.success(newUser)
     }
 
     suspend fun loginWithGoogle(): Result<User> {
@@ -122,16 +134,16 @@ object FakeAuthStore {
             return Result.failure(AuthStoreException.NetworkError())
         }
         val normalizedUsername = username.trim().lowercase()
-        if (normalizedUsername in takenUsernames) {
+        val existing = currentUser.value
+        if (normalizedUsername != existing?.username && normalizedUsername in takenUsernames) {
             return Result.failure(AuthStoreException.UsernameAlreadyTaken())
         }
         takenUsernames.add(normalizedUsername)
-        val existing = currentUser.value
         val updated = User(
             id = existing?.id ?: UUID.randomUUID().toString(),
             username = normalizedUsername,
-            displayName = displayName.trim(),
-            avatarUrl = avatarUrl ?: existing?.avatarUrl
+            displayName = displayName.trim().ifEmpty { normalizedUsername },
+            avatarUrl = avatarUrl ?: existing?.avatarUrl ?: "https://picsum.photos/seed/$normalizedUsername/200/200"
         )
         currentUser.value = updated
         return Result.success(updated)

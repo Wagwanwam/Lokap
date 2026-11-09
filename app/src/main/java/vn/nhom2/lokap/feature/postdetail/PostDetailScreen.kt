@@ -1,27 +1,26 @@
 package vn.nhom2.lokap.feature.postdetail
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
-import vn.nhom2.lokap.core.designsystem.component.BlockUserDialog
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.*
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.DropdownMenu
@@ -31,47 +30,44 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import vn.nhom2.lokap.core.navigation.navigateSingleTop
-import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import coil3.compose.AsyncImage
+import java.io.File
+import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.common.formatTimeAgo
-import vn.nhom2.lokap.core.designsystem.component.AvatarRing
-import vn.nhom2.lokap.core.designsystem.component.EmojiBar
-import vn.nhom2.lokap.core.designsystem.component.ErrorState
-import vn.nhom2.lokap.core.designsystem.component.GlassChip
-import vn.nhom2.lokap.core.designsystem.component.PinkButton
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.core.navigation.navigateSingleTop
+import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.data.fake.SampleData2
-import vn.nhom2.lokap.domain.model.Audience
-import vn.nhom2.lokap.domain.model.LocationLevel
-import vn.nhom2.lokap.domain.model.PostLocation
-import java.io.File
-
+import vn.nhom2.lokap.domain.model.*
 fun NavGraphBuilder.postDetailScreen(navController: NavController) {
     composable<Route.PostDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<Route.PostDetail>()
@@ -171,7 +167,10 @@ fun PostDetailScreen(
 
                 Text(
                     text = "Chi tiết khoảnh khắc",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 17.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    ),
                     color = colors.textPrimary
                 )
 
@@ -219,6 +218,91 @@ fun PostDetailScreen(
                     }
                 } else {
                     Box(modifier = Modifier.padding(spacing.lg))
+                }
+            }
+        },
+        bottomBar = {
+            if (post != null && !state.isNotFound) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.surface)
+                        .border(width = 0.5.dp, color = colors.outline)
+                        .navigationBarsPadding()
+                        .padding(horizontal = spacing.md, vertical = spacing.xs)
+                ) {
+                    if (state.replyingToComment != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Đang trả lời ${state.replyingToComment.authorName}…",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.primary
+                            )
+                            IconButton(
+                                onClick = { onAction(PostDetailAction.OnReplyToComment(null)) },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Huỷ",
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+                    ) {
+                        OutlinedTextField(
+                            value = state.commentInput,
+                            onValueChange = { onAction(PostDetailAction.OnChangeCommentInput(it)) },
+                            modifier = Modifier.weight(1f),
+                            placeholder = {
+                                Text(
+                                    text = if (state.replyingToComment != null) "Viết câu trả lời…" else "Thêm bình luận…",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.textTertiary
+                                )
+                            },
+                            singleLine = true,
+                            shape = shapes.button,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colors.primary,
+                                unfocusedBorderColor = colors.outline,
+                                focusedContainerColor = colors.surfaceHigh,
+                                unfocusedContainerColor = colors.surfaceHigh,
+                                cursorColor = colors.primary,
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary
+                            )
+                        )
+
+                        IconButton(
+                            onClick = { onAction(PostDetailAction.OnSendComment) },
+                            enabled = state.commentInput.isNotBlank(),
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (state.commentInput.isNotBlank()) colors.primary else colors.surfaceHigh)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Gửi",
+                                tint = if (state.commentInput.isNotBlank()) colors.buttonText else colors.textTertiary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -269,7 +353,7 @@ fun PostDetailScreen(
             verticalArrangement = Arrangement.spacedBy(spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Thông tin tác giả + vị trí
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -289,12 +373,15 @@ fun PostDetailScreen(
                     Column {
                         Text(
                             text = post.author.displayName,
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
                             color = colors.textPrimary
                         )
                         Text(
-                            text = "@${post.author.username} · $timeLabel",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = timeLabel,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                             color = colors.textSecondary
                         )
                     }
@@ -307,13 +394,12 @@ fun PostDetailScreen(
                 )
             }
 
-            // Ảnh lớn vuông bo 28dp
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
                     .clip(shapes.card)
-                    .background(regionGradient(post.location.provinceCode ?: post.id))
+                    .background(colors.surfaceHigh)
                     .border(1.5.dp, colors.outline, shapes.card)
             ) {
                 if (!isPreview) {
@@ -326,7 +412,6 @@ fun PostDetailScreen(
                 }
             }
 
-            // Caption
             if (!post.caption.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
@@ -334,35 +419,127 @@ fun PostDetailScreen(
                         .clip(shapes.card)
                         .background(colors.surface)
                         .border(1.dp, colors.outline, shapes.card)
-                        .padding(spacing.lg)
+                        .padding(spacing.md)
                 ) {
                     Text(
                         text = post.caption,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        ),
                         color = colors.textPrimary
                     )
                 }
             }
 
-            // EmojiBar với số đếm từng emoji
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+
+                val isLiked = post.myReaction != null
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(shapes.pill)
+                        .clickable { onAction(PostDetailAction.OnReact("❤️")) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Thích",
+                        tint = if (isLiked) colors.primary else colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = post.reactions.sumOf { it.count }.toString(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isLiked) colors.primary else colors.textSecondary
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(shapes.pill)
+                        .clickable { onAction(PostDetailAction.OnReplyClick) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChatBubbleOutline,
+                        contentDescription = "Bình luận",
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "${countTotalComments(state.comments)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.textSecondary
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier
+                        .clip(shapes.pill)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Repeat,
+                        contentDescription = "Đăng lại",
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "0",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.textSecondary
+                    )
+                }
+
+                IconButton(
+                    onClick = {  },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Chia sẻ liên kết",
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
             EmojiBar(
                 reactions = post.reactions,
                 selectedEmoji = post.myReaction,
                 onSelectEmoji = { emoji -> onAction(PostDetailAction.OnReact(emoji)) }
             )
 
-            // Nút "Trả lời" (-> Chat); không hiện với bài của chính mình
             if (post.author.id != state.currentUserId) {
                 PinkButton(
-                    text = "Trả lời ${post.author.displayName}",
+                    text = "Nhắn tin cho ${post.author.displayName}",
                     leadingIcon = Icons.AutoMirrored.Rounded.Send,
                     onClick = { onAction(PostDetailAction.OnReplyClick) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
                 )
             }
+
+            RedditThreadedCommentsSection(
+                comments = state.comments,
+                onVote = { id, isUp -> onAction(PostDetailAction.OnVoteComment(id, isUp)) },
+                onReply = { comment -> onAction(PostDetailAction.OnReplyToComment(comment)) }
+            )
         }
 
-        // ModalBottomSheet Báo cáo bài viết
         if (state.isReportSheetOpen) {
             ModalBottomSheet(
                 onDismissRequest = { onAction(PostDetailAction.OnDismissReportSheet) },
@@ -409,13 +586,290 @@ fun PostDetailScreen(
             }
         }
 
-        // Hộp xác nhận Chặn người dùng
         if (state.showBlockConfirmDialog) {
             BlockUserDialog(
                 displayName = post.author.displayName,
                 onConfirm = { onAction(PostDetailAction.OnConfirmBlock) },
                 onDismiss = { onAction(PostDetailAction.OnDismissBlockDialog) }
             )
+        }
+    }
+}
+
+@Composable
+private fun RedditThreadedCommentsSection(
+    comments: List<RedditCommentUi>,
+    onVote: (String, Boolean) -> Unit,
+    onReply: (RedditCommentUi) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(LokapTheme.shapes.card)
+            .background(colors.surface)
+            .border(1.dp, colors.outline, LokapTheme.shapes.card)
+            .padding(spacing.md),
+        verticalArrangement = Arrangement.spacedBy(spacing.md)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Bình luận · ${countTotalComments(comments)}",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = 15.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                ),
+                color = colors.textPrimary
+            )
+        }
+
+        if (comments.isEmpty()) {
+            Text(
+                text = "Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ suy nghĩ!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(vertical = spacing.md)
+            )
+        } else {
+            comments.forEach { comment ->
+                RedditCommentTreeItem(
+                    comment = comment,
+                    depth = 0,
+                    onVote = onVote,
+                    onReply = onReply
+                )
+            }
+        }
+    }
+}
+
+private fun countTotalComments(list: List<RedditCommentUi>): Int {
+    return list.sumOf { 1 + countTotalComments(it.replies) }
+}
+
+@Composable
+private fun RedditCommentTreeItem(
+    comment: RedditCommentUi,
+    depth: Int,
+    onVote: (String, Boolean) -> Unit,
+    onReply: (RedditCommentUi) -> Unit
+) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+    val isReply = depth > 0
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = if (isReply) 16.dp else 0.dp)
+            .padding(vertical = 3.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+
+            if (isReply) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .width(2.dp)
+                        .height(24.dp)
+                        .background(colors.outline.copy(alpha = 0.35f), RoundedCornerShape(1.dp))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            AvatarRing(
+                avatarUrl = comment.authorAvatarUrl,
+                displayName = comment.authorName,
+                size = if (isReply) 26.dp else 30.dp
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Text(
+                            text = comment.authorName,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                fontSize = 12.5.sp
+                            ),
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        if (comment.replyToAuthorName != null) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = colors.primary.copy(alpha = 0.12f),
+                                border = BorderStroke(0.5.dp, colors.primary.copy(alpha = 0.3f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Reply,
+                                        contentDescription = null,
+                                        tint = colors.primary,
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                    Text(
+                                        text = comment.replyToAuthorName,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        ),
+                                        color = colors.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Text(
+                        text = comment.timeAgo,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        color = colors.textTertiary,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+
+                Text(
+                    text = comment.content,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 13.5.sp,
+                        lineHeight = 18.5.sp
+                    ),
+                    color = colors.textPrimary
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+
+                    Row(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(colors.surfaceHigh)
+                            .border(0.5.dp, colors.outline.copy(alpha = 0.3f), CircleShape)
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        IconButton(
+                            onClick = { onVote(comment.id, true) },
+                            modifier = Modifier.size(22.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowUp,
+                                contentDescription = "Thích",
+                                tint = if (comment.userVote == 1) colors.primary else colors.textSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        Text(
+                            text = comment.score.toString(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                fontSize = 11.sp
+                            ),
+                            color = when (comment.userVote) {
+                                1 -> colors.primary
+                                -1 -> Color(0xFF6366F1)
+                                else -> colors.textSecondary
+                            }
+                        )
+
+                        IconButton(
+                            onClick = { onVote(comment.id, false) },
+                            modifier = Modifier.size(22.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Không thích",
+                                tint = if (comment.userVote == -1) Color(0xFF6366F1) else colors.textSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.Transparent,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable { onReply(comment) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Reply,
+                                contentDescription = "Trả lời",
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = "Trả lời",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                                    fontSize = 11.5.sp
+                                ),
+                                color = colors.textSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (comment.replies.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                comment.replies.forEach { reply ->
+                    RedditCommentTreeItem(
+                        comment = reply,
+                        depth = 1,
+                        onVote = onVote,
+                        onReply = onReply
+                    )
+                }
+            }
         }
     }
 }

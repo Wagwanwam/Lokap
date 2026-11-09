@@ -1,6 +1,5 @@
 package vn.nhom2.lokap.feature.postdetail
 
-import vn.nhom2.lokap.domain.model.toRegionAlbumTarget
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.channels.Channel
@@ -11,9 +10,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import vn.nhom2.lokap.data.fake.FakeCommentStore
 import vn.nhom2.lokap.data.fake.FakePostStore
+import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.data.fake.SampleData2
-
+import vn.nhom2.lokap.domain.model.toRegionAlbumTarget
 class PostDetailViewModel : ViewModel() {
 
     private var targetPostId: String? = null
@@ -37,6 +38,15 @@ class PostDetailViewModel : ViewModel() {
                         isLoading = false,
                         isNotFound = (found == null)
                     )
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            FakeCommentStore.comments.collect { map ->
+                val list = map[postId] ?: emptyList()
+                _uiState.update { state ->
+                    state.copy(comments = list)
                 }
             }
         }
@@ -80,7 +90,7 @@ class PostDetailViewModel : ViewModel() {
             }
 
             is PostDetailAction.OnSubmitReport -> {
-                // Giống Feed: ẩn bài với người báo cáo rồi quay lại
+
                 val id = currentPost?.id
                 _uiState.update { it.copy(isReportSheetOpen = false) }
                 sendEffect(PostDetailEffect.NavigateBack)
@@ -96,11 +106,45 @@ class PostDetailViewModel : ViewModel() {
             }
 
             PostDetailAction.OnConfirmBlock -> {
-                // Giống Feed: ẩn mọi bài của người bị chặn rồi quay lại
+
                 val authorId = currentPost?.author?.id
                 _uiState.update { it.copy(showBlockConfirmDialog = false) }
                 sendEffect(PostDetailEffect.NavigateBack)
                 if (authorId != null) FakePostStore.removePostsByAuthor(authorId)
+            }
+
+            is PostDetailAction.OnVoteComment -> {
+                val postId = targetPostId ?: return
+                FakeCommentStore.voteComment(postId, action.commentId, action.isUpvote)
+            }
+
+            is PostDetailAction.OnReplyToComment -> {
+                _uiState.update { it.copy(replyingToComment = action.comment) }
+            }
+
+            is PostDetailAction.OnChangeCommentInput -> {
+                _uiState.update { it.copy(commentInput = action.text) }
+            }
+
+            PostDetailAction.OnSendComment -> {
+                val text = _uiState.value.commentInput.trim()
+                val postId = targetPostId ?: return
+                if (text.isNotBlank()) {
+                    val replyTarget = _uiState.value.replyingToComment
+                    FakeCommentStore.addComment(
+                        postId = postId,
+                        content = text,
+                        replyTargetId = replyTarget?.id,
+                        replyToAuthorName = replyTarget?.authorName
+                    )
+                    _uiState.update {
+                        it.copy(
+                            commentInput = "",
+                            replyingToComment = null
+                        )
+                    }
+                    sendEffect(PostDetailEffect.ShowSnackbar("Đã gửi bình luận"))
+                }
             }
         }
     }

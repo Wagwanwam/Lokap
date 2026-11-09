@@ -9,10 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.domain.model.Post
-import vn.nhom2.lokap.domain.model.PostSendState
-import vn.nhom2.lokap.domain.model.Reaction
-
+import vn.nhom2.lokap.domain.model.*
 object FakePostStore {
 
     private val storeScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

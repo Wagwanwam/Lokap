@@ -1,9 +1,22 @@
 package vn.nhom2.lokap.feature.postdetail
 
 import androidx.compose.runtime.Immutable
+import java.time.Instant
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.Post
-import java.time.Instant
+@Immutable
+data class RedditCommentUi(
+    val id: String,
+    val authorId: String,
+    val authorName: String,
+    val authorAvatarUrl: String? = null,
+    val timeAgo: String,
+    val content: String,
+    val score: Int = 1,
+    val userVote: Int = 0,
+    val replies: List<RedditCommentUi> = emptyList(),
+    val replyToAuthorName: String? = null
+)
 
 @Immutable
 data class PostDetailUiState(
@@ -13,7 +26,10 @@ data class PostDetailUiState(
     val isReportSheetOpen: Boolean = false,
     val showBlockConfirmDialog: Boolean = false,
     val now: Instant = SampleData.NOW,
-    val currentUserId: String = SampleData.currentUser.id
+    val currentUserId: String = SampleData.currentUser.id,
+    val comments: List<RedditCommentUi> = emptyList(),
+    val commentInput: String = "",
+    val replyingToComment: RedditCommentUi? = null
 )
 
 sealed interface PostDetailAction {
@@ -28,6 +44,11 @@ sealed interface PostDetailAction {
     data object OnOpenBlockDialog : PostDetailAction
     data object OnDismissBlockDialog : PostDetailAction
     data object OnConfirmBlock : PostDetailAction
+
+    data class OnVoteComment(val commentId: String, val isUpvote: Boolean) : PostDetailAction
+    data class OnReplyToComment(val comment: RedditCommentUi?) : PostDetailAction
+    data class OnChangeCommentInput(val text: String) : PostDetailAction
+    data object OnSendComment : PostDetailAction
 }
 
 sealed interface PostDetailEffect {

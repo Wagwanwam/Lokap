@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.feature.auth
 
 import kotlinx.serialization.Serializable
-
 @Serializable
 data object ForgotPasswordRoute
 

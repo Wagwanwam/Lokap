@@ -2,10 +2,6 @@ package vn.nhom2.lokap.domain.model
 
 import androidx.compose.runtime.Immutable
 import java.time.Instant
-
-/**
- * [lat] và [lng] là toạ độ ĐÃ LÀM MỜ để hiển thị an toàn trên UI.
- */
 @Immutable
 data class PostLocation(
     val level: LocationLevel,

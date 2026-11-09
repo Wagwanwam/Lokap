@@ -1,7 +1,5 @@
 package vn.nhom2.lokap.feature.settings
 
-import vn.nhom2.lokap.feature.auth.LoginRoute
-import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -11,31 +9,46 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.rounded.AlternateEmail
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Circle
+import androidx.compose.material.icons.rounded.CleaningServices
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DataSaverOn
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.SaveAlt
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
@@ -43,24 +56,25 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.*
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.*
 import androidx.core.content.ContextCompat
 import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.Lifecycle
@@ -71,17 +85,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import vn.nhom2.lokap.core.designsystem.component.AvatarRing
-import vn.nhom2.lokap.core.designsystem.component.GhostButton
-import vn.nhom2.lokap.core.designsystem.component.PinkButton
-import vn.nhom2.lokap.core.navigation.Route
-import vn.nhom2.lokap.core.navigation.navigateSingleTop
-import vn.nhom2.lokap.core.navigation.popBackStackSafely
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
+import vn.nhom2.lokap.core.designsystem.theme.ThemeMode
+import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
+import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.data.fake.SampleSocialData
-import vn.nhom2.lokap.domain.model.LocationLevel
-import vn.nhom2.lokap.domain.model.User
-
+import vn.nhom2.lokap.domain.model.*
+import vn.nhom2.lokap.feature.auth.LoginRoute
 fun NavGraphBuilder.settingsScreen(navController: NavController) {
     composable<Route.Settings> {
         SettingsRoute(
@@ -116,9 +128,24 @@ fun SettingsRoute(
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                val cameraGranted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+                val locationGranted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                val notificationGranted = hasPostNotificationsPermission(context)
                 viewModel.onAction(
-                    SettingsAction.UpdateNotificationPermissionState(
-                        hasPostNotificationsPermission(context)
+                    SettingsAction.UpdateAllPermissionsState(
+                        cameraGranted = cameraGranted,
+                        locationGranted = locationGranted,
+                        notificationGranted = notificationGranted
                     )
                 )
             }
@@ -139,6 +166,15 @@ fun SettingsRoute(
                         openAppNotificationSettings(context)
                     }
                 }
+                SettingsEffect.OpenAppSettings -> {
+                    val intent = Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", context.packageName, null)
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                }
                 is SettingsEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             }
         }
@@ -151,6 +187,7 @@ fun SettingsRoute(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     uiState: SettingsUiState,
@@ -158,35 +195,37 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+
     Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .background(LokapTheme.colors.background)
+            .background(colors.background)
             .systemBarsPadding(),
-        containerColor = LokapTheme.colors.background,
+        containerColor = colors.background,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(
-                        horizontal = LokapTheme.spacing.sm,
-                        vertical = LokapTheme.spacing.xs
-                    ),
+                    .padding(horizontal = spacing.sm, vertical = spacing.xs),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { onAction(SettingsAction.NavigateBack) }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Quay lại",
-                        tint = LokapTheme.colors.textPrimary
+                        tint = colors.textPrimary
                     )
                 }
                 Text(
-                    text = "Cài đặt",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = LokapTheme.colors.textPrimary
+                    text = "Cài đặt và quyền riêng tư",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    ),
+                    color = colors.textPrimary
                 )
             }
         }
@@ -196,212 +235,754 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
             contentPadding = PaddingValues(
-                start = LokapTheme.spacing.md,
-                end = LokapTheme.spacing.md,
-                top = LokapTheme.spacing.sm,
-                bottom = LokapTheme.spacing.xxl
+                start = spacing.md,
+                end = spacing.md,
+                top = spacing.sm,
+                bottom = spacing.xxl
             ),
-            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md)
+            verticalArrangement = Arrangement.spacedBy(spacing.lg)
         ) {
-            // Nhóm 1: Riêng tư
-            item {
-                SettingsGroupCard(title = "Riêng tư") {
-                    Text(
-                        text = "Mức vị trí mặc định khi chụp ảnh",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = LokapTheme.colors.textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
-                    Text(
-                        text = "Chọn độ chi tiết địa điểm gắn lên ảnh công khai trên bản đồ 34 tỉnh thành.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LokapTheme.colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
 
-                    LocationLevel.entries.forEach { level ->
-                        val selected = uiState.defaultLocationLevel == level
+            item {
+                val user = uiState.currentUser ?: SampleSocialData.getCurrentUser()
+                SettingsGroup(title = "Tài khoản") {
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onAction(SettingsAction.OpenEditProfileSheet) }
+                            .padding(horizontal = spacing.md, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        AvatarRing(
+                            avatarUrl = user.avatarUrl,
+                            displayName = user.displayName,
+                            size = 46.dp,
+                            isOnline = uiState.isOnlineStatusVisible
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = user.displayName,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = colors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "@${user.username}",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = colors.textTertiary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Surface(
+                            shape = CircleShape,
+                            color = colors.primary.copy(alpha = 0.12f),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable { onAction(SettingsAction.OpenEditProfileSheet) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = null,
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Sửa",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = colors.primary
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(
+                        color = colors.outline.copy(alpha = 0.12f),
+                        thickness = 0.6.dp,
+                        modifier = Modifier.padding(start = 50.dp)
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Lock,
+                        title = "Đổi mật khẩu",
+                        onClick = { onAction(SettingsAction.OpenChangePasswordDialog) }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Phone,
+                        title = "Số điện thoại khôi phục",
+                        trailingText = uiState.recoveryPhone ?: "Chưa liên kết",
+                        onClick = { onAction(SettingsAction.OpenRecoveryPhoneDialog) }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.AlternateEmail,
+                        title = "Email liên kết",
+                        trailingText = "${uiState.linkedEmails.size} email",
+                        onClick = { onAction(SettingsAction.OpenLinkedEmailsDialog) },
+                        showDivider = false
+                    )
+                }
+            }
+
+            item {
+                SettingsGroup(title = "Cài đặt hiển thị") {
+                    val themeLabel = when (uiState.themeMode) {
+                        ThemeMode.SYSTEM -> "Theo hệ thống"
+                        ThemeMode.DARK -> "Tối"
+                        ThemeMode.LIGHT -> "Sáng"
+                    }
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Palette,
+                        title = "Giao diện màu",
+                        trailingText = themeLabel,
+                        onClick = { onAction(SettingsAction.OpenThemeDialog) }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.DataSaverOn,
+                        title = "Tiết kiệm dữ liệu di động",
+                        subtitle = "Giảm dung lượng ảnh khi dùng 4G/5G",
+                        trailingContent = {
+                            Switch(
+                                checked = uiState.dataSaverEnabled,
+                                onCheckedChange = { onAction(SettingsAction.ToggleDataSaver(it)) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = colors.primary,
+                                    uncheckedThumbColor = colors.textSecondary,
+                                    uncheckedTrackColor = colors.surfaceHigh
+                                )
+                            )
+                        }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.SaveAlt,
+                        title = "Tự động lưu ảnh vào máy",
+                        subtitle = "Lưu ảnh gốc chụp từ Lokap vào bộ nhớ máy",
+                        trailingContent = {
+                            Switch(
+                                checked = uiState.autoSaveToGallery,
+                                onCheckedChange = { onAction(SettingsAction.ToggleAutoSave(it)) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = colors.primary,
+                                    uncheckedThumbColor = colors.textSecondary,
+                                    uncheckedTrackColor = colors.surfaceHigh
+                                )
+                            )
+                        },
+                        showDivider = false
+                    )
+                }
+            }
+
+            item {
+                SettingsGroup(title = "Quyền riêng tư & Bản đồ") {
+                    SettingsItemRow(
+                        icon = Icons.Rounded.LocationOn,
+                        title = "Mức vị trí gắn trên ảnh",
+                        trailingText = uiState.defaultLocationLevel.labelVi,
+                        onClick = { onAction(SettingsAction.OpenLocationLevelDialog) }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Circle,
+                        iconTint = Color(0xFF10B981),
+                        title = "Trạng thái hoạt động (Online)",
+                        subtitle = "Hiển thị chấm xanh khi bạn bè đang xem bản đồ",
+                        trailingContent = {
+                            Switch(
+                                checked = uiState.isOnlineStatusVisible,
+                                onCheckedChange = { onAction(SettingsAction.ToggleOnlineStatus(it)) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = colors.primary,
+                                    uncheckedThumbColor = colors.textSecondary,
+                                    uncheckedTrackColor = colors.surfaceHigh
+                                )
+                            )
+                        }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Block,
+                        title = "Danh sách chặn",
+                        trailingText = "${uiState.blockedUsers.size} người",
+                        onClick = { onAction(SettingsAction.OpenBlockedUsersDialog) },
+                        showDivider = false
+                    )
+                }
+            }
+
+            item {
+                SettingsGroup(title = "Quyền ứng dụng") {
+                    SettingsItemRow(
+                        icon = Icons.Rounded.PhotoCamera,
+                        title = "Camera",
+                        subtitle = "Chụp và chia sẻ khoảnh khắc",
+                        trailingContent = {
+                            PermissionStatusBadge(isGranted = uiState.hasCameraPermission)
+                        },
+                        onClick = { onAction(SettingsAction.ClickOpenAppSettings) }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.MyLocation,
+                        title = "Vị trí GPS",
+                        subtitle = "Ghim khoảnh khắc lên bản đồ Việt Nam",
+                        trailingContent = {
+                            PermissionStatusBadge(isGranted = uiState.hasLocationPermission)
+                        },
+                        onClick = { onAction(SettingsAction.ClickOpenAppSettings) }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Notifications,
+                        title = "Thông báo",
+                        subtitle = "Nhận tin nhắn, reaction và ảnh mới từ bạn bè",
+                        trailingContent = {
+                            PermissionStatusBadge(isGranted = uiState.hasNotificationPermission)
+                        },
+                        onClick = {
+                            if (!uiState.hasNotificationPermission) {
+                                onAction(SettingsAction.ClickGrantNotificationPermission)
+                            } else {
+                                onAction(SettingsAction.ClickOpenAppSettings)
+                            }
+                        }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Settings,
+                        title = "Quản lý quyền trong Cài đặt hệ thống",
+                        onClick = { onAction(SettingsAction.ClickOpenAppSettings) },
+                        showDivider = false
+                    )
+                }
+            }
+
+            item {
+                SettingsGroup(title = "Dữ liệu & Bộ nhớ") {
+                    SettingsItemRow(
+                        icon = Icons.Rounded.CleaningServices,
+                        title = "Bộ nhớ đệm (Cache)",
+                        subtitle = "Đang chiếm ${uiState.cacheSizeLabel}",
+                        trailingContent = {
+                            Surface(
+                                shape = CircleShape,
+                                color = colors.surfaceHigh,
+                                border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.3f)),
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable { onAction(SettingsAction.ClearCache) }
+                            ) {
+                                Text(
+                                    text = "Xoá cache",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = colors.textPrimary,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        },
+                        showDivider = false
+                    )
+                }
+            }
+
+            item {
+                SettingsGroup(title = "Về Lokap & Tài khoản") {
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Description,
+                        title = "Điều khoản & Chính sách bảo mật",
+                        onClick = {  }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.Info,
+                        title = "Phiên bản ứng dụng",
+                        trailingText = "v${uiState.appVersionLabel}"
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.AutoMirrored.Rounded.Logout,
+                        iconTint = colors.error,
+                        title = "Đăng xuất",
+                        titleColor = colors.error,
+                        onClick = { onAction(SettingsAction.OpenLogoutDialog) }
+                    )
+
+                    SettingsItemRow(
+                        icon = Icons.Rounded.DeleteForever,
+                        iconTint = colors.error,
+                        title = "Xoá tài khoản vĩnh viễn",
+                        titleColor = colors.error,
+                        onClick = { onAction(SettingsAction.OpenDeleteAccountDialog) },
+                        showDivider = false
+                    )
+                }
+            }
+
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = spacing.md),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    LokapLogo(size = 36.dp, showText = true)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Bản đồ khoảnh khắc Việt Nam",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
+                        color = colors.textTertiary
+                    )
+                }
+            }
+        }
+    }
+
+    if (uiState.isEditProfileSheetOpen) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { onAction(SettingsAction.DismissEditProfileSheet) },
+            sheetState = sheetState,
+            shape = LokapTheme.shapes.sheet,
+            containerColor = colors.surface,
+            contentColor = colors.textPrimary
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = spacing.lg, vertical = spacing.md)
+            ) {
+                Text(
+                    text = "Chỉnh sửa hồ sơ",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.xs))
+                Text(
+                    text = "Cập nhật thông tin nhận diện của bạn trên Lokap.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary
+                )
+                Spacer(modifier = Modifier.height(spacing.md))
+
+                OutlinedTextField(
+                    value = uiState.editDisplayNameInput,
+                    onValueChange = { onAction(SettingsAction.ChangeEditDisplayName(it)) },
+                    singleLine = true,
+                    label = { Text("Tên hiển thị") },
+                    isError = uiState.editDisplayNameError != null,
+                    supportingText = {
+                        Text(
+                            text = uiState.editDisplayNameError ?: "${uiState.editDisplayNameInput.length}/30",
+                            color = if (uiState.editDisplayNameError != null) colors.error else colors.textTertiary
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(spacing.sm))
+
+                OutlinedTextField(
+                    value = uiState.editUsernameInput,
+                    onValueChange = { onAction(SettingsAction.ChangeEditUsername(it)) },
+                    singleLine = true,
+                    label = { Text("Username (@)") },
+                    isError = uiState.editUsernameError != null,
+                    supportingText = {
+                        Text(
+                            text = uiState.editUsernameError ?: "Tối thiểu 3 ký tự chữ thường",
+                            color = if (uiState.editUsernameError != null) colors.error else colors.textTertiary
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(spacing.sm))
+
+                OutlinedTextField(
+                    value = uiState.editBioInput,
+                    onValueChange = { onAction(SettingsAction.ChangeEditBio(it)) },
+                    maxLines = 3,
+                    label = { Text("Tiểu sử") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(spacing.lg))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm)
+                ) {
+                    GhostButton(
+                        text = "Huỷ",
+                        onClick = { onAction(SettingsAction.DismissEditProfileSheet) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    PinkButton(
+                        text = "Lưu thay đổi",
+                        enabled = uiState.editDisplayNameError == null && uiState.editUsernameError == null && uiState.editDisplayNameInput.isNotBlank(),
+                        onClick = { onAction(SettingsAction.SaveEditProfile) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(spacing.md))
+            }
+        }
+    }
+
+    if (uiState.showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { onAction(SettingsAction.DismissThemeDialog) },
+            containerColor = colors.surface,
+            title = {
+                Text(
+                    text = "Chọn giao diện",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Column {
+                    ThemeMode.entries.forEach { mode ->
+                        val selected = uiState.themeMode == mode
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(LokapTheme.shapes.card)
+                                .clip(RoundedCornerShape(8.dp))
                                 .selectable(
                                     selected = selected,
                                     role = Role.RadioButton,
-                                    onClick = { onAction(SettingsAction.SelectLocationLevel(level)) }
+                                    onClick = { onAction(SettingsAction.SelectThemeMode(mode)) }
                                 )
-                                .padding(vertical = LokapTheme.spacing.xs),
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
                                 selected = selected,
                                 onClick = null,
                                 colors = RadioButtonDefaults.colors(
-                                    selectedColor = LokapTheme.colors.primary,
-                                    unselectedColor = LokapTheme.colors.textSecondary
+                                    selectedColor = colors.primary,
+                                    unselectedColor = colors.textSecondary
                                 )
                             )
-                            Spacer(modifier = Modifier.width(LokapTheme.spacing.sm))
-                            Column(modifier = Modifier.weight(1f)) {
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = mode.labelVi,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                ),
+                                color = colors.textPrimary
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { onAction(SettingsAction.DismissThemeDialog) }) {
+                    Text("Đóng", color = colors.primary, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (uiState.showLocationLevelDialog) {
+        AlertDialog(
+            onDismissRequest = { onAction(SettingsAction.DismissLocationLevelDialog) },
+            containerColor = colors.surface,
+            title = {
+                Text(
+                    text = "Mức độ chi tiết vị trí",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Column {
+                    LocationLevel.entries.forEach { level ->
+                        val selected = uiState.defaultLocationLevel == level
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton,
+                                    onClick = { onAction(SettingsAction.SelectLocationLevel(level)) }
+                                )
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selected,
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = colors.primary,
+                                    unselectedColor = colors.textSecondary
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
                                 Text(
                                     text = level.labelVi,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selected) {
-                                        LokapTheme.colors.primary
-                                    } else {
-                                        LokapTheme.colors.textPrimary
-                                    }
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                    ),
+                                    color = colors.textPrimary
                                 )
                                 Text(
-                                    text = locationLevelDescriptionVi(level),
+                                    text = level.descVi,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = LokapTheme.colors.textSecondary
+                                    color = colors.textTertiary
                                 )
                             }
                         }
                     }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { onAction(SettingsAction.DismissLocationLevelDialog) }) {
+                    Text("Đóng", color = colors.primary, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 
-                    Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(LokapTheme.colors.outline)
-                    )
-
-                    Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
-
+    if (uiState.showBlockedUsersDialog) {
+        AlertDialog(
+            onDismissRequest = { onAction(SettingsAction.DismissBlockedUsersDialog) },
+            containerColor = colors.surface,
+            title = {
+                Text(
+                    text = "Danh sách chặn (${uiState.blockedUsers.size})",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                if (uiState.blockedUsers.isEmpty()) {
                     Text(
-                        text = "Người đã chặn (${uiState.blockedUsers.size})",
+                        text = "Bạn chưa chặn người dùng nào.",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = LokapTheme.colors.textPrimary
+                        color = colors.textSecondary
                     )
-                    Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
-
-                    if (uiState.blockedUsers.isEmpty()) {
-                        Text(
-                            text = "Bạn chưa chặn ai trên Lokap.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LokapTheme.colors.textSecondary
-                        )
-                    } else {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
-                        ) {
-                            uiState.blockedUsers.forEach { blockedUser ->
-                                BlockedUserItemRow(
-                                    user = blockedUser,
-                                    onUnblock = { onAction(SettingsAction.UnblockUser(blockedUser.id)) }
-                                )
-                            }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        uiState.blockedUsers.forEach { user ->
+                            BlockedUserItemRow(
+                                user = user,
+                                onUnblock = { onAction(SettingsAction.UnblockUser(user.id)) }
+                            )
                         }
                     }
                 }
-            }
-
-            // Nhóm 2: Thông báo
-            item {
-                SettingsGroupCard(title = "Thông báo") {
-                    if (!uiState.hasNotificationPermission) {
-                        NotificationPermissionWarningCard(
-                            onGrantClick = {
-                                onAction(SettingsAction.ClickGrantNotificationPermission)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
-                    }
-
-                    NotificationSwitchRow(
-                        title = "Ảnh mới từ bạn bè",
-                        subtitle = "Báo ngay khi hội bạn thân vừa thả ảnh mới",
-                        checked = uiState.notifyNewPhotos,
-                        onCheckedChange = { onAction(SettingsAction.ToggleNotifyNewPhotos(it)) }
-                    )
-
-                    NotificationSwitchRow(
-                        title = "Cảm xúc",
-                        subtitle = "Khi có người thả tim hoặc reaction vào ảnh của bạn",
-                        checked = uiState.notifyReactions,
-                        onCheckedChange = { onAction(SettingsAction.ToggleNotifyReactions(it)) }
-                    )
-
-                    NotificationSwitchRow(
-                        title = "Tin nhắn",
-                        subtitle = "Tin nhắn phản hồi trực tiếp từ khoảnh khắc",
-                        checked = uiState.notifyMessages,
-                        onCheckedChange = { onAction(SettingsAction.ToggleNotifyMessages(it)) }
-                    )
-
-                    NotificationSwitchRow(
-                        title = "Lời mời kết bạn",
-                        subtitle = "Khi có người tìm thấy bạn và gửi lời mời kết bạn",
-                        checked = uiState.notifyFriendRequests,
-                        onCheckedChange = { onAction(SettingsAction.ToggleNotifyFriendRequests(it)) }
-                    )
+            },
+            confirmButton = {
+                TextButton(onClick = { onAction(SettingsAction.DismissBlockedUsersDialog) }) {
+                    Text("Đóng", color = colors.primary, fontWeight = FontWeight.Bold)
                 }
             }
+        )
+    }
 
-            // Nhóm 3: Tài khoản
-            item {
-                SettingsGroupCard(title = "Tài khoản") {
-                    GhostButton(
-                        text = "Đăng xuất",
-                        onClick = { onAction(SettingsAction.OpenLogoutDialog) },
+    if (uiState.showRecoveryPhoneDialog) {
+        var phoneInput by remember { mutableStateOf(uiState.recoveryPhone ?: "") }
+        AlertDialog(
+            onDismissRequest = { onAction(SettingsAction.DismissRecoveryPhoneDialog) },
+            containerColor = colors.surface,
+            title = {
+                Text(
+                    text = "Số điện thoại khôi phục",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Dùng số điện thoại để lấy lại tài khoản và nhận mã xác thực bảo mật.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary
+                    )
+                    OutlinedTextField(
+                        value = phoneInput,
+                        onValueChange = { phoneInput = it },
+                        singleLine = true,
+                        placeholder = { Text("0912 345 678", color = colors.textTertiary) },
                         modifier = Modifier.fillMaxWidth()
                     )
-
-                    Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(LokapTheme.shapes.pill)
-                            .border(
-                                width = 1.dp,
-                                color = LokapTheme.colors.error,
-                                shape = LokapTheme.shapes.pill
-                            )
-                            .clickable { onAction(SettingsAction.OpenDeleteAccountDialog) }
-                            .padding(vertical = LokapTheme.spacing.sm),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Xoá tài khoản vĩnh viễn",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = LokapTheme.colors.error
-                        )
-                    }
                 }
-            }
-
-            // Phiên bản App cuối trang
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = LokapTheme.spacing.md),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            },
+            dismissButton = {
+                TextButton(onClick = { onAction(SettingsAction.DismissRecoveryPhoneDialog) }) {
+                    Text("Huỷ", color = colors.textSecondary)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onAction(SettingsAction.SaveRecoveryPhone(phoneInput.trim())) },
+                    enabled = phoneInput.trim().length >= 9
                 ) {
-                    Text(
-                        text = "Lokap · Bản đồ khoảnh khắc Việt Nam",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LokapTheme.colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Phiên bản ${uiState.appVersionLabel}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = LokapTheme.colors.textTertiary,
-                        textAlign = TextAlign.Center
-                    )
+                    Text("Lưu", color = colors.primary, fontWeight = FontWeight.Bold)
                 }
             }
-        }
+        )
+    }
+
+    if (uiState.showLinkedEmailsDialog) {
+        var newEmailInput by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { onAction(SettingsAction.DismissLinkedEmailsDialog) },
+            containerColor = colors.surface,
+            title = {
+                Text(
+                    text = "Email liên kết",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Danh sách email liên kết với tài khoản này:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary
+                    )
+                    uiState.linkedEmails.forEach { email ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(colors.surfaceHigh)
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AlternateEmail,
+                                contentDescription = null,
+                                tint = colors.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = email,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colors.textPrimary
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = newEmailInput,
+                        onValueChange = { newEmailInput = it },
+                        singleLine = true,
+                        placeholder = { Text("Thêm email phụ...", color = colors.textTertiary) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onAction(SettingsAction.DismissLinkedEmailsDialog) }) {
+                    Text("Đóng", color = colors.textSecondary)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newEmailInput.contains("@") && newEmailInput.contains(".")) {
+                            onAction(SettingsAction.AddLinkedEmail(newEmailInput.trim()))
+                            newEmailInput = ""
+                        }
+                    },
+                    enabled = newEmailInput.contains("@") && newEmailInput.contains(".")
+                ) {
+                    Text("Thêm", color = colors.primary, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (uiState.showChangePasswordDialog) {
+        var oldPassword by remember { mutableStateOf("") }
+        var newPassword by remember { mutableStateOf("") }
+        var confirmPassword by remember { mutableStateOf("") }
+        val canSave = oldPassword.isNotBlank() && newPassword.length >= 6 && newPassword == confirmPassword
+
+        AlertDialog(
+            onDismissRequest = { onAction(SettingsAction.DismissChangePasswordDialog) },
+            containerColor = colors.surface,
+            title = {
+                Text(
+                    text = "Đổi mật khẩu",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = oldPassword,
+                        onValueChange = { oldPassword = it },
+                        label = { Text("Mật khẩu hiện tại") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = newPassword,
+                        onValueChange = { newPassword = it },
+                        label = { Text("Mật khẩu mới (tối thiểu 6 ký tự)") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        label = { Text("Xác nhận mật khẩu mới") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        isError = confirmPassword.isNotEmpty() && confirmPassword != newPassword,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onAction(SettingsAction.DismissChangePasswordDialog) }) {
+                    Text("Huỷ", color = colors.textSecondary)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onAction(SettingsAction.ConfirmChangePassword(oldPassword, newPassword)) },
+                    enabled = canSave
+                ) {
+                    Text("Lưu", color = colors.primary, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 
     if (uiState.showLogoutDialog) {
@@ -423,30 +1004,166 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsGroupCard(
+private fun SettingsGroup(
     title: String,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(LokapTheme.shapes.card)
-            .background(LokapTheme.colors.surface)
-            .border(
-                width = 1.dp,
-                color = LokapTheme.colors.outline,
-                shape = LokapTheme.shapes.card
-            )
-            .padding(LokapTheme.spacing.md)
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.xs)
     ) {
         Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = LokapTheme.colors.primary
+            text = title,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                letterSpacing = 0.5.sp
+            ),
+            color = colors.textTertiary,
+            modifier = Modifier.padding(start = spacing.sm, bottom = 2.dp)
         )
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
-        content()
+
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.surfaceHigh.copy(alpha = 0.75f),
+            border = BorderStroke(0.8.dp, colors.outline.copy(alpha = 0.25f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsItemRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    trailingText: String? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+    iconTint: Color = LokapTheme.colors.textPrimary,
+    titleColor: Color = LokapTheme.colors.textPrimary,
+    onClick: (() -> Unit)? = null,
+    showDivider: Boolean = true
+) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+                )
+                .padding(horizontal = spacing.md, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(21.dp)
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp
+                    ),
+                    color = titleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = colors.textTertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (trailingContent != null) {
+                trailingContent()
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (!trailingText.isNullOrBlank()) {
+                        Text(
+                            text = trailingText,
+                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+                            color = colors.textSecondary
+                        )
+                    }
+                    if (onClick != null) {
+                        Icon(
+                            imageVector = Icons.Rounded.ChevronRight,
+                            contentDescription = null,
+                            tint = colors.textTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (showDivider) {
+            HorizontalDivider(
+                color = colors.outline.copy(alpha = 0.12f),
+                thickness = 0.6.dp,
+                modifier = Modifier.padding(start = 48.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PermissionStatusBadge(isGranted: Boolean) {
+    val colors = LokapTheme.colors
+    if (isGranted) {
+        Surface(
+            shape = CircleShape,
+            color = Color(0xFF10B981).copy(alpha = 0.16f),
+            modifier = Modifier.size(24.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = "Đã cấp",
+                    tint = Color(0xFF10B981),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+    } else {
+        Surface(
+            shape = CircleShape,
+            color = colors.error.copy(alpha = 0.14f),
+            modifier = Modifier.size(24.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = "Chưa cấp",
+                    tint = colors.error,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
     }
 }
 
@@ -455,31 +1172,36 @@ private fun BlockedUserItemRow(
     user: User,
     onUnblock: () -> Unit
 ) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(LokapTheme.shapes.card)
-            .background(LokapTheme.colors.surfaceHigh)
-            .padding(LokapTheme.spacing.sm),
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.surfaceHigh)
+            .padding(spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AvatarRing(
             avatarUrl = user.avatarUrl,
             displayName = user.displayName,
-            size = 40.dp
+            size = 38.dp
         )
-        Spacer(modifier = Modifier.width(LokapTheme.spacing.sm))
+        Spacer(modifier = Modifier.width(spacing.sm))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = user.displayName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = LokapTheme.colors.textPrimary
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                ),
+                color = colors.textPrimary
             )
             Text(
                 text = "@${user.username}",
-                style = MaterialTheme.typography.labelSmall,
-                color = LokapTheme.colors.textSecondary
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
+                color = colors.textSecondary
             )
         }
         GhostButton(
@@ -490,132 +1212,38 @@ private fun BlockedUserItemRow(
 }
 
 @Composable
-private fun NotificationPermissionWarningCard(
-    onGrantClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(LokapTheme.shapes.card)
-            .background(LokapTheme.colors.surfaceHigh)
-            .border(
-                width = 1.dp,
-                color = LokapTheme.colors.accentYellow,
-                shape = LokapTheme.shapes.card
-            )
-            .padding(LokapTheme.spacing.md)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = LokapTheme.colors.accentYellow
-            )
-            Spacer(modifier = Modifier.width(LokapTheme.spacing.sm))
-            Text(
-                text = "Chưa bật quyền thông báo",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = LokapTheme.colors.textPrimary
-            )
-        }
-
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
-
-        Text(
-            text = "Cấp quyền thông báo để không bỏ lỡ khoảnh khắc mới và lời nhắn từ bạn bè trên Lokap.",
-            style = MaterialTheme.typography.bodySmall,
-            color = LokapTheme.colors.textSecondary
-        )
-
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
-
-        PinkButton(
-            text = "Cấp quyền",
-            leadingIcon = Icons.Default.Notifications,
-            onClick = onGrantClick,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun NotificationSwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = LokapTheme.spacing.xs),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = LokapTheme.colors.textPrimary
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = LokapTheme.colors.textSecondary
-            )
-        }
-        Spacer(modifier = Modifier.width(LokapTheme.spacing.sm))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = LokapTheme.colors.onPrimary,
-                checkedTrackColor = LokapTheme.colors.primary,
-                uncheckedThumbColor = LokapTheme.colors.textSecondary,
-                uncheckedTrackColor = LokapTheme.colors.surfaceHigh,
-                uncheckedBorderColor = LokapTheme.colors.outline
-            )
-        )
-    }
-}
-
-@Composable
 private fun LogoutConfirmDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val colors = LokapTheme.colors
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = LokapTheme.colors.surface,
-        titleContentColor = LokapTheme.colors.textPrimary,
-        textContentColor = LokapTheme.colors.textSecondary,
+        containerColor = colors.surface,
+        titleContentColor = colors.textPrimary,
+        textContentColor = colors.textSecondary,
         title = {
             Text(
                 text = "Đăng xuất khỏi Lokap?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         },
         text = {
             Text(
-                text = "Bạn vẫn có thể đăng nhập lại bất cứ lúc nào để xem lại hành trình 34 tỉnh thành của mình.",
+                text = "Bạn vẫn có thể đăng nhập lại bất cứ lúc nào để xem lại hành trình của mình.",
                 style = MaterialTheme.typography.bodyMedium
             )
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Ở lại",
-                    color = LokapTheme.colors.textSecondary
-                )
+                Text(text = "Ở lại", color = colors.textSecondary)
             }
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text(
                     text = "Đăng xuất",
-                    color = LokapTheme.colors.primary,
+                    color = colors.error,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -631,17 +1259,19 @@ private fun DeleteAccountConfirmDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = LokapTheme.colors.surface,
-        titleContentColor = LokapTheme.colors.textPrimary,
-        textContentColor = LokapTheme.colors.textSecondary,
+        containerColor = colors.surface,
+        titleContentColor = colors.textPrimary,
+        textContentColor = colors.textSecondary,
         title = {
             Text(
                 text = "Xoá tài khoản vĩnh viễn?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = LokapTheme.colors.error
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = colors.error
             )
         },
         text = {
@@ -649,36 +1279,32 @@ private fun DeleteAccountConfirmDialog(
                 Text(
                     text = "Hành động này không thể hoàn tác. Toàn bộ ảnh đã chụp, dấu chân bản đồ và tin nhắn của bạn sẽ bị xoá vĩnh viễn khỏi máy chủ Lokap.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = LokapTheme.colors.textSecondary
+                    color = colors.textSecondary
                 )
 
-                Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
+                Spacer(modifier = Modifier.height(spacing.md))
 
                 Text(
                     text = "Nhập chính xác chữ XOÁ (viết hoa) để xác nhận:",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = LokapTheme.colors.textPrimary
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.textPrimary
                 )
 
-                Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
+                Spacer(modifier = Modifier.height(spacing.xs))
 
                 OutlinedTextField(
                     value = confirmInput,
                     onValueChange = onInputChange,
                     singleLine = true,
                     placeholder = {
-                        Text(
-                            text = "XOÁ",
-                            color = LokapTheme.colors.textTertiary
-                        )
+                        Text(text = "XOÁ", color = colors.textTertiary)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = LokapTheme.colors.error,
-                        unfocusedBorderColor = LokapTheme.colors.outline,
-                        cursorColor = LokapTheme.colors.error,
-                        focusedTextColor = LokapTheme.colors.textPrimary,
-                        unfocusedTextColor = LokapTheme.colors.textPrimary
+                        focusedBorderColor = colors.error,
+                        unfocusedBorderColor = colors.outline,
+                        cursorColor = colors.error,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -686,10 +1312,7 @@ private fun DeleteAccountConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Huỷ",
-                    color = LokapTheme.colors.textSecondary
-                )
+                Text(text = "Huỷ", color = colors.textSecondary)
             }
         },
         confirmButton = {
@@ -699,25 +1322,12 @@ private fun DeleteAccountConfirmDialog(
             ) {
                 Text(
                     text = "Xoá vĩnh viễn",
-                    color = if (isConfirmEnabled) {
-                        LokapTheme.colors.error
-                    } else {
-                        LokapTheme.colors.textTertiary
-                    },
+                    color = if (isConfirmEnabled) colors.error else colors.textTertiary,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
     )
-}
-
-private fun locationLevelDescriptionVi(level: LocationLevel): String {
-    return when (level) {
-        LocationLevel.PLACE -> "Hiện tên quán, địa danh cụ thể nơi bạn đứng"
-        LocationLevel.WARD -> "Chỉ hiện cấp Phường / Xã"
-        LocationLevel.PROVINCE -> "Chỉ gom vào bong bóng Tỉnh / Thành phố"
-        LocationLevel.COUNTRY -> "Ẩn chi tiết tỉnh, chỉ hiện Việt Nam"
-    }
 }
 
 private fun hasPostNotificationsPermission(context: Context): Boolean {
@@ -778,49 +1388,4 @@ private fun resolveAppVersion(context: Context): String {
         val versionCode = PackageInfoCompat.getLongVersionCode(pkgInfo)
         "$versionName ($versionCode)"
     }.getOrDefault("1.0.0 (1)")
-}
-
-@Preview(name = "Settings - Mặc định (Chưa cấp quyền TB)", showBackground = true)
-@Composable
-private fun SettingsScreenPreview() {
-    LokapTheme {
-        SettingsScreen(
-            uiState = SettingsUiState(
-                defaultLocationLevel = LocationLevel.PROVINCE,
-                blockedUsers = SampleSocialData.directoryUsers.take(1),
-                hasNotificationPermission = false,
-                appVersionLabel = "1.2.0 (24)"
-            ),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(name = "Settings - Hộp thoại Xoá tài khoản", showBackground = true)
-@Composable
-private fun SettingsDeleteAccountDialogPreview() {
-    LokapTheme {
-        SettingsScreen(
-            uiState = SettingsUiState(
-                hasNotificationPermission = true,
-                showDeleteAccountDialog = true,
-                deleteConfirmTextInput = "XOÁ"
-            ),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(name = "Settings - Hộp thoại Đăng xuất", showBackground = true)
-@Composable
-private fun SettingsLogoutDialogPreview() {
-    LokapTheme {
-        SettingsScreen(
-            uiState = SettingsUiState(
-                hasNotificationPermission = true,
-                showLogoutDialog = true
-            ),
-            onAction = {}
-        )
-    }
 }

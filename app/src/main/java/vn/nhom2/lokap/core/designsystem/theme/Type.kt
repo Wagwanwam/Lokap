@@ -2,13 +2,11 @@ package vn.nhom2.lokap.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
 import vn.nhom2.lokap.R
-
 private val fontProvider = GoogleFont.Provider(
     providerAuthority = "com.google.android.gms.fonts",
     providerPackage = "com.google.android.gms",
@@ -27,45 +25,100 @@ val BeVietnamProFamily = FontFamily(
 val LokapDisplayStyle = TextStyle(
     fontFamily = BeVietnamProFamily,
     fontWeight = FontWeight.ExtraBold,
-    fontSize = 32.sp,
-    lineHeight = 40.sp
+    fontSize = 28.sp,
+    lineHeight = 34.sp
 )
 
-val LokapTitleStyle = TextStyle(
+val LokapHeadlineStyle = TextStyle(
+    fontFamily = BeVietnamProFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 20.sp,
+    lineHeight = 26.sp
+)
+
+val LokapTitleLargeStyle = TextStyle(
+    fontFamily = BeVietnamProFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 17.sp,
+    lineHeight = 23.sp
+)
+
+val LokapTitleMediumStyle = TextStyle(
     fontFamily = BeVietnamProFamily,
     fontWeight = FontWeight.SemiBold,
-    fontSize = 20.sp,
-    lineHeight = 28.sp
+    fontSize = 15.sp,
+    lineHeight = 21.sp
 )
 
-val LokapBodyStyle = TextStyle(
+val LokapTitleSmallStyle = TextStyle(
+    fontFamily = BeVietnamProFamily,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 13.5.sp,
+    lineHeight = 18.sp
+)
+
+val LokapTitleStyle = LokapTitleMediumStyle
+
+val LokapBodyLargeStyle = TextStyle(
     fontFamily = BeVietnamProFamily,
     fontWeight = FontWeight.Normal,
-    fontSize = 15.sp,
-    lineHeight = 22.sp
+    fontSize = 14.5.sp,
+    lineHeight = 20.sp
 )
 
-val LokapLabelStyle = TextStyle(
+val LokapBodyMediumStyle = TextStyle(
     fontFamily = BeVietnamProFamily,
-    fontWeight = FontWeight.Medium,
+    fontWeight = FontWeight.Normal,
+    fontSize = 13.5.sp,
+    lineHeight = 19.sp
+)
+
+val LokapBodySmallStyle = TextStyle(
+    fontFamily = BeVietnamProFamily,
+    fontWeight = FontWeight.Normal,
     fontSize = 12.sp,
     lineHeight = 16.sp
 )
 
+val LokapBodyStyle = LokapBodyMediumStyle
+
+val LokapLabelLargeStyle = TextStyle(
+    fontFamily = BeVietnamProFamily,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 13.sp,
+    lineHeight = 17.sp
+)
+
+val LokapLabelMediumStyle = TextStyle(
+    fontFamily = BeVietnamProFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 11.5.sp,
+    lineHeight = 15.sp
+)
+
+val LokapLabelSmallStyle = TextStyle(
+    fontFamily = BeVietnamProFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 10.5.sp,
+    lineHeight = 14.sp
+)
+
+val LokapLabelStyle = LokapLabelMediumStyle
+
 val LokapTypography = Typography(
     displayLarge = LokapDisplayStyle,
-    displayMedium = LokapDisplayStyle,
-    displaySmall = LokapDisplayStyle,
-    headlineLarge = LokapDisplayStyle,
-    headlineMedium = LokapTitleStyle,
-    headlineSmall = LokapTitleStyle,
-    titleLarge = LokapTitleStyle,
-    titleMedium = LokapTitleStyle,
-    titleSmall = LokapTitleStyle,
-    bodyLarge = LokapBodyStyle,
-    bodyMedium = LokapBodyStyle,
-    bodySmall = LokapBodyStyle,
-    labelLarge = LokapLabelStyle,
-    labelMedium = LokapLabelStyle,
-    labelSmall = LokapLabelStyle
+    displayMedium = LokapDisplayStyle.copy(fontSize = 24.sp, lineHeight = 30.sp),
+    displaySmall = LokapDisplayStyle.copy(fontSize = 22.sp, lineHeight = 28.sp),
+    headlineLarge = LokapHeadlineStyle,
+    headlineMedium = LokapHeadlineStyle.copy(fontSize = 19.sp, lineHeight = 25.sp),
+    headlineSmall = LokapHeadlineStyle.copy(fontSize = 18.sp, lineHeight = 24.sp),
+    titleLarge = LokapTitleLargeStyle,
+    titleMedium = LokapTitleMediumStyle,
+    titleSmall = LokapTitleSmallStyle,
+    bodyLarge = LokapBodyLargeStyle,
+    bodyMedium = LokapBodyMediumStyle,
+    bodySmall = LokapBodySmallStyle,
+    labelLarge = LokapLabelLargeStyle,
+    labelMedium = LokapLabelMediumStyle,
+    labelSmall = LokapLabelSmallStyle
 )

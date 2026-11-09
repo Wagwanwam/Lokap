@@ -1,7 +1,5 @@
 package vn.nhom2.lokap.feature.inbox
 
-import vn.nhom2.lokap.domain.model.FriendStatus
-import vn.nhom2.lokap.data.fake.SampleSocialData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.channels.Channel
@@ -16,8 +14,8 @@ import kotlinx.coroutines.launch
 import vn.nhom2.lokap.data.fake.FakeChatStore
 import vn.nhom2.lokap.data.fake.FakePostStore
 import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.domain.model.User
-
+import vn.nhom2.lokap.data.fake.SampleSocialData
+import vn.nhom2.lokap.domain.model.*
 class InboxViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(InboxUiState(isLoading = true))
@@ -47,12 +45,11 @@ class InboxViewModel : ViewModel() {
                         val preview = FakeChatStore.previewForConversation(conv, messages)
                         InboxConversationItem(
                             conversation = conv,
-                            displayPreview = preview.ifBlank { "Bắt đầu cuộc trò chuyện 👋" },
+                            displayPreview = preview.ifBlank { "Bắt đầu cuộc trò chuyện" },
                             hasNewPostFromFriend = conv.friend.id in authorIdsWithPosts
                         )
                     }
 
-                // Chỉ bạn bè hiện tại mới bắt đầu chat được (nhắn tin chỉ giữa bạn bè)
                 val availableFriends = SampleSocialData.directoryUsers.filter {
                     it.id != myId && statuses[it.id] == FriendStatus.FRIENDS
                 }

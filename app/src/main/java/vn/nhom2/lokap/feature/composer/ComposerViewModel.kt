@@ -2,6 +2,8 @@ package vn.nhom2.lokap.feature.composer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import java.time.Duration
+import java.util.UUID
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,15 +15,7 @@ import kotlinx.coroutines.launch
 import vn.nhom2.lokap.data.fake.FakePostStore
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.data.fake.SampleData2
-import vn.nhom2.lokap.domain.model.Audience
-import vn.nhom2.lokap.domain.model.LocationLevel
-import vn.nhom2.lokap.domain.model.Post
-import vn.nhom2.lokap.domain.model.PostLocation
-import vn.nhom2.lokap.domain.model.PostSendState
-import vn.nhom2.lokap.domain.model.PublishDelay
-import java.time.Duration
-import java.util.UUID
-
+import vn.nhom2.lokap.domain.model.*
 class ComposerViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(ComposerUiState())
@@ -47,6 +41,18 @@ class ComposerViewModel : ViewModel() {
                 if (action.audience == Audience.FRIENDS || action.audience == Audience.PUBLIC) {
                     _uiState.update { it.copy(audience = action.audience) }
                 }
+            }
+
+            is ComposerAction.OnSelectTemplate -> {
+                _uiState.update { it.copy(selectedTemplate = action.template) }
+            }
+
+            is ComposerAction.OnSelectColorFilter -> {
+                _uiState.update { it.copy(selectedColorFilter = action.filter) }
+            }
+
+            is ComposerAction.OnSelectStamp -> {
+                _uiState.update { it.copy(selectedStamp = action.stamp) }
             }
 
             is ComposerAction.OnSelectLocationLevel -> {

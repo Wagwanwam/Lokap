@@ -1,9 +1,7 @@
 package vn.nhom2.lokap.feature.friends
 
 import androidx.compose.runtime.Immutable
-import vn.nhom2.lokap.domain.model.FriendStatus
-import vn.nhom2.lokap.domain.model.User
-
+import vn.nhom2.lokap.domain.model.*
 @Immutable
 data class FriendUserItemUi(
     val user: User,

@@ -3,7 +3,6 @@ package vn.nhom2.lokap.feature.notifications
 import java.time.Instant
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.AppNotification
-
 data class NotificationsUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,

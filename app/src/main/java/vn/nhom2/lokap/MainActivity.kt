@@ -7,24 +7,44 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
+import vn.nhom2.lokap.core.designsystem.theme.ThemeManager
+import vn.nhom2.lokap.core.designsystem.theme.ThemeMode
 import vn.nhom2.lokap.core.navigation.AppNavHost
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // App chỉ có dark mode: luôn dùng icon sáng trên system bar, không theo chế độ của máy.
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
-        )
         setContent {
-            LokapTheme {
-                // Nền đen phủ toàn màn hình. Mỗi màn hình tự xử lý insets (systemBarsPadding),
-                // nên ở đây KHÔNG thêm safeDrawingPadding để tránh đệm hai lần.
+            val themeMode by ThemeManager.themeMode.collectAsStateWithLifecycle()
+            val systemDark = isSystemInDarkTheme()
+            val isDark = when (themeMode) {
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+                ThemeMode.SYSTEM -> systemDark
+            }
+
+            DisposableEffect(isDark) {
+                enableEdgeToEdge(
+                    statusBarStyle = if (isDark) {
+                        SystemBarStyle.dark(Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                    },
+                    navigationBarStyle = if (isDark) {
+                        SystemBarStyle.dark(Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                    }
+                )
+                onDispose {}
+            }
+
+            LokapTheme(themeMode = themeMode) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

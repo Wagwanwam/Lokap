@@ -192,4 +192,34 @@ class MessagingLogicTest {
         assertEquals(FriendStatus.FRIENDS, SampleSocialData.getFriendStatus(n.actor!!.id))
         assertEquals(true, vm.uiState.value.handledFriendRequestIds[n.id])
     }
+
+    // ---------- Chat Theme ----------
+
+    @Test
+    fun `chat theme presets co dung 15 mau gom 7 don sac va 8 gradient`() {
+        assertEquals(7, vn.nhom2.lokap.feature.chat.ChatThemePresets.SOLID_PRESETS.size)
+        assertEquals(8, vn.nhom2.lokap.feature.chat.ChatThemePresets.GRADIENT_PRESETS.size)
+        assertEquals(15, vn.nhom2.lokap.feature.chat.ChatThemePresets.ALL_PRESETS.size)
+    }
+
+    @Test
+    fun `thay doi theme preset va hinh nen gallery cap nhat thanh cong`() = runTest(dispatcher) {
+        val vm = chat()
+        assertEquals("LOKAP_PINK", vm.uiState.value.themeConfig.presetId)
+        assertNull(vm.uiState.value.themeConfig.customWallpaperUri)
+
+        // Chọn preset OCEAN_BLUE
+        vm.onAction(ChatAction.SelectThemePreset("OCEAN_BLUE"))
+        assertEquals("OCEAN_BLUE", vm.uiState.value.themeConfig.presetId)
+
+        // Chọn ảnh từ Gallery
+        val sampleUri = "content://media/external/images/media/42"
+        vm.onAction(ChatAction.SetCustomWallpaper(sampleUri))
+        assertEquals(sampleUri, vm.uiState.value.themeConfig.customWallpaperUri)
+
+        // Gỡ ảnh từ Gallery
+        vm.onAction(ChatAction.RemoveCustomWallpaper)
+        assertNull(vm.uiState.value.themeConfig.customWallpaperUri)
+        assertEquals("OCEAN_BLUE", vm.uiState.value.themeConfig.presetId)
+    }
 }

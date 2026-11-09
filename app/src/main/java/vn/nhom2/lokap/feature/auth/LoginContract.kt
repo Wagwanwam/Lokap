@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.feature.auth
 
 import kotlinx.serialization.Serializable
-
 @Serializable
 data object LoginRoute
 
@@ -30,6 +29,7 @@ sealed interface LoginAction {
     data object TogglePasswordVisibility : LoginAction
     data object SubmitClicked : LoginAction
     data object GoogleSignInClicked : LoginAction
+    data object AutofillDemoAccount : LoginAction
     data object RetryClicked : LoginAction
     data object ForgotPasswordClicked : LoginAction
     data object RegisterClicked : LoginAction

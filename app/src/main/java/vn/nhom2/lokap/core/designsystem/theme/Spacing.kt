@@ -1,10 +1,7 @@
 package vn.nhom2.lokap.core.designsystem.theme
 
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.*
 @Immutable
 data class Spacing(
     val xs: Dp = 4.dp,

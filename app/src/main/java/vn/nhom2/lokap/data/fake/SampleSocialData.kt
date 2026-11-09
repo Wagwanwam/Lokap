@@ -1,19 +1,11 @@
 package vn.nhom2.lokap.data.fake
 
+import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import vn.nhom2.lokap.domain.model.Audience
-import vn.nhom2.lokap.domain.model.FriendStatus
-import vn.nhom2.lokap.domain.model.LocationLevel
-import vn.nhom2.lokap.domain.model.MapBubble
-import vn.nhom2.lokap.domain.model.MapBubbleType
-import vn.nhom2.lokap.domain.model.Post
-import vn.nhom2.lokap.domain.model.Province
-import vn.nhom2.lokap.domain.model.User
-import java.time.Instant
-
+import vn.nhom2.lokap.domain.model.*
 data class AppSettingsData(
     val defaultLocationLevel: LocationLevel = LocationLevel.PROVINCE,
     val notifyNewPhotos: Boolean = true,
@@ -88,9 +80,9 @@ object SampleSocialData {
         val myId = SampleData.currentUser.id
         val sampleFriendIds = SampleData.users.map { it.id }.toSet() - myId
         val result = mutableMapOf<String, FriendStatus>()
-        // 5 người trong SampleData là bạn (Camera "Bạn bè · 5", Feed đều dựa vào đó)
+
         sampleFriendIds.forEach { result[it] = FriendStatus.FRIENDS }
-        // Người mới trong danh bạ: chia đủ các trạng thái để demo
+
         directoryUsers.filter { it.id != myId && it.id !in sampleFriendIds }
             .forEachIndexed { index, user ->
                 result[user.id] = when (index) {
@@ -103,7 +95,6 @@ object SampleSocialData {
         return result
     }
 
-    /** Chỉ dùng trong unit test để dựng trạng thái (ví dụ đủ 20 bạn). */
     internal fun setFriendStatusesForTest(statuses: Map<String, FriendStatus>) {
         _friendStatuses.value = statuses
     }
@@ -123,6 +114,16 @@ object SampleSocialData {
     fun updateMyDisplayName(newDisplayName: String) {
         val current = getCurrentUser()
         _currentUserOverride.value = current.copy(displayName = newDisplayName.trim())
+    }
+
+    fun updateMyProfile(displayName: String, username: String, bio: String) {
+        val current = getCurrentUser()
+        val cleanUsername = username.trim().removePrefix("@")
+        _currentUserOverride.value = current.copy(
+            displayName = displayName.trim(),
+            username = if (cleanUsername.isNotBlank()) cleanUsername else current.username,
+            bio = bio.trim()
+        )
     }
 
     fun getFriendStatus(userId: String): FriendStatus {
@@ -192,9 +193,7 @@ object SampleSocialData {
         friendStatus: FriendStatus,
         now: Instant = SampleData.NOW
     ): Boolean {
-        // Cùng luật với can_view_post (CLAUDE.md): tác giả thấy hết; chặn thì không thấy gì;
-        // bạn bè thấy bài FRIENDS và PUBLIC (kể cả đang hẹn giờ); người lạ chỉ thấy PUBLIC đã tới giờ.
-        // Bài DIRECT không hiện trên trang hồ sơ (chỉ hiện trong chat/Feed của người nhận).
+
         if (isMe) return true
         if (friendStatus == FriendStatus.BLOCKED) return false
         val isFriend = friendStatus == FriendStatus.FRIENDS
@@ -205,7 +204,6 @@ object SampleSocialData {
         }
     }
 
-    /** Bong bóng tỉnh cho bản đồ trên hồ sơ: mỗi tỉnh có bài một bong bóng, số = số bài được phép xem. */
     fun buildProvinceMapBubbles(
         posts: List<Post>,
         provinces: List<Province>

@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.feature.onboarding
 
 import kotlinx.serialization.Serializable
-
 @Serializable
 data object OnboardingRoute
 
@@ -27,7 +26,7 @@ data class OnboardingUiState(
     val isSubmitting: Boolean = false
 ) {
     val canStart: Boolean
-        get() = cameraStatus == PermissionStatus.GRANTED && !isSubmitting
+        get() = !isSubmitting
 }
 
 sealed interface OnboardingAction {

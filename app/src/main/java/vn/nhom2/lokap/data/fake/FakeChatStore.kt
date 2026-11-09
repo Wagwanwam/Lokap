@@ -1,27 +1,18 @@
 package vn.nhom2.lokap.data.fake
 
-import vn.nhom2.lokap.domain.model.FriendStatus
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import java.util.UUID
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import vn.nhom2.lokap.domain.model.Conversation
-import vn.nhom2.lokap.domain.model.Message
-import vn.nhom2.lokap.domain.model.PostSendState
-import vn.nhom2.lokap.domain.model.User
-
+import vn.nhom2.lokap.domain.model.*
 object FakeChatStore {
 
     private val startedAtMillis = System.currentTimeMillis()
 
-    /**
-     * Đồng hồ giả: SampleData.NOW + thời gian đã trôi từ lúc mở app. Cả app dùng NOW cố định,
-     * nếu tin nhắn mới dùng Instant.now() thì bị xếp sang ngày khác ("06/11" thay vì "Hôm nay").
-     */
     fun clockNow(): Instant = SampleData.NOW.plusMillis(System.currentTimeMillis() - startedAtMillis)
 
     private val _conversations = MutableStateFlow(SampleData.conversations)
@@ -30,7 +21,17 @@ object FakeChatStore {
     private val _messages = MutableStateFlow(SampleData.messages)
     val messages: StateFlow<List<Message>> = _messages.asStateFlow()
 
-    /** Tổng tin chưa đọc, dùng cho badge trên Camera. */
+    private val _conversationThemes = MutableStateFlow<Map<String, vn.nhom2.lokap.feature.chat.ChatThemeConfig>>(emptyMap())
+    val conversationThemes: StateFlow<Map<String, vn.nhom2.lokap.feature.chat.ChatThemeConfig>> = _conversationThemes.asStateFlow()
+
+    fun getChatTheme(conversationId: String): vn.nhom2.lokap.feature.chat.ChatThemeConfig {
+        return _conversationThemes.value[conversationId] ?: vn.nhom2.lokap.feature.chat.ChatThemeConfig()
+    }
+
+    fun setChatTheme(conversationId: String, theme: vn.nhom2.lokap.feature.chat.ChatThemeConfig) {
+        _conversationThemes.update { it + (conversationId to theme) }
+    }
+
     val totalUnread: Flow<Int> = conversations.map { list -> list.sumOf { it.unreadCount } }
 
     fun getConversation(conversationId: String): Conversation? {
@@ -64,10 +65,6 @@ object FakeChatStore {
         }
     }
 
-    /**
-     * Giống RPC send_message: chỉ gửi được khi hai người còn là bạn (không chặn nhau).
-     * Trả về null nếu bị từ chối hoặc nội dung rỗng.
-     */
     fun addOutgoingMessage(
         conversationId: String,
         senderId: String,
@@ -145,7 +142,7 @@ object FakeChatStore {
             .maxByOrNull { it.createdAt }
         return when {
             latest == null -> conversation.lastMessagePreview
-            latest.attachedPost != null -> "📷 Đã gửi một ảnh"
+            latest.attachedPost != null -> "Đã gửi một ảnh"
             !latest.body.isNullOrBlank() -> latest.body
             else -> conversation.lastMessagePreview
         }
@@ -153,7 +150,7 @@ object FakeChatStore {
 
     private fun previewForMessage(message: Message): String {
         return when {
-            message.attachedPost != null -> "📷 Đã gửi một ảnh"
+            message.attachedPost != null -> "Đã gửi một ảnh"
             !message.body.isNullOrBlank() -> message.body
             else -> ""
         }
@@ -181,6 +178,5 @@ object FakeChatStore {
     }
 }
 
-/** Chỉ dùng trong unit test. */
 internal fun FakeChatStore.lastMessageIn(conversationId: String): Message? =
     messages.value.filter { it.conversationId == conversationId }.maxByOrNull { it.createdAt }

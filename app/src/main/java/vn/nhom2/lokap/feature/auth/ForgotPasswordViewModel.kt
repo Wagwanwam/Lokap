@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.data.fake.AuthStoreException
 import vn.nhom2.lokap.data.fake.FakeAuthStore
-
 class ForgotPasswordViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(ForgotPasswordUiState())

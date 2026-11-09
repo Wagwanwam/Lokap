@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.data.fake.AuthStoreException
 import vn.nhom2.lokap.data.fake.FakeAuthStore
-
 class RegisterViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegisterUiState())
@@ -26,7 +25,7 @@ class RegisterViewModel : ViewModel() {
                 _uiState.update { state ->
                     state.copy(
                         email = action.value,
-                        emailError = if (state.emailTouched) AuthValidators.validateEmail(action.value) else null,
+                        emailError = if (state.emailError != null) AuthValidators.validateEmail(action.value) else null,
                         serverError = null,
                         isOffline = false
                     )
@@ -37,8 +36,9 @@ class RegisterViewModel : ViewModel() {
                 _uiState.update { state ->
                     state.copy(
                         password = action.value,
-                        passwordError = if (state.passwordTouched) AuthValidators.validatePassword(action.value) else null,
-                        confirmPasswordError = if (state.confirmPasswordTouched) {
+                        passwordStrength = AuthValidators.calculatePasswordStrength(action.value),
+                        passwordError = if (state.passwordError != null) AuthValidators.validatePassword(action.value) else null,
+                        confirmPasswordError = if (state.confirmPasswordError != null) {
                             AuthValidators.validateConfirmPassword(action.value, state.confirmPassword)
                         } else {
                             null
@@ -53,13 +53,12 @@ class RegisterViewModel : ViewModel() {
                 _uiState.update { state ->
                     state.copy(
                         confirmPassword = action.value,
-                        confirmPasswordError = if (state.confirmPasswordTouched) {
+                        confirmPasswordError = if (state.confirmPasswordError != null) {
                             AuthValidators.validateConfirmPassword(state.password, action.value)
                         } else {
                             null
                         },
-                        serverError = null,
-                        isOffline = false
+                        serverError = null
                     )
                 }
             }
@@ -68,38 +67,41 @@ class RegisterViewModel : ViewModel() {
                 _uiState.update { state ->
                     state.copy(
                         acceptedTerms = action.accepted,
-                        termsTouched = true,
-                        termsError = if (action.accepted) null else "Bạn cần đồng ý Điều khoản & Chính sách riêng tư"
+                        termsError = if (action.accepted) null else state.termsError
                     )
                 }
             }
 
             RegisterAction.EmailFocusLost -> {
                 _uiState.update { state ->
+                    val err = if (state.email.isNotBlank()) AuthValidators.validateEmail(state.email) else null
                     state.copy(
-                        emailTouched = true,
-                        emailError = AuthValidators.validateEmail(state.email)
+                        emailTouched = state.email.isNotBlank(),
+                        emailError = err
                     )
                 }
             }
 
             RegisterAction.PasswordFocusLost -> {
                 _uiState.update { state ->
+                    val err = if (state.password.isNotBlank()) AuthValidators.validatePassword(state.password) else null
                     state.copy(
-                        passwordTouched = true,
-                        passwordError = AuthValidators.validatePassword(state.password)
+                        passwordTouched = state.password.isNotBlank(),
+                        passwordError = err
                     )
                 }
             }
 
             RegisterAction.ConfirmPasswordFocusLost -> {
                 _uiState.update { state ->
+                    val err = if (state.confirmPassword.isNotBlank()) {
+                        AuthValidators.validateConfirmPassword(state.password, state.confirmPassword)
+                    } else {
+                        null
+                    }
                     state.copy(
-                        confirmPasswordTouched = true,
-                        confirmPasswordError = AuthValidators.validateConfirmPassword(
-                            state.password,
-                            state.confirmPassword
-                        )
+                        confirmPasswordTouched = state.confirmPassword.isNotBlank(),
+                        confirmPasswordError = err
                     )
                 }
             }
@@ -160,7 +162,10 @@ class RegisterViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            val result = FakeAuthStore.register(current.email, current.password)
+            val result = FakeAuthStore.register(
+                email = current.email,
+                password = current.password
+            )
             result.fold(
                 onSuccess = {
                     _uiState.update { it.copy(isLoading = false) }

@@ -1,21 +1,8 @@
 package vn.nhom2.lokap.feature.landmark
 
-import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -26,8 +13,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,8 +27,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import vn.nhom2.lokap.core.navigation.navigateSingleTop
-import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import coil3.compose.AsyncImage
@@ -55,18 +39,15 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.core.designsystem.component.EmptyState
-import vn.nhom2.lokap.core.designsystem.component.ErrorState
-import vn.nhom2.lokap.core.designsystem.component.GlassChip
-import vn.nhom2.lokap.core.designsystem.component.ShimmerBox
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.core.navigation.navigateSingleTop
+import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.data.fake.FakePostStore
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.data.fake.SampleMapData
-import vn.nhom2.lokap.domain.model.Landmark
-import vn.nhom2.lokap.domain.model.Post
-
+import vn.nhom2.lokap.domain.model.*
 data class LandmarkUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
@@ -111,7 +92,6 @@ class LandmarkViewModel(
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             delay(300)
 
-            // Không tìm thấy thì báo lỗi, không lặng lẽ mở địa danh khác
             val foundLandmark = SampleData.landmarks.firstOrNull { it.id == landmarkId }
 
             if (foundLandmark == null) {
@@ -131,7 +111,7 @@ class LandmarkViewModel(
 
             FakePostStore.posts.collectLatest { storePosts ->
                 val basePosts = storePosts.ifEmpty { SampleData.posts }
-                // Chỉ bài gắn đúng địa danh này (trước đây lấy cả mọi bài cùng tỉnh)
+
                 val landmarkPosts = basePosts
                     .filter { it.location.landmarkId == foundLandmark.id }
                     .sortedByDescending { it.takenAt }
@@ -250,7 +230,7 @@ fun LandmarkScreen(
                     horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                     verticalArrangement = Arrangement.spacedBy(spacing.xs)
                 ) {
-                    // Header: Nút quay lại + Ảnh bìa lớn + Nguồn ảnh + Tên + Tỉnh + Mô tả + Số bài
+
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -283,7 +263,6 @@ fun LandmarkScreen(
                                 )
                             }
 
-                            // Ảnh bìa lớn
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -299,21 +278,18 @@ fun LandmarkScreen(
                                 )
                             }
 
-                            // Dòng nguồn ảnh (coverAttribution) nhỏ ngay dưới ảnh bìa
                             Text(
                                 text = landmark.coverAttribution,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = colors.textTertiary
                             )
 
-                            // Tên địa danh (chữ lớn)
                             Text(
                                 text = landmark.name,
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = colors.textPrimary
                             )
 
-                            // Tỉnh & Số bài
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(spacing.sm)
@@ -328,7 +304,6 @@ fun LandmarkScreen(
                                 )
                             }
 
-                            // Mô tả
                             Text(
                                 text = landmark.description,
                                 style = MaterialTheme.typography.bodyMedium,

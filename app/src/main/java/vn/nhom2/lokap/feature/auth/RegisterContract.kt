@@ -1,9 +1,15 @@
 package vn.nhom2.lokap.feature.auth
 
 import kotlinx.serialization.Serializable
-
 @Serializable
 data object RegisterRoute
+
+enum class PasswordStrength {
+    NONE,
+    WEAK,
+    MEDIUM,
+    STRONG
+}
 
 data class RegisterUiState(
     val email: String = "",
@@ -20,6 +26,7 @@ data class RegisterUiState(
     val termsError: String? = null,
     val isPasswordVisible: Boolean = false,
     val isConfirmPasswordVisible: Boolean = false,
+    val passwordStrength: PasswordStrength = PasswordStrength.NONE,
     val isLoading: Boolean = false,
     val serverError: String? = null,
     val isOffline: Boolean = false

@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 import vn.nhom2.lokap.data.fake.AuthStoreException
 import vn.nhom2.lokap.data.fake.FakeAuthStore
 import vn.nhom2.lokap.feature.auth.AuthValidators
-
 class SetupProfileViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(SetupProfileUiState())
@@ -51,20 +50,47 @@ class SetupProfileViewModel : ViewModel() {
                 onUsernameInputChanged(lowered)
             }
 
-            SetupProfileAction.DisplayNameFocusLost -> {
+            is SetupProfileAction.BirthYearChanged -> {
                 _uiState.update { state ->
                     state.copy(
-                        displayNameTouched = true,
-                        displayNameError = AuthValidators.validateDisplayName(state.displayName)
+                        birthYear = action.year,
+                        birthYearError = AuthValidators.validateBirthYear(action.year)
+                    )
+                }
+            }
+
+            is SetupProfileAction.HomeProvinceChanged -> {
+                _uiState.update { it.copy(homeProvince = action.province, isProvincePickerOpen = false) }
+            }
+
+            SetupProfileAction.ToggleProvincePicker -> {
+                _uiState.update { it.copy(isProvincePickerOpen = !it.isProvincePickerOpen) }
+            }
+
+            is SetupProfileAction.BioChanged -> {
+                _uiState.update { state ->
+                    state.copy(
+                        bio = action.bio,
+                        bioError = AuthValidators.validateBio(action.bio)
+                    )
+                }
+            }
+
+            SetupProfileAction.DisplayNameFocusLost -> {
+                _uiState.update { state ->
+                    val err = if (state.displayName.isNotBlank()) AuthValidators.validateDisplayName(state.displayName) else null
+                    state.copy(
+                        displayNameTouched = state.displayName.isNotBlank(),
+                        displayNameError = err
                     )
                 }
             }
 
             SetupProfileAction.UsernameFocusLost -> {
                 _uiState.update { state ->
-                    val formatError = AuthValidators.validateUsernameFormat(state.username)
+                    val formatError = if (state.username.isNotBlank()) AuthValidators.validateUsernameFormat(state.username) else null
                     state.copy(
-                        usernameTouched = true,
+                        usernameTouched = state.username.isNotBlank(),
                         usernameError = formatError ?: if (state.usernameAvailability == UsernameAvailability.TAKEN) {
                             "Username này đã có người dùng"
                         } else {
@@ -110,7 +136,7 @@ class SetupProfileViewModel : ViewModel() {
         }
 
         usernameCheckJob = viewModelScope.launch {
-            delay(400) // Debounce 400ms
+            delay(400)
             val result = FakeAuthStore.isUsernameAvailable(lowered)
             result.fold(
                 onSuccess = { available ->

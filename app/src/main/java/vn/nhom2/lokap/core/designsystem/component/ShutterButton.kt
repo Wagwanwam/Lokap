@@ -6,20 +6,12 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -31,7 +23,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-
 @Composable
 fun ShutterButton(
     onClick: () -> Unit,
@@ -60,11 +51,11 @@ fun ShutterButton(
                 scaleY = scale
             }
             .alpha(if (enabled) 1f else 0.45f)
-            .clip(shapes.pill)
+            .clip(CircleShape)
             .border(
                 width = 4.dp,
                 color = colors.textPrimary,
-                shape = shapes.pill
+                shape = CircleShape
             )
             .semantics {
                 role = Role.Button
@@ -89,7 +80,7 @@ fun ShutterButton(
         Box(
             modifier = Modifier
                 .size(64.dp)
-                .clip(shapes.pill)
+                .clip(CircleShape)
                 .background(if (enabled) colors.primary else colors.outline)
         )
     }

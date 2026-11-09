@@ -2,9 +2,7 @@ package vn.nhom2.lokap.feature.chat
 
 import java.time.Instant
 import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.domain.model.Message
-import vn.nhom2.lokap.domain.model.User
-
+import vn.nhom2.lokap.domain.model.*
 sealed interface ChatTimelineItem {
     val key: String
 
@@ -34,7 +32,9 @@ data class ChatUiState(
     val timelineItems: List<ChatTimelineItem> = emptyList(),
     val inputText: String = "",
     val isFriendTyping: Boolean = false,
-    val now: Instant = SampleData.NOW
+    val now: Instant = SampleData.NOW,
+    val themeConfig: ChatThemeConfig = ChatThemeConfig(),
+    val isThemeSheetVisible: Boolean = false
 ) {
     val canSend: Boolean
         get() = isFriendStatusValid && inputText.trim().isNotEmpty() && inputText.length <= 1000
@@ -49,6 +49,11 @@ sealed interface ChatAction {
     data object OpenFriendProfile : ChatAction
     data object RetryLoad : ChatAction
     data object NavigateBack : ChatAction
+    data object OpenThemeSheet : ChatAction
+    data object DismissThemeSheet : ChatAction
+    data class SelectThemePreset(val presetId: String) : ChatAction
+    data class SetCustomWallpaper(val uri: String, val alignment: String = "CENTER") : ChatAction
+    data object RemoveCustomWallpaper : ChatAction
 }
 
 sealed interface ChatEffect {

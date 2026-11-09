@@ -2,7 +2,6 @@ package vn.nhom2.lokap.domain.model
 
 import androidx.compose.runtime.Immutable
 import java.time.Instant
-
 enum class NotificationType {
     NEW_POST,
     REACTION,

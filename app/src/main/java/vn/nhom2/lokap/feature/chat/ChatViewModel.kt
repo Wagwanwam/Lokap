@@ -1,7 +1,5 @@
 package vn.nhom2.lokap.feature.chat
 
-import vn.nhom2.lokap.domain.model.FriendStatus
-import vn.nhom2.lokap.data.fake.SampleSocialData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -24,9 +22,8 @@ import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.data.fake.FakeChatStore
 import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.domain.model.Message
-import vn.nhom2.lokap.domain.model.PostSendState
-
+import vn.nhom2.lokap.data.fake.SampleSocialData
+import vn.nhom2.lokap.domain.model.*
 class ChatViewModel(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -51,7 +48,6 @@ class ChatViewModel(
     private val _effects = Channel<ChatEffect>(Channel.BUFFERED)
     val effects: Flow<ChatEffect> = _effects.receiveAsFlow()
 
-    // "Đã xem" chỉ là trạng thái màn hình (giả lập conversation_reads của bạn), không ghi vào kho tin nhắn
     private val friendSeenUpTo = MutableStateFlow<Instant?>(null)
 
     private var replySimulationJob: Job? = null
@@ -60,6 +56,16 @@ class ChatViewModel(
     init {
         FakeChatStore.markConversationRead(conversationId)
         observeConversationAndMessages()
+        observeChatTheme()
+    }
+
+    private fun observeChatTheme() {
+        viewModelScope.launch {
+            FakeChatStore.conversationThemes.collect { themes ->
+                val theme = themes[conversationId] ?: ChatThemeConfig()
+                _uiState.update { it.copy(themeConfig = theme) }
+            }
+        }
     }
 
     private fun observeConversationAndMessages() {
@@ -131,7 +137,7 @@ class ChatViewModel(
             }
 
             ChatAction.OpenCameraForDirectShot -> {
-                // TODO tuần 4: chế độ gửi riêng (audience DIRECT) cho đúng friend hiện tại
+
                 sendEffect(ChatEffect.NavigateToCamera)
             }
 
@@ -152,6 +158,41 @@ class ChatViewModel(
             ChatAction.NavigateBack -> {
                 sendEffect(ChatEffect.NavigateBack)
             }
+
+            ChatAction.OpenThemeSheet -> {
+                _uiState.update { it.copy(isThemeSheetVisible = true) }
+            }
+
+            ChatAction.DismissThemeSheet -> {
+                _uiState.update { it.copy(isThemeSheetVisible = false) }
+            }
+
+            is ChatAction.SelectThemePreset -> {
+                val currentTheme = FakeChatStore.getChatTheme(conversationId)
+                FakeChatStore.setChatTheme(
+                    conversationId = conversationId,
+                    theme = currentTheme.copy(presetId = action.presetId)
+                )
+            }
+
+            is ChatAction.SetCustomWallpaper -> {
+                val currentTheme = FakeChatStore.getChatTheme(conversationId)
+                FakeChatStore.setChatTheme(
+                    conversationId = conversationId,
+                    theme = currentTheme.copy(
+                        customWallpaperUri = action.uri,
+                        wallpaperAlignment = action.alignment
+                    )
+                )
+            }
+
+            ChatAction.RemoveCustomWallpaper -> {
+                val currentTheme = FakeChatStore.getChatTheme(conversationId)
+                FakeChatStore.setChatTheme(
+                    conversationId = conversationId,
+                    theme = currentTheme.copy(customWallpaperUri = null)
+                )
+            }
         }
     }
 
@@ -160,7 +201,6 @@ class ChatViewModel(
         val rawBody = currentState.inputText.trim()
         if (!currentState.isFriendStatusValid || rawBody.isEmpty()) return
 
-        // Kho từ chối nếu không còn là bạn (giống send_message); khi đó giữ nguyên chữ đã gõ
         val pendingMsg = FakeChatStore.addOutgoingMessage(
             conversationId = conversationId,
             senderId = myUserId,

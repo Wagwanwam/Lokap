@@ -1,40 +1,34 @@
 package vn.nhom2.lokap.feature.auth
 
-import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalFocusManager
@@ -46,20 +40,17 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import vn.nhom2.lokap.core.designsystem.component.ErrorState
-import vn.nhom2.lokap.core.designsystem.component.GhostButton
-import vn.nhom2.lokap.core.designsystem.component.OfflineBanner
-import vn.nhom2.lokap.core.designsystem.component.PinkButton
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
-
 fun NavGraphBuilder.loginScreen(navController: NavController) {
     composable<LoginRoute> {
         LoginRoute(
@@ -131,27 +122,22 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
         }
 
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.xl))
+        Spacer(modifier = Modifier.height(LokapTheme.spacing.lg))
 
-        // Large gradient logo "Lokap" (pink -> lilac)
+        LokapLogo(size = 80.dp)
+
+        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
+
         Text(
             text = "Lokap",
-            style = TextStyle(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        LokapTheme.colors.primary,
-                        LokapTheme.colors.accentLilac
-                    )
-                ),
-                fontSize = 52.sp,
-                fontWeight = FontWeight.Black
-            )
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
+            color = LokapTheme.colors.textPrimary
         )
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
 
         Text(
-            text = "Chụp tức thì · Ghim khắp Việt Nam 🇻🇳",
+            text = "Bản đồ khoảnh khắc Việt Nam",
             style = MaterialTheme.typography.bodyMedium,
             color = LokapTheme.colors.textSecondary,
             textAlign = TextAlign.Center
@@ -159,7 +145,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.xl))
 
-        // Email field
         OutlinedTextField(
             value = uiState.email,
             onValueChange = { onAction(LoginAction.EmailChanged(it)) },
@@ -193,7 +178,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
 
-        // Password field
         OutlinedTextField(
             value = uiState.password,
             onValueChange = { onAction(LoginAction.PasswordChanged(it)) },
@@ -204,14 +188,14 @@ fun LoginScreen(
                 Icon(imageVector = Icons.Default.Lock, contentDescription = null)
             },
             trailingIcon = {
-                TextButton(
+                IconButton(
                     onClick = { onAction(LoginAction.TogglePasswordVisibility) },
                     enabled = !uiState.isBusy
                 ) {
-                    Text(
-                        text = if (uiState.isPasswordVisible) "Ẩn" else "Hiện",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LokapTheme.colors.primary
+                    Icon(
+                        imageVector = if (uiState.isPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = if (uiState.isPasswordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu",
+                        tint = LokapTheme.colors.textSecondary
                     )
                 }
             },
@@ -298,7 +282,56 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
+        Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
+
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = LokapTheme.colors.primary.copy(alpha = 0.08f),
+            border = BorderStroke(1.dp, LokapTheme.colors.primary.copy(alpha = 0.25f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(enabled = !uiState.isBusy) {
+                    onAction(LoginAction.AutofillDemoAccount)
+                }
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.FlashOn,
+                    contentDescription = null,
+                    tint = LokapTheme.colors.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Chạm để dùng tài khoản mẫu: demo@lokap.vn",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = LokapTheme.colors.primary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
+        ) {
+            HorizontalDivider(modifier = Modifier.weight(1f), color = LokapTheme.colors.outline.copy(alpha = 0.3f))
+            Text(
+                text = "HOẶC",
+                style = MaterialTheme.typography.labelSmall,
+                color = LokapTheme.colors.textTertiary
+            )
+            HorizontalDivider(modifier = Modifier.weight(1f), color = LokapTheme.colors.outline.copy(alpha = 0.3f))
+        }
+
+        Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
 
         GhostButton(
             text = "Tiếp tục với Google",
@@ -324,7 +357,7 @@ fun LoginScreen(
                 color = LokapTheme.colors.textSecondary
             )
             Text(
-                text = "Đăng ký",
+                text = "Đăng ký ngay",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = LokapTheme.colors.primary,
                 modifier = Modifier.clickable(enabled = !uiState.isBusy) {

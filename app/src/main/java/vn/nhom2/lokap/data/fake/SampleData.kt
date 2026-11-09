@@ -1,24 +1,8 @@
 package vn.nhom2.lokap.data.fake
 
-import vn.nhom2.lokap.domain.model.AppNotification
-import vn.nhom2.lokap.domain.model.Audience
-import vn.nhom2.lokap.domain.model.Conversation
-import vn.nhom2.lokap.domain.model.Landmark
-import vn.nhom2.lokap.domain.model.LocationLevel
-import vn.nhom2.lokap.domain.model.MapBubble
-import vn.nhom2.lokap.domain.model.MapBubbleType
-import vn.nhom2.lokap.domain.model.Message
-import vn.nhom2.lokap.domain.model.NotificationType
-import vn.nhom2.lokap.domain.model.Place
-import vn.nhom2.lokap.domain.model.Post
-import vn.nhom2.lokap.domain.model.PostLocation
-import vn.nhom2.lokap.domain.model.PostSendState
-import vn.nhom2.lokap.domain.model.Reaction
-import vn.nhom2.lokap.domain.model.User
-import vn.nhom2.lokap.domain.model.Ward
 import java.time.Duration
 import java.time.Instant
-
+import vn.nhom2.lokap.domain.model.*
 object SampleData {
 
     val NOW: Instant = Instant.parse("2026-11-05T08:00:00Z")
@@ -28,7 +12,6 @@ object SampleData {
     private fun daysAgo(days: Long): Instant = NOW.minus(Duration.ofDays(days))
     private fun daysLater(days: Long): Instant = NOW.plus(Duration.ofDays(days))
 
-    // 1. 6 User mẫu (user đầu tiên là "tôi")
     val currentUser = User(
         id = "u_me",
         username = "minhkhoi",
@@ -70,7 +53,6 @@ object SampleData {
         )
     )
 
-    // 2. Phường mẫu (Đà Nẵng sau sáp nhập có Hội An; Huế có Thuận Hóa, Phú Xuân)
     val wards: List<Ward> = listOf(
         Ward(code = "dn-hai-chau", provinceCode = "da-nang", name = "Phường Hải Châu", lat = 16.0678, lng = 108.2208),
         Ward(code = "dn-son-tra", provinceCode = "da-nang", name = "Phường Sơn Trà", lat = 16.0911, lng = 108.2483),
@@ -80,14 +62,12 @@ object SampleData {
         Ward(code = "hue-phu-xuan", provinceCode = "hue", name = "Phường Phú Xuân", lat = 16.4728, lng = 107.5776)
     )
 
-    // 3. Địa điểm cụ thể (Places) mẫu
     val places: List<Place> = listOf(
         Place(id = "pl_1", name = "Trình Cà Phê", address = "25 Phạm Hồng Thái, Hải Châu, Đà Nẵng", lat = 16.0682, lng = 108.2215),
         Place(id = "pl_2", name = "Faifo Coffee", address = "130 Trần Phú, Hội An, Đà Nẵng", lat = 15.8772, lng = 108.3280),
         Place(id = "pl_3", name = "Cà Phê Muối 142", address = "142 Đặng Thái Thân, Phú Xuân, Huế", lat = 16.4712, lng = 107.5750)
     )
 
-    // 4. 6 Địa danh (Landmarks) mẫu
     val landmarks: List<Landmark> = listOf(
         Landmark(
             id = "lm_cau_rong",
@@ -169,9 +149,8 @@ object SampleData {
         )
     )
 
-    // 5. 20 Bài đăng mẫu (trải đủ 3 audience, 4 mức vị trí, 2 bài PENDING/FAILED, 2 bài public hẹn giờ)
     val posts: List<Post> = listOf(
-        // Bài 1: PUBLIC - PLACE (Landmark Cầu Rồng)
+
         Post(
             id = "p_01",
             author = users[1],
@@ -195,7 +174,7 @@ object SampleData {
             myReaction = "🔥",
             sendState = PostSendState.SENT
         ),
-        // Bài 2: FRIENDS - PLACE (Quán cà phê)
+
         Post(
             id = "p_02",
             author = users[2],
@@ -219,7 +198,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 3: PUBLIC - PLACE (Phố cổ Hội An) - ĐÃ QUA HẸN GIỜ 3 NGÀY (chụp 3 ngày trước, vừa hiển thị public)
+
         Post(
             id = "p_03",
             author = users[3],
@@ -243,7 +222,7 @@ object SampleData {
             myReaction = "🏮",
             sendState = PostSendState.SENT
         ),
-        // Bài 4: PUBLIC - ĐANG HẸN GIỜ #1 (chụp 2 giờ trước, hẹn 1 ngày sau mới lên bản đồ public)
+
         Post(
             id = "p_04",
             author = currentUser,
@@ -267,7 +246,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 5: PUBLIC - ĐANG HẸN GIỜ #2 (chụp 4 giờ trước, hẹn 3 ngày sau mới lên bản đồ public)
+
         Post(
             id = "p_05",
             author = currentUser,
@@ -291,7 +270,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 6: TRẠNG THÁI PENDING (của currentUser đang gửi dở)
+
         Post(
             id = "p_06",
             author = currentUser,
@@ -315,7 +294,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.PENDING
         ),
-        // Bài 7: TRẠNG THÁI FAILED (của currentUser gửi lỗi cần bấm thử lại)
+
         Post(
             id = "p_07",
             author = currentUser,
@@ -339,7 +318,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.FAILED
         ),
-        // Bài 8: DIRECT - Gửi riêng 1-1 cho bạn
+
         Post(
             id = "p_08",
             author = users[1],
@@ -363,7 +342,7 @@ object SampleData {
             myReaction = "🫡",
             sendState = PostSendState.SENT
         ),
-        // Bài 9: DIRECT - Gửi riêng 1-1 từ currentUser
+
         Post(
             id = "p_09",
             author = currentUser,
@@ -387,7 +366,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 10: PUBLIC - Mức WARD (Phường Hội An)
+
         Post(
             id = "p_10",
             author = users[4],
@@ -411,7 +390,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 11: PUBLIC - Mức PLACE (Chùa Thiên Mụ)
+
         Post(
             id = "p_11",
             author = users[5],
@@ -435,7 +414,7 @@ object SampleData {
             myReaction = "✨",
             sendState = PostSendState.SENT
         ),
-        // Bài 12: FRIENDS - Mức PROVINCE (Hà Nội)
+
         Post(
             id = "p_12",
             author = users[2],
@@ -459,7 +438,7 @@ object SampleData {
             myReaction = "🍂",
             sendState = PostSendState.SENT
         ),
-        // Bài 13: PUBLIC - Mức PROVINCE (TP. Hồ Chí Minh)
+
         Post(
             id = "p_13",
             author = users[3],
@@ -483,7 +462,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 14: PUBLIC - Mức PROVINCE (Lâm Đồng)
+
         Post(
             id = "p_14",
             author = users[4],
@@ -507,7 +486,7 @@ object SampleData {
             myReaction = "☁️",
             sendState = PostSendState.SENT
         ),
-        // Bài 15: FRIENDS - Mức COUNTRY (Chỉ "Việt Nam")
+
         Post(
             id = "p_15",
             author = users[5],
@@ -531,7 +510,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 16: PUBLIC - Mức COUNTRY (Chỉ "Việt Nam")
+
         Post(
             id = "p_16",
             author = users[1],
@@ -555,7 +534,7 @@ object SampleData {
             myReaction = "🌅",
             sendState = PostSendState.SENT
         ),
-        // Bài 17: PUBLIC - Mức PROVINCE (Khánh Hòa)
+
         Post(
             id = "p_17",
             author = users[2],
@@ -579,7 +558,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 18: PUBLIC - Mức PROVINCE (Lào Cai)
+
         Post(
             id = "p_18",
             author = users[3],
@@ -603,7 +582,7 @@ object SampleData {
             myReaction = "🌾",
             sendState = PostSendState.SENT
         ),
-        // Bài 19: FRIENDS - Mức WARD (Phường Thuận Hóa, Huế) - Quá 7 ngày để test dd/MM
+
         Post(
             id = "p_19",
             author = users[4],
@@ -627,7 +606,7 @@ object SampleData {
             myReaction = null,
             sendState = PostSendState.SENT
         ),
-        // Bài 20: PUBLIC - Mức PROVINCE (Cần Thơ) - Quá 7 ngày
+
         Post(
             id = "p_20",
             author = users[5],
@@ -653,8 +632,6 @@ object SampleData {
         )
     )
 
-    // 6. Map Bubbles mẫu cho 3 mức zoom
-    // Zoom Mức 1 (Toàn quốc — gom theo Tỉnh/Thành phố)
     val provinceMapBubbles: List<MapBubble> = listOf(
         MapBubble(
             id = "mb_prov_danang",
@@ -724,7 +701,6 @@ object SampleData {
         )
     )
 
-    // Zoom Mức 2 (Trong một Tỉnh/Thành — gom theo Phường/Xã + 1 cụm Toàn tỉnh)
     val wardMapBubblesDaNang: List<MapBubble> = listOf(
         MapBubble(
             id = "mb_ward_haichau",
@@ -783,7 +759,6 @@ object SampleData {
         )
     )
 
-    // Zoom Mức 3 (Chi tiết trong Phường — Địa danh Landmark & Địa điểm Place)
     val detailMapBubblesDaNang: List<MapBubble> = listOf(
         MapBubble(
             id = "mb_lm_caurong",
@@ -831,7 +806,6 @@ object SampleData {
         )
     )
 
-    // 7. 5 Cuộc trò chuyện (Conversations) mẫu
     val conversations: List<Conversation> = listOf(
         Conversation(
             id = "conv_1",
@@ -870,15 +844,14 @@ object SampleData {
         )
     )
 
-    // 8. 12 Tin nhắn mẫu (có tin trả lời từ ảnh replyToPost & tin kèm ảnh gửi riêng attachedPost)
     val messages: List<Message> = listOf(
-        // Cuộc trò chuyện 1 (với Trần Khánh Linh - users[1])
+
         Message(
             id = "msg_01",
             conversationId = "conv_1",
             senderId = users[1].id,
             body = "Tối nay Cầu Rồng đông lắm luôn á!",
-            replyToPost = posts[0], // Trả lời từ bài chụp Cầu Rồng
+            replyToPost = posts[0],
             attachedPost = null,
             createdAt = minutesAgo(35),
             sendState = PostSendState.SENT,
@@ -912,7 +885,7 @@ object SampleData {
             senderId = users[1].id,
             body = "Qua đón tui đi ăn ốc liền nha!",
             replyToPost = null,
-            attachedPost = posts[7], // Tin nhắn kèm ảnh gửi riêng DIRECT (p_08)
+            attachedPost = posts[7],
             createdAt = minutesAgo(25),
             sendState = PostSendState.SENT,
             seen = false
@@ -923,19 +896,18 @@ object SampleData {
             senderId = currentUser.id,
             body = "Đợi 5 phút đang dắt xe ra nè 🛵",
             replyToPost = null,
-            attachedPost = posts[8], // Tin nhắn kèm ảnh gửi riêng DIRECT (p_09)
+            attachedPost = posts[8],
             createdAt = minutesAgo(20),
             sendState = PostSendState.SENT,
             seen = false
         ),
 
-        // Cuộc trò chuyện 2 (với Lê Hoàng Nam - users[2])
         Message(
             id = "msg_06",
             conversationId = "conv_2",
             senderId = currentUser.id,
             body = "Quán Trình Cà Phê đông không ông?",
-            replyToPost = posts[1], // Trả lời từ bài cà phê bơ
+            replyToPost = posts[1],
             attachedPost = null,
             createdAt = minutesAgo(16),
             sendState = PostSendState.SENT,
@@ -953,13 +925,12 @@ object SampleData {
             seen = true
         ),
 
-        // Cuộc trò chuyện 3 (với Phạm Thảo My - users[3])
         Message(
             id = "msg_08",
             conversationId = "conv_3",
             senderId = currentUser.id,
             body = "Ảnh Hội An chỉnh màu đỉnh vậy!",
-            replyToPost = posts[2], // Trả lời từ bài Hội An
+            replyToPost = posts[2],
             attachedPost = null,
             createdAt = minutesAgo(50),
             sendState = PostSendState.SENT,
@@ -977,7 +948,6 @@ object SampleData {
             seen = false
         ),
 
-        // Cuộc trò chuyện 4 (với Vũ Đức Anh - users[4])
         Message(
             id = "msg_10",
             conversationId = "conv_4",
@@ -1001,7 +971,6 @@ object SampleData {
             seen = true
         ),
 
-        // Cuộc trò chuyện 5 (với Đỗ Bảo Ngọc - users[5])
         Message(
             id = "msg_12",
             conversationId = "conv_5",
@@ -1015,7 +984,6 @@ object SampleData {
         )
     )
 
-    // 9. 8 Thông báo (Notifications) mẫu
     val notifications: List<AppNotification> = listOf(
         AppNotification(
             id = "notif_1",
@@ -1046,7 +1014,7 @@ object SampleData {
         ),
         AppNotification(
             id = "notif_4",
-            // Đỗ Bảo Ngọc đã là bạn (SampleSocialData) nên không thể còn "gửi lời mời kết bạn"
+
             type = NotificationType.REACTION,
             actor = users[5],
             postId = "p_05",

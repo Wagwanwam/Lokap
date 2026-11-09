@@ -20,7 +20,6 @@ import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.data.fake.SampleSocialData
 import vn.nhom2.lokap.domain.model.FriendStatus
 import vn.nhom2.lokap.feature.map.MapCameraState
-
 class ProfileViewModel(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -77,7 +76,7 @@ class ProfileViewModel(
                 val myFriendsCount = statuses.values.count { it == FriendStatus.FRIENDS }
                 val isFriendLimitReached = myFriendsCount >= SampleSocialData.MAX_FRIENDS
 
-                val visibleUserPosts = allPosts
+                val baseUserPosts = allPosts
                     .filter { post ->
                         post.author.id == targetUser.id &&
                             SampleSocialData.isPostVisibleToViewer(
@@ -88,6 +87,17 @@ class ProfileViewModel(
                             )
                     }
                     .sortedByDescending { it.takenAt }
+
+                val visibleUserPosts = if (isMe && baseUserPosts.size < 6) {
+                    val extra = SampleData.posts.filter { it.author.id != targetUser.id }
+                        .take(9 - baseUserPosts.size)
+                        .mapIndexed { idx, p ->
+                            p.copy(id = "my_profile_photo_$idx", author = targetUser)
+                        }
+                    baseUserPosts + extra
+                } else {
+                    baseUserPosts
+                }
 
                 val provinceByCode = allProvinces.associateBy { it.code }
                 val postsByProvince = visibleUserPosts
@@ -124,6 +134,14 @@ class ProfileViewModel(
                     zoom = 5.3f
                 )
 
+                val savedPosts = allPosts.filter { post ->
+                    post.imageUrl.isNotBlank() && (post.id.hashCode() % 3 == 0)
+                }.take(6)
+
+                val repostedPosts = allPosts.filter { post ->
+                    post.imageUrl.isNotBlank() && (post.id.hashCode() % 2 != 0)
+                }.take(4)
+
                 _uiState.update { prev ->
                     prev.copy(
                         isLoading = false,
@@ -138,6 +156,8 @@ class ProfileViewModel(
                         friendCount = SampleSocialData.getFriendsCount(targetUser.id),
                         isFriendLimitReached = isFriendLimitReached,
                         visiblePosts = visibleUserPosts,
+                        savedPosts = savedPosts,
+                        repostedPosts = repostedPosts,
                         visitedProvinces = visitedProvinces,
                         mapBubbles = mapBubbles,
                         landmarks = SampleData.landmarks,
@@ -199,12 +219,15 @@ class ProfileViewModel(
             }
 
             ProfileAction.OpenEditProfileSheet -> {
-                val currentName = _uiState.value.user?.displayName.orEmpty()
+                val user = _uiState.value.user
                 _uiState.update {
                     it.copy(
                         isEditSheetOpen = true,
-                        editDisplayNameInput = currentName,
-                        editDisplayNameError = null
+                        editDisplayNameInput = user?.displayName.orEmpty(),
+                        editUsernameInput = user?.username.orEmpty(),
+                        editBioInput = user?.bio?.ifBlank { it.bio }.orEmpty(),
+                        editDisplayNameError = null,
+                        editUsernameError = null
                     )
                 }
             }
@@ -214,6 +237,7 @@ class ProfileViewModel(
                     it.copy(
                         isEditSheetOpen = false,
                         editDisplayNameError = null,
+                        editUsernameError = null,
                         isSavingProfile = false
                     )
                 }
@@ -230,22 +254,64 @@ class ProfileViewModel(
                 }
             }
 
+            is ProfileAction.ChangeEditUsername -> {
+                val clean = action.value.trim().removePrefix("@")
+                val error = if (clean.length < 3) "Username tối thiểu 3 ký tự" else null
+                _uiState.update {
+                    it.copy(
+                        editUsernameInput = clean,
+                        editUsernameError = error
+                    )
+                }
+            }
+
+            is ProfileAction.ChangeEditBio -> {
+                _uiState.update {
+                    it.copy(editBioInput = action.value)
+                }
+            }
+
             ProfileAction.SaveEditProfile -> {
-                val trimmed = _uiState.value.editDisplayNameInput.trim()
-                val error = validateDisplayName(trimmed)
-                if (error != null) {
-                    _uiState.update { it.copy(editDisplayNameError = error) }
+                val state = _uiState.value
+                val trimmedName = state.editDisplayNameInput.trim()
+                val nameError = validateDisplayName(trimmedName)
+                if (nameError != null) {
+                    _uiState.update { it.copy(editDisplayNameError = nameError) }
                     return
                 }
-                SampleSocialData.updateMyDisplayName(trimmed)
+                val cleanUsername = state.editUsernameInput.trim().removePrefix("@")
+                if (cleanUsername.length < 3) {
+                    _uiState.update { it.copy(editUsernameError = "Username tối thiểu 3 ký tự") }
+                    return
+                }
+                SampleSocialData.updateMyProfile(
+                    displayName = trimmedName,
+                    username = cleanUsername,
+                    bio = state.editBioInput
+                )
                 _uiState.update {
                     it.copy(
                         isEditSheetOpen = false,
+                        bio = state.editBioInput,
                         editDisplayNameError = null,
+                        editUsernameError = null,
                         isSavingProfile = false
                     )
                 }
-                _effects.trySend(ProfileEffect.ShowMessage("Đã cập nhật tên hiển thị"))
+                _effects.trySend(ProfileEffect.ShowMessage("Đã lưu thông tin hồ sơ"))
+            }
+
+            ProfileAction.ToggleFollow -> {
+                _uiState.update { current ->
+                    val nowFollowing = !current.isFollowing
+                    val delta = if (nowFollowing) 1 else -1
+                    current.copy(
+                        isFollowing = nowFollowing,
+                        followersCount = (current.followersCount + delta).coerceAtLeast(0)
+                    )
+                }
+                val msg = if (_uiState.value.isFollowing) "Đã theo dõi" else "Đã huỷ theo dõi"
+                _effects.trySend(ProfileEffect.ShowMessage(msg))
             }
 
             ProfileAction.SendFriendRequest -> {

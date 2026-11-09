@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.data.fake.AuthStoreException
 import vn.nhom2.lokap.data.fake.FakeAuthStore
-
 class LoginViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -72,6 +71,18 @@ class LoginViewModel : ViewModel() {
 
             LoginAction.GoogleSignInClicked -> submitGoogleLogin()
 
+            LoginAction.AutofillDemoAccount -> {
+                _uiState.update {
+                    it.copy(
+                        email = "demo@lokap.vn",
+                        password = "lokap123",
+                        emailError = null,
+                        passwordError = null,
+                        serverError = null
+                    )
+                }
+            }
+
             LoginAction.RetryClicked -> {
                 if (lastAttemptWasGoogle) {
                     submitGoogleLogin()
@@ -126,7 +137,7 @@ class LoginViewModel : ViewModel() {
             val result = FakeAuthStore.login(current.email, current.password)
             result.fold(
                 onSuccess = { user ->
-                    // Giữ isLoading = true tới khi rời màn: không có khe hở để bấm gửi lần 2
+
                     if (user.username.isBlank()) {
                         _effect.send(LoginEffect.NavigateToSetupProfile)
                     } else {

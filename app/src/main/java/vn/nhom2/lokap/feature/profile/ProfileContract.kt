@@ -1,16 +1,13 @@
 package vn.nhom2.lokap.feature.profile
 
 import androidx.compose.runtime.Immutable
-import vn.nhom2.lokap.domain.model.FriendStatus
-import vn.nhom2.lokap.domain.model.Landmark
-import vn.nhom2.lokap.domain.model.MapBubble
-import vn.nhom2.lokap.domain.model.Post
-import vn.nhom2.lokap.domain.model.User
+import vn.nhom2.lokap.domain.model.*
 import vn.nhom2.lokap.feature.map.MapCameraState
-
 enum class ProfileTab(val titleVi: String) {
     PHOTOS("Ảnh"),
-    FOOTPRINTS("Dấu chân")
+    FOOTPRINTS("Dấu chân"),
+    SAVED("Đã lưu"),
+    REPOSTS("Đăng lại")
 }
 
 @Immutable
@@ -36,9 +33,15 @@ data class ProfileUiState(
     val totalProvincesCount: Int = 34,
     val postCount: Int = 0,
     val friendCount: Int = 0,
+    val followersCount: Int = 142,
+    val followingCount: Int = 89,
+    val isFollowing: Boolean = false,
+    val bio: String = "Ghi lại khoảnh khắc đẹp tại các tỉnh thành Việt Nam.",
     val isFriendLimitReached: Boolean = false,
     val selectedTab: ProfileTab = ProfileTab.PHOTOS,
     val visiblePosts: List<Post> = emptyList(),
+    val savedPosts: List<Post> = emptyList(),
+    val repostedPosts: List<Post> = emptyList(),
     val visitedProvinces: List<VisitedProvinceUi> = emptyList(),
     val mapBubbles: List<MapBubble> = emptyList(),
     val landmarks: List<Landmark> = emptyList(),
@@ -49,7 +52,10 @@ data class ProfileUiState(
     ),
     val isEditSheetOpen: Boolean = false,
     val editDisplayNameInput: String = "",
+    val editUsernameInput: String = "",
+    val editBioInput: String = "",
     val editDisplayNameError: String? = null,
+    val editUsernameError: String? = null,
     val isSavingProfile: Boolean = false
 )
 
@@ -63,13 +69,15 @@ sealed interface ProfileAction {
     data class ClickMapBubble(val bubble: MapBubble) : ProfileAction
     data class UpdateMapCamera(val camera: MapCameraState) : ProfileAction
 
-    // Hồ sơ của tôi
     data object OpenEditProfileSheet : ProfileAction
     data object DismissEditProfileSheet : ProfileAction
     data class ChangeEditDisplayName(val value: String) : ProfileAction
+    data class ChangeEditUsername(val value: String) : ProfileAction
+    data class ChangeEditBio(val value: String) : ProfileAction
     data object SaveEditProfile : ProfileAction
 
-    // Hồ sơ người khác
+    data object ToggleFollow : ProfileAction
+
     data object SendFriendRequest : ProfileAction
     data object CancelFriendRequest : ProfileAction
     data object AcceptFriendRequest : ProfileAction

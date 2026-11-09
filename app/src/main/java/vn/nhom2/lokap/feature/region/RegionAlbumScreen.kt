@@ -1,21 +1,8 @@
 package vn.nhom2.lokap.feature.region
 
-import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -28,9 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,8 +29,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import vn.nhom2.lokap.core.navigation.navigateSingleTop
-import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import coil3.compose.AsyncImage
@@ -58,21 +41,15 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.core.designsystem.component.EmptyState
-import vn.nhom2.lokap.core.designsystem.component.ErrorState
-import vn.nhom2.lokap.core.designsystem.component.GhostButton
-import vn.nhom2.lokap.core.designsystem.component.GlassChip
-import vn.nhom2.lokap.core.designsystem.component.RegionCard
-import vn.nhom2.lokap.core.designsystem.component.ShimmerBox
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.core.navigation.navigateSingleTop
+import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.data.fake.FakePostStore
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.data.fake.SampleMapData
-import vn.nhom2.lokap.domain.model.LocationLevel
-import vn.nhom2.lokap.domain.model.Audience
-import vn.nhom2.lokap.domain.model.Post
-
+import vn.nhom2.lokap.domain.model.*
 enum class RegionAudienceFilter(val label: String) {
     FRIENDS("Bạn bè"),
     PUBLIC("Public")
@@ -147,8 +124,7 @@ class RegionAlbumViewModel(
             delay(320)
             FakePostStore.posts.collectLatest { storePosts ->
                 val base = storePosts.ifEmpty { SampleData.posts }
-                // Chỉ bài đúng khu vực; khu vực không có bài thì để trống (màn hình có trạng thái rỗng).
-                // Không nhân bản bài để giả phân trang: bản sao trùng id làm trùng key của lưới.
+
                 allRegionPosts = base
                     .filter { it.location.level != LocationLevel.COUNTRY }
                     .filter { post ->
@@ -288,7 +264,7 @@ fun RegionAlbumScreen(
             .systemBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Top Bar
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -380,7 +356,7 @@ fun RegionAlbumScreen(
                         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                         verticalArrangement = Arrangement.spacedBy(spacing.xs)
                     ) {
-                        // Header: RegionCard lớn
+
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             RegionCard(
                                 code = uiState.code,
@@ -394,7 +370,6 @@ fun RegionAlbumScreen(
                             )
                         }
 
-                        // Hàng lọc Bạn bè / Public
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             Row(
                                 modifier = Modifier

@@ -1,20 +1,6 @@
 package vn.nhom2.lokap.data.fake
 
-/*
- * Tên phường/xã dùng tên SAU sắp xếp (hiệu lực 01/07/2025, không còn cấp quận/huyện). Nguồn:
- * - Hà Nội: Nghị quyết 1656/NQ-UBTVQH15 (16/6/2025). Hàng Bạc -> phường Hoàn Kiếm (khoản 1);
- *   Quảng An -> phần lớn vào phường Tây Hồ (khoản 28), một phần vào phường Hồng Hà (khoản 14).
- * - TP. Hồ Chí Minh: Nghị quyết 1685/NQ-UBTVQH15 (16/6/2025). Bến Nghé -> phường Sài Gòn (khoản 1);
- *   Thảo Điền -> phường An Khánh (khoản 78).
- * - TP. Huế: Nghị quyết 1675/NQ-UBTVQH15 (16/6/2025). Phường Thuận Hóa (từ Phú Hội, Phú Nhuận, Phường Đúc,
- *   Vĩnh Ninh, Phước Vĩnh, Trường An); phường Vỹ Dạ (từ Thủy Vân, Xuân Phú, Vỹ Dạ).
- * Toàn văn: xaydungchinhsach.chinhphu.vn, congbao.chinhphu.vn. Toạ độ chỉ là điểm gần đúng cho dữ liệu giả.
- * Số bài KHÔNG lấy từ postCount ở đây: MapViewModel đếm lại từ FakePostStore.
- */
-
-import vn.nhom2.lokap.domain.model.MapBubble
-import vn.nhom2.lokap.domain.model.MapBubbleType
-
+import vn.nhom2.lokap.domain.model.*
 object SampleMapData {
 
     private val extraProvinceBubbles = listOf(
@@ -53,8 +39,6 @@ object SampleMapData {
         )
     )
 
-    // Sinh đủ 34 tỉnh từ ProvinceCatalog (trước đây chỉ gõ tay 6 tỉnh nên bài ở Khánh Hòa, Lào Cai… không lên bản đồ).
-    // Bong bóng gõ tay chỉ còn dùng để lấy ảnh bìa; số bài do MapViewModel đếm, tỉnh 0 bài thì ẩn.
     val allProvinceBubbles: List<MapBubble>
         get() {
             val handMade = (SampleData.provinceMapBubbles + extraProvinceBubbles).associateBy { it.code }
@@ -74,7 +58,6 @@ object SampleMapData {
             }
         }
 
-    /** Bong bóng "Khắp <tỉnh>" cho mọi tỉnh, đặt lệch khỏi tâm tỉnh một chút để không đè bong bóng phường. */
     private val provinceWideBubbles: List<MapBubble>
         get() = ProvinceCatalog.allProvinces.map { p ->
             MapBubble(
@@ -91,7 +74,7 @@ object SampleMapData {
         }
 
     private val extraWardBubbles = listOf(
-        // Đà Nẵng - Province Wide (nếu chưa có trong SampleData)
+
         MapBubble(
             id = "pw_dn",
             type = MapBubbleType.PROVINCE_WIDE,
@@ -103,7 +86,7 @@ object SampleMapData {
             coverImageUrl = "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=400",
             hasFriendPosts = true
         ),
-        // TP. Huế - Phường/Xã & Province Wide
+
         MapBubble(
             id = "pw_hue",
             type = MapBubbleType.PROVINCE_WIDE,
@@ -137,7 +120,7 @@ object SampleMapData {
             coverImageUrl = "https://images.unsplash.com/photo-1528127269322-539801943592?w=400",
             hasFriendPosts = true
         ),
-        // Hà Nội - Phường/Xã & Province Wide
+
         MapBubble(
             id = "pw_hn",
             type = MapBubbleType.PROVINCE_WIDE,
@@ -171,7 +154,7 @@ object SampleMapData {
             coverImageUrl = "https://images.unsplash.com/photo-1509030450996-dd1a26dda07a?w=400",
             hasFriendPosts = false
         ),
-        // TP.HCM - Phường/Xã & Province Wide
+
         MapBubble(
             id = "pw_hcm",
             type = MapBubbleType.PROVINCE_WIDE,
@@ -212,7 +195,7 @@ object SampleMapData {
             .distinctBy { it.type to (it.code ?: it.id) }
 
     private val extraPlaceBubbles = listOf(
-        // Huế Places
+
         MapBubble(
             id = "place_hue_1",
             type = MapBubbleType.PLACE,
@@ -235,7 +218,7 @@ object SampleMapData {
             coverImageUrl = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400",
             hasFriendPosts = false
         ),
-        // Hà Nội Places
+
         MapBubble(
             id = "place_hn_1",
             type = MapBubbleType.PLACE,
@@ -258,7 +241,7 @@ object SampleMapData {
             coverImageUrl = "https://images.unsplash.com/photo-1509030450996-dd1a26dda07a?w=400",
             hasFriendPosts = true
         ),
-        // TP.HCM Places
+
         MapBubble(
             id = "place_hcm_1",
             type = MapBubbleType.PLACE,
@@ -284,7 +267,7 @@ object SampleMapData {
     )
 
     val allPlaceBubbles: List<MapBubble>
-        // Chỉ ghim địa điểm: địa danh đã có lớp riêng (hiện từ zoom 8), để ở đây sẽ bị vẽ 2 lần
+
         get() = (SampleData.detailMapBubblesDaNang + extraPlaceBubbles)
             .filter { it.type == MapBubbleType.PLACE }
             .distinctBy { it.id }

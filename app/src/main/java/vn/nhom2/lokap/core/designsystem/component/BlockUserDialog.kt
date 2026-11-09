@@ -6,8 +6,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-
-/** Hộp xác nhận chặn, dùng chung cho Feed và Chi tiết bài. */
 @Composable
 fun BlockUserDialog(
     displayName: String,

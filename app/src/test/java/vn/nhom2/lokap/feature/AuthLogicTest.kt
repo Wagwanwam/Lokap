@@ -24,6 +24,8 @@ import vn.nhom2.lokap.feature.auth.AuthValidators
 import vn.nhom2.lokap.feature.auth.LoginAction
 import vn.nhom2.lokap.feature.auth.LoginRoute
 import vn.nhom2.lokap.feature.auth.LoginViewModel
+import vn.nhom2.lokap.feature.auth.RegisterAction
+import vn.nhom2.lokap.feature.auth.RegisterViewModel
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileAction
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileViewModel
@@ -95,6 +97,21 @@ class AuthLogicTest {
         assertNull(AuthValidators.validateDisplayName("  An  "))
         assertNotNull(AuthValidators.validateDisplayName("  A  "))
         assertNotNull(AuthValidators.validateDisplayName("a".repeat(31)))
+    }
+
+    @Test
+    fun `nam sinh tu 13 tuoi tro len va hop le`() {
+        val currentYear = java.time.LocalDate.now().year
+        assertNull(AuthValidators.validateBirthYear(currentYear - 15))
+        assertNotNull(AuthValidators.validateBirthYear(currentYear - 10)) // < 13 tuổi
+        assertNotNull(AuthValidators.validateBirthYear(currentYear + 1))
+        assertNotNull(AuthValidators.validateBirthYear(1800))
+    }
+
+    @Test
+    fun `bio toi da 60 ky tu`() {
+        assertNull(AuthValidators.validateBio("Xin chào Lokap!"))
+        assertNotNull(AuthValidators.validateBio("a".repeat(61)))
     }
 
     // ---------- FakeAuthStore ----------
@@ -188,6 +205,38 @@ class AuthLogicTest {
         assertEquals(PermissionStatus.NOT_GRANTED, vm.uiState.value.notificationStatus)
     }
 
+    // ---------- Màn Đăng ký Bước 1 ----------
+
+    @Test
+    fun `dang ky moi vao khong duoc co loi, roi o khi chua nhap gi van khong bao loi`() = runTest(dispatcher) {
+        val vm = RegisterViewModel()
+        assertNull(vm.uiState.value.emailError)
+        assertNull(vm.uiState.value.passwordError)
+        assertNull(vm.uiState.value.confirmPasswordError)
+        assertNull(vm.uiState.value.termsError)
+
+        // Rời ô khi chưa nhập gì: không được đỏ loét
+        vm.onAction(RegisterAction.EmailFocusLost)
+        vm.onAction(RegisterAction.PasswordFocusLost)
+        vm.onAction(RegisterAction.ConfirmPasswordFocusLost)
+        assertNull(vm.uiState.value.emailError)
+        assertNull(vm.uiState.value.passwordError)
+        assertNull(vm.uiState.value.confirmPasswordError)
+
+        // Nhập email sai định dạng rồi rời ô: mới báo lỗi
+        vm.onAction(RegisterAction.EmailChanged("khongphaiemail"))
+        vm.onAction(RegisterAction.EmailFocusLost)
+        assertNotNull(vm.uiState.value.emailError)
+
+        // Bấm tiếp tục khi chưa đủ dữ liệu: hiện toàn bộ lỗi bắt buộc
+        val freshVm = RegisterViewModel()
+        freshVm.onAction(RegisterAction.SubmitClicked)
+        assertNotNull(freshVm.uiState.value.emailError)
+        assertNotNull(freshVm.uiState.value.passwordError)
+        assertNotNull(freshVm.uiState.value.confirmPasswordError)
+        assertNotNull(freshVm.uiState.value.termsError)
+    }
+
     // ---------- Điểm bắt đầu ----------
 
     @Test
@@ -198,6 +247,6 @@ class AuthLogicTest {
         FakeAuthStore.currentUser.value = SampleData.currentUser.copy(username = "")
         assertEquals(SetupProfileRoute, startDestinationFor())
         FakeAuthStore.currentUser.value = SampleData.currentUser
-        assertEquals(Route.Camera, startDestinationFor())
+        assertEquals(Route.Feed, startDestinationFor())
     }
 }

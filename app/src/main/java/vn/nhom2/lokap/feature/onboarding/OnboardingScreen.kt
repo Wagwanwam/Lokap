@@ -13,57 +13,56 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.*
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -74,13 +73,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import vn.nhom2.lokap.core.designsystem.component.GhostButton
-import vn.nhom2.lokap.core.designsystem.component.GlassChip
-import vn.nhom2.lokap.core.designsystem.component.PinkButton
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import vn.nhom2.lokap.feature.auth.LoginRoute
-
 fun NavGraphBuilder.onboardingScreen(navController: NavController) {
     composable<OnboardingRoute> {
         OnboardingRoute(
@@ -259,7 +254,7 @@ fun OnboardingScreen(
             .systemBarsPadding()
             .padding(horizontal = LokapTheme.spacing.lg, vertical = LokapTheme.spacing.md)
     ) {
-        // Top bar with "Bỏ qua" on first 2 pages (indices 0 and 1)
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -267,10 +262,8 @@ fun OnboardingScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            GlassChip(
-                label = "LOKAP ✨",
-                selected = true
-            )
+            LokapLogo(size = 28.dp, showText = true)
+
             if (uiState.currentPage < 2) {
                 TextButton(
                     onClick = { onAction(OnboardingAction.SkipToPermissionsClicked) }
@@ -292,23 +285,23 @@ fun OnboardingScreen(
         ) { page ->
             when (page) {
                 0 -> IntroSlidePage(
-                    badge = "WIDGET TỨC THÌ",
-                    title = "Chụp & gửi tức thì cho bạn thân",
-                    subtitle = "Mở app là thấy camera. Chụp 1 chạm, ảnh bay thẳng lên màn hình chính của hội bạn thân.",
+                    badge = "KHOẢNH KHẮC",
+                    title = "Chụp & chia sẻ tức thì",
+                    subtitle = "Gửi ảnh nhanh đến màn hình chính bạn bè.",
                     illustration = { InstantSnapIllustration() }
                 )
 
                 1 -> IntroSlidePage(
-                    badge = "BẢN ĐỒ SỐNG",
-                    title = "Ghim khoảnh khắc lên bản đồ Việt Nam",
-                    subtitle = "Khám phá ảnh public gom theo từng Tỉnh/Thành → Phường/Xã khắp 3 miền.",
+                    badge = "BẢN ĐỒ",
+                    title = "Ghim lên bản đồ Việt Nam",
+                    subtitle = "Khám phá ảnh từ đất liền tới Hoàng Sa, Trường Sa.",
                     illustration = { VietnamMapIllustration() }
                 )
 
                 2 -> IntroSlidePage(
-                    badge = "QUYỀN RIÊNG TƯ",
-                    title = "Bạn chọn ai thấy, thấy tới đâu",
-                    subtitle = "Tuỳ chỉnh mức hiển thị vị trí (Phường/Xã hoặc chỉ Tỉnh/Thành) và hẹn giờ tự xoá ảnh 24h.",
+                    badge = "RIÊNG TƯ",
+                    title = "Kiểm soát riêng tư",
+                    subtitle = "Bạn quyết định ai xem ảnh và vị trí của mình.",
                     illustration = { PrivacyControlIllustration() }
                 )
 
@@ -324,7 +317,6 @@ fun OnboardingScreen(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
 
-        // Page indicator dots + bottom action button
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -351,15 +343,6 @@ fun OnboardingScreen(
                     loading = uiState.isSubmitting,
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (uiState.cameraStatus != PermissionStatus.GRANTED) {
-                    Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
-                    Text(
-                        text = "Cần cấp quyền Camera để tiếp tục vào Lokap",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LokapTheme.colors.textTertiary,
-                        textAlign = TextAlign.Center
-                    )
-                }
             }
         }
     }
@@ -446,227 +429,454 @@ private fun IntroSlidePage(
 @Composable
 private fun InstantSnapIllustration() {
     val primaryColor = LokapTheme.colors.primary
-    val lilacColor = LokapTheme.colors.accentLilac
+    val colors = LokapTheme.colors
     Box(
         modifier = Modifier.size(260.dp),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(
-                color = primaryColor.copy(alpha = 0.14f),
+                color = primaryColor.copy(alpha = 0.12f),
                 radius = size.minDimension * 0.48f
             )
             drawCircle(
-                color = lilacColor.copy(alpha = 0.22f),
+                color = colors.outline.copy(alpha = 0.35f),
                 radius = size.minDimension * 0.36f,
-                style = Stroke(width = 3.dp.toPx())
+                style = Stroke(width = 2.dp.toPx())
             )
         }
 
-        // Back card tilted
         Box(
             modifier = Modifier
                 .size(168.dp)
                 .rotate(-8f)
                 .clip(LokapTheme.shapes.cameraFrame)
-                .background(regionGradient("79"))
-                .border(2.dp, LokapTheme.colors.outline, LokapTheme.shapes.cameraFrame)
+                .background(colors.surfaceHigh)
+                .border(1.5.dp, colors.outline, LokapTheme.shapes.cameraFrame)
         )
 
-        // Front Locket-style square camera frame
         Box(
             modifier = Modifier
                 .size(176.dp)
                 .rotate(4f)
                 .clip(LokapTheme.shapes.cameraFrame)
-                .background(regionGradient("01"))
-                .border(3.dp, LokapTheme.colors.primary, LokapTheme.shapes.cameraFrame),
+                .background(colors.surface)
+                .border(2.dp, primaryColor, LokapTheme.shapes.cameraFrame),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "📸", fontSize = 54.sp)
-                Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
-                Box(
-                    modifier = Modifier
-                        .clip(LokapTheme.shapes.pill)
-                        .background(LokapTheme.colors.surface.copy(alpha = 0.8f))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Gửi hội bestie ⚡",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LokapTheme.colors.textPrimary
-                    )
-                }
-            }
+            LokapLogo(size = 64.dp)
         }
 
-        // Floating emoji stickers
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = (-12).dp, y = 12.dp)
-                .size(48.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .background(LokapTheme.colors.surfaceHigh)
-                .border(1.dp, LokapTheme.colors.primary, CircleShape),
+                .background(colors.surface)
+                .border(1.5.dp, primaryColor, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "💖", fontSize = 22.sp)
+            Icon(
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = null,
+                tint = primaryColor,
+                modifier = Modifier.size(20.dp)
+            )
         }
 
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .offset(x = 12.dp, y = (-16).dp)
-                .size(48.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .background(LokapTheme.colors.surfaceHigh)
-                .border(1.dp, LokapTheme.colors.accentLime, CircleShape),
+                .background(colors.surface)
+                .border(1.5.dp, colors.outline, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "🔥", fontSize = 22.sp)
+            Icon(
+                imageVector = Icons.Filled.FlashOn,
+                contentDescription = null,
+                tint = primaryColor,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
 @Composable
 private fun VietnamMapIllustration() {
-    val cyan = LokapTheme.colors.accentCyan
-    val primary = LokapTheme.colors.primary
+    val colors = LokapTheme.colors
+    val primary = colors.primary
+
     Box(
-        modifier = Modifier.size(260.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(310.dp),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
-            drawCircle(
-                color = cyan.copy(alpha = 0.2f),
-                radius = size.minDimension * 0.45f,
-                style = Stroke(width = 2.dp.toPx(), pathEffect = dashEffect)
-            )
+        Canvas(
+            modifier = Modifier
+                .width(280.dp)
+                .height(300.dp)
+        ) {
+            val w = size.width
+            val h = size.height
+
+            val mapHeight = h * 0.88f
+            val mapWidth = mapHeight * 0.48f
+            val offsetX = (w - mapWidth) / 2f - 30.dp.toPx()
+            val offsetY = (h - mapHeight) / 2f
+
+            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
             drawLine(
-                color = primary.copy(alpha = 0.5f),
-                start = Offset(size.width * 0.28f, size.height * 0.25f),
-                end = Offset(size.width * 0.55f, size.height * 0.5f),
-                strokeWidth = 3.dp.toPx(),
+                color = colors.outline.copy(alpha = 0.25f),
+                start = Offset(0f, offsetY + mapHeight * 0.44f),
+                end = Offset(w, offsetY + mapHeight * 0.44f),
+                strokeWidth = 1.dp.toPx(),
                 pathEffect = dashEffect
             )
             drawLine(
-                color = primary.copy(alpha = 0.5f),
-                start = Offset(size.width * 0.55f, size.height * 0.5f),
-                end = Offset(size.width * 0.38f, size.height * 0.78f),
-                strokeWidth = 3.dp.toPx(),
+                color = colors.outline.copy(alpha = 0.25f),
+                start = Offset(0f, offsetY + mapHeight * 0.78f),
+                end = Offset(w, offsetY + mapHeight * 0.78f),
+                strokeWidth = 1.dp.toPx(),
                 pathEffect = dashEffect
             )
+
+            val vnMainlandPath = buildPolygonPath(
+                points = VietnamMainlandPoints,
+                mapWidth = mapWidth,
+                mapHeight = mapHeight,
+                offsetX = offsetX,
+                offsetY = offsetY
+            )
+
+            drawPath(
+                path = vnMainlandPath,
+                color = primary.copy(alpha = 0.12f)
+            )
+            drawPath(
+                path = vnMainlandPath,
+                color = colors.textPrimary,
+                style = Stroke(width = 1.8.dp.toPx())
+            )
+
+            val phuQuocPath = buildPolygonPath(
+                points = PhuQuocPoints,
+                mapWidth = mapWidth,
+                mapHeight = mapHeight,
+                offsetX = offsetX,
+                offsetY = offsetY
+            )
+            drawPath(
+                path = phuQuocPath,
+                color = primary.copy(alpha = 0.25f)
+            )
+            drawPath(
+                path = phuQuocPath,
+                color = colors.textPrimary,
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+
+            val conDaoPath = buildPolygonPath(
+                points = ConDaoPoints,
+                mapWidth = mapWidth,
+                mapHeight = mapHeight,
+                offsetX = offsetX,
+                offsetY = offsetY
+            )
+            drawPath(
+                path = conDaoPath,
+                color = colors.textPrimary,
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+
+            val hoangSaCenter = Offset(offsetX + mapWidth * 1.50f, offsetY + mapHeight * 0.42f)
+            val hoangSaDots = listOf(
+                hoangSaCenter + Offset((-8).dp.toPx(), (-4).dp.toPx()),
+                hoangSaCenter + Offset(0f, (-8).dp.toPx()),
+                hoangSaCenter + Offset(8.dp.toPx(), (-2).dp.toPx()),
+                hoangSaCenter + Offset((-3).dp.toPx(), 6.dp.toPx()),
+                hoangSaCenter + Offset(6.dp.toPx(), 7.dp.toPx())
+            )
+            hoangSaDots.forEach { dot ->
+                drawCircle(color = primary, radius = 3.dp.toPx(), center = dot)
+                drawCircle(color = primary.copy(alpha = 0.3f), radius = 5.5.dp.toPx(), center = dot)
+            }
+
+            val truongSaCenter = Offset(offsetX + mapWidth * 1.58f, offsetY + mapHeight * 0.76f)
+            val truongSaDots = listOf(
+                truongSaCenter + Offset((-10).dp.toPx(), (-8).dp.toPx()),
+                truongSaCenter + Offset(0f, (-12).dp.toPx()),
+                truongSaCenter + Offset(10.dp.toPx(), (-6).dp.toPx()),
+                truongSaCenter + Offset((-6).dp.toPx(), 4.dp.toPx()),
+                truongSaCenter + Offset(4.dp.toPx(), 8.dp.toPx()),
+                truongSaCenter + Offset(12.dp.toPx(), 4.dp.toPx())
+            )
+            truongSaDots.forEach { dot ->
+                drawCircle(color = primary, radius = 3.dp.toPx(), center = dot)
+                drawCircle(color = primary.copy(alpha = 0.3f), radius = 5.5.dp.toPx(), center = dot)
+            }
+
+            val routeDash = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+            val hanoi = Offset(offsetX + mapWidth * 0.44f, offsetY + mapHeight * 0.16f)
+            val danang = Offset(offsetX + mapWidth * 0.72f, offsetY + mapHeight * 0.47f)
+            val hcm = Offset(offsetX + mapWidth * 0.58f, offsetY + mapHeight * 0.78f)
+
+            drawLine(
+                color = primary.copy(alpha = 0.5f),
+                start = hanoi,
+                end = danang,
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = routeDash
+            )
+            drawLine(
+                color = primary.copy(alpha = 0.5f),
+                start = danang,
+                end = hcm,
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = routeDash
+            )
+
+            listOf(hanoi, danang, hcm).forEach { city ->
+                drawCircle(color = colors.background, radius = 5.dp.toPx(), center = city)
+                drawCircle(color = primary, radius = 3.5.dp.toPx(), center = city)
+            }
         }
 
-        // North card
-        RegionClusterBubble(
-            emoji = "☕",
-            title = "Hà Nội · Hoàn Kiếm",
-            provinceCode = "01",
+        IslandBadge(
+            name = "Q.Đ Hoàng Sa",
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .offset(x = (-4).dp, y = (-26).dp)
+        )
+
+        IslandBadge(
+            name = "Q.Đ Trường Sa",
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = (-4).dp, y = (-56).dp)
+        )
+
+        CityPinBadge(
+            name = "Hà Nội",
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .offset(x = 8.dp, y = 18.dp)
+                .offset(x = 18.dp, y = 30.dp)
         )
 
-        // Central card
-        RegionClusterBubble(
-            emoji = "🌊",
-            title = "Đà Nẵng · Hải Châu",
-            provinceCode = "48",
-            modifier = Modifier.align(Alignment.CenterEnd)
+        CityPinBadge(
+            name = "Đà Nẵng",
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset(x = 14.dp, y = (-4).dp)
         )
 
-        // South card
-        RegionClusterBubble(
-            emoji = "🛵",
-            title = "TP.HCM · Sài Gòn",
-            provinceCode = "79",
+        CityPinBadge(
+            name = "TP.Hồ Chí Minh",
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = 16.dp, y = (-12).dp)
+                .offset(x = 8.dp, y = (-26).dp)
         )
     }
 }
 
 @Composable
-private fun RegionClusterBubble(
-    emoji: String,
-    title: String,
-    provinceCode: String,
+private fun IslandBadge(
+    name: String,
     modifier: Modifier = Modifier
 ) {
+    val colors = LokapTheme.colors
     Row(
         modifier = modifier
-            .clip(LokapTheme.shapes.card)
-            .background(regionGradient(provinceCode))
-            .border(1.5.dp, LokapTheme.colors.outline, LokapTheme.shapes.card)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .clip(RoundedCornerShape(6.dp))
+            .background(colors.surface.copy(alpha = 0.92f))
+            .border(1.dp, colors.primary.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .size(6.dp)
                 .clip(CircleShape)
-                .background(LokapTheme.colors.background.copy(alpha = 0.55f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = emoji, fontSize = 18.sp)
-        }
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                color = LokapTheme.colors.textPrimary
-            )
-            Text(
-                text = "📍 +28 ảnh mới",
-                style = MaterialTheme.typography.labelSmall,
-                color = LokapTheme.colors.textSecondary
-            )
-        }
+                .background(colors.primary)
+        )
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary,
+            fontSize = 10.sp
+        )
+    }
+}
+
+@Composable
+private fun CityPinBadge(
+    name: String,
+    modifier: Modifier = Modifier
+) {
+    val colors = LokapTheme.colors
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(colors.surface.copy(alpha = 0.90f))
+            .border(0.5.dp, colors.outline, RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.LocationOn,
+            contentDescription = null,
+            tint = colors.primary,
+            modifier = Modifier.size(12.dp)
+        )
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+            color = colors.textPrimary,
+            fontSize = 11.sp
+        )
     }
 }
 
 @Composable
 private fun PrivacyControlIllustration() {
+    val colors = LokapTheme.colors
+    val primaryColor = colors.primary
+
     Box(
-        modifier = Modifier.size(260.dp),
+        modifier = Modifier.size(280.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(LokapTheme.shapes.card)
-                .background(regionGradient("92"))
-                .border(2.dp, LokapTheme.colors.primary, LokapTheme.shapes.card)
-                .padding(LokapTheme.spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
-        ) {
-            Text(text = "🛡️⏱️", fontSize = 44.sp)
 
-            Text(
-                text = "Chế độ hiển thị thông minh",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = LokapTheme.colors.textPrimary
+        Canvas(modifier = Modifier.size(260.dp)) {
+            val centerOffset = Offset(size.width / 2f, size.height / 2f)
+            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+
+            drawCircle(
+                color = colors.outline.copy(alpha = 0.25f),
+                radius = size.width * 0.46f,
+                center = centerOffset,
+                style = Stroke(width = 1.dp.toPx(), pathEffect = dashEffect)
             )
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.xs)
-            ) {
-                GlassChip(label = "👑 Bạn thân", selected = true)
-                GlassChip(label = "🌏 Public Tỉnh/Xã", selected = false)
-            }
+            drawCircle(
+                color = primaryColor.copy(alpha = 0.06f),
+                radius = size.width * 0.36f,
+                center = centerOffset
+            )
+            drawCircle(
+                color = primaryColor.copy(alpha = 0.15f),
+                radius = size.width * 0.36f,
+                center = centerOffset,
+                style = Stroke(width = 1.dp.toPx())
+            )
+        }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.xs)
+        Box(
+            modifier = Modifier
+                .size(104.dp)
+                .clip(RoundedCornerShape(30.dp))
+                .background(colors.surface)
+                .border(2.dp, primaryColor, RoundedCornerShape(30.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(68.dp)
+                    .clip(CircleShape)
+                    .background(primaryColor.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
             ) {
-                GlassChip(label = "⏳ Tự huỷ 24h", selected = true)
-                GlassChip(label = "📍 Ẩn toạ độ nhà", selected = false)
+                Icon(
+                    imageVector = Icons.Filled.Security,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-18).dp, y = 28.dp),
+            shape = CircleShape,
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.35f)),
+            shadowElevation = 4.dp
+        ) {
+            Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.People,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = 18.dp, y = (-24).dp),
+            shape = CircleShape,
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.35f)),
+            shadowElevation = 4.dp
+        ) {
+            Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.Schedule,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = (-14).dp, y = (-14).dp),
+            shape = CircleShape,
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.35f)),
+            shadowElevation = 4.dp
+        ) {
+            Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = 24.dp, y = 38.dp),
+            shape = CircleShape,
+            color = colors.surfaceHigh,
+            border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.3f)),
+            shadowElevation = 4.dp
+        ) {
+            Box(
+                modifier = Modifier.size(34.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
@@ -680,217 +890,154 @@ private fun PermissionsPage(
     onRequestNotification: () -> Unit,
     onOpenAppSettings: () -> Unit
 ) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = LokapTheme.spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md)
+            .padding(vertical = spacing.md),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Cấp quyền để quẩy Lokap 🚀",
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
-            color = LokapTheme.colors.textPrimary
-        )
-        Text(
-            text = "Lokap tôn trọng quyền riêng tư của bạn. Bạn luôn kiểm soát được từng quyền bên dưới.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = LokapTheme.colors.textSecondary
+            text = "Cấp quyền",
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
+            color = colors.textPrimary,
+            textAlign = TextAlign.Center
         )
 
-        // 1. Camera card (Required)
-        PermissionItemCard(
-            emoji = "📸",
-            title = "Camera",
-            badgeText = "Bắt buộc",
-            badgeColor = LokapTheme.colors.primary,
-            description = "Mở app là chụp ngay khoảnh khắc gửi hội bạn thân.",
-            extraWarning = null,
-            status = uiState.cameraStatus,
-            onRequestPermission = onRequestCamera,
-            onOpenSettings = onOpenAppSettings
-        )
+        Spacer(modifier = Modifier.height(36.dp))
 
-        // 2. Location card (Optional + COARSE note)
-        val coarseNote = if (uiState.locationAccuracy == LocationAccuracyState.COARSE_ONLY) {
-            "Chỉ đăng được ở mức Tỉnh trở lên"
-        } else {
-            null
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            PermissionMinimalCard(
+                icon = Icons.Filled.CameraAlt,
+                title = "Camera",
+                isGranted = uiState.cameraStatus == PermissionStatus.GRANTED,
+                isDenied = uiState.cameraStatus == PermissionStatus.DENIED,
+                onClick = {
+                    if (uiState.cameraStatus == PermissionStatus.DENIED) {
+                        onOpenAppSettings()
+                    } else {
+                        onRequestCamera()
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+
+            PermissionMinimalCard(
+                icon = Icons.Filled.LocationOn,
+                title = "Vị trí",
+                isGranted = uiState.locationStatus == PermissionStatus.GRANTED,
+                isDenied = uiState.locationStatus == PermissionStatus.DENIED,
+                onClick = {
+                    if (uiState.locationStatus == PermissionStatus.DENIED) {
+                        onOpenAppSettings()
+                    } else {
+                        onRequestLocation()
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+
+            PermissionMinimalCard(
+                icon = Icons.Filled.Notifications,
+                title = "Thông báo",
+                isGranted = uiState.notificationStatus == PermissionStatus.GRANTED,
+                isDenied = uiState.notificationStatus == PermissionStatus.DENIED,
+                onClick = {
+                    if (uiState.notificationStatus == PermissionStatus.DENIED) {
+                        onOpenAppSettings()
+                    } else {
+                        onRequestNotification()
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
         }
-        PermissionItemCard(
-            emoji = "📍",
-            title = "Vị trí",
-            badgeText = "Có thể bỏ qua",
-            badgeColor = LokapTheme.colors.accentCyan,
-            description = "Để gắn khu vực Tỉnh/Thành → Phường/Xã. Chỉ lấy vị trí lúc chụp, không theo dõi.",
-            extraWarning = coarseNote,
-            status = uiState.locationStatus,
-            onRequestPermission = onRequestLocation,
-            onOpenSettings = onOpenAppSettings
-        )
-
-        // 3. Notification card (Android 13+, Optional)
-        PermissionItemCard(
-            emoji = "🔔",
-            title = "Thông báo",
-            badgeText = "Có thể bỏ qua",
-            badgeColor = LokapTheme.colors.accentLilac,
-            description = "Báo ngay khi bạn thân vừa thả ảnh mới lên widget của bạn.",
-            extraWarning = null,
-            status = uiState.notificationStatus,
-            onRequestPermission = onRequestNotification,
-            onOpenSettings = onOpenAppSettings
-        )
     }
 }
 
 @Composable
-private fun PermissionItemCard(
-    emoji: String,
+private fun PermissionMinimalCard(
+    icon: ImageVector,
     title: String,
-    badgeText: String,
-    badgeColor: Color,
-    description: String,
-    extraWarning: String?,
-    status: PermissionStatus,
-    onRequestPermission: () -> Unit,
-    onOpenSettings: () -> Unit
+    isGranted: Boolean,
+    isDenied: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val borderColor = when (status) {
-        PermissionStatus.GRANTED -> LokapTheme.colors.success
-        PermissionStatus.DENIED -> LokapTheme.colors.error
-        PermissionStatus.NOT_GRANTED -> LokapTheme.colors.outline
-    }
+    val colors = LokapTheme.colors
+    val primaryColor = colors.primary
 
     Surface(
-        shape = LokapTheme.shapes.card,
-        color = LokapTheme.colors.surface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, borderColor, LokapTheme.shapes.card)
+        shape = RoundedCornerShape(22.dp),
+        color = colors.surface,
+        border = BorderStroke(
+            width = if (isGranted) 2.dp else 1.dp,
+            color = if (isGranted) primaryColor else colors.outline.copy(alpha = 0.25f)
+        ),
+        shadowElevation = if (isGranted) 3.dp else 1.dp,
+        modifier = modifier
+            .aspectRatio(0.95f)
+            .clip(RoundedCornerShape(22.dp))
+            .clickable(onClick = onClick)
     ) {
-        Column(
-            modifier = Modifier.padding(LokapTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(10.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(if (isGranted) primaryColor else colors.surfaceHigh)
+                    .border(
+                        width = 0.5.dp,
+                        color = if (isGranted) primaryColor else colors.outline.copy(alpha = 0.35f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(LokapTheme.colors.surfaceHigh),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = emoji, fontSize = 20.sp)
-                    }
-                    Column {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = LokapTheme.colors.textPrimary
-                        )
-                        Text(
-                            text = badgeText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = badgeColor
-                        )
-                    }
-                }
-
-                PermissionStatusBadge(status = status)
+                Icon(
+                    imageVector = if (isGranted) Icons.Filled.Check else Icons.Filled.Close,
+                    contentDescription = if (isGranted) "Đã cấp" else "Chưa cấp",
+                    tint = if (isGranted) colors.buttonText else colors.textSecondary.copy(alpha = 0.7f),
+                    modifier = Modifier.size(13.dp)
+                )
             }
 
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = LokapTheme.colors.textSecondary
-            )
-
-            if (extraWarning != null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(LokapTheme.shapes.pill)
-                        .background(LokapTheme.colors.surfaceHigh)
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = LokapTheme.colors.accentYellow,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = extraWarning,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LokapTheme.colors.accentYellow
-                    )
-                }
-            }
-
-            when (status) {
-                PermissionStatus.NOT_GRANTED -> {
-                    GhostButton(
-                        text = "Cấp quyền $title",
-                        onClick = onRequestPermission,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                PermissionStatus.DENIED -> {
-                    GhostButton(
-                        text = "Mở Cài đặt",
-                        onClick = onOpenSettings,
-                        leadingIcon = Icons.Default.Settings,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                PermissionStatus.GRANTED -> Unit
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = if (isGranted) primaryColor else colors.textPrimary.copy(alpha = 0.85f),
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = if (isGranted) FontWeight.Bold else FontWeight.SemiBold
+                    ),
+                    color = if (isGranted) colors.textPrimary else colors.textSecondary,
+                    textAlign = TextAlign.Center
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun PermissionStatusBadge(status: PermissionStatus) {
-    val (label, color) = when (status) {
-        PermissionStatus.NOT_GRANTED -> "Chưa cấp" to LokapTheme.colors.textTertiary
-        PermissionStatus.GRANTED -> "Đã cấp" to LokapTheme.colors.success
-        PermissionStatus.DENIED -> "Bị từ chối" to LokapTheme.colors.error
-    }
-
-    Row(
-        modifier = Modifier
-            .clip(LokapTheme.shapes.pill)
-            .background(LokapTheme.colors.surfaceHigh)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        if (status == PermissionStatus.GRANTED) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-            color = color
-        )
     }
 }
 
@@ -934,6 +1081,21 @@ private fun OnboardingSlide2Preview() {
     LokapTheme {
         OnboardingScreen(
             uiState = OnboardingUiState(currentPage = 1),
+            onAction = {},
+            onRequestCamera = {},
+            onRequestLocation = {},
+            onRequestNotification = {},
+            onOpenAppSettings = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Onboarding - Slide 3 Privacy")
+@Composable
+private fun OnboardingSlide3Preview() {
+    LokapTheme {
+        OnboardingScreen(
+            uiState = OnboardingUiState(currentPage = 2),
             onAction = {},
             onRequestCamera = {},
             onRequestLocation = {},

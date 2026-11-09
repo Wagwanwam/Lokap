@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.data.fake.FakeAuthStore
-
 class OnboardingViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
@@ -19,13 +18,8 @@ class OnboardingViewModel : ViewModel() {
     private val _effect = Channel<OnboardingEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
 
-    /** Quyền đã bị từ chối ít nhất một lần (để phân biệt "đóng hộp thoại lần đầu" với "từ chối hẳn"). */
     private val deniedOnce = mutableSetOf<String>()
 
-    /**
-     * Cấp -> GRANTED. Còn rationale -> NOT_GRANTED (nút "Cấp quyền" xin lại được).
-     * Không rationale: lần đầu coi như đóng hộp thoại (NOT_GRANTED), từ lần 2 là từ chối hẳn (DENIED -> Mở Cài đặt).
-     */
     private fun statusAfterRequest(key: String, granted: Boolean, rationale: Boolean): PermissionStatus = when {
         granted -> PermissionStatus.GRANTED
         rationale -> PermissionStatus.NOT_GRANTED.also { deniedOnce += key }

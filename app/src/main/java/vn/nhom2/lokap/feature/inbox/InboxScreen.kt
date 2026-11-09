@@ -1,67 +1,55 @@
 package vn.nhom2.lokap.feature.inbox
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import vn.nhom2.lokap.core.common.formatTimeAgo
-import vn.nhom2.lokap.core.designsystem.component.AvatarRing
-import vn.nhom2.lokap.core.designsystem.component.BadgeDot
-import vn.nhom2.lokap.core.designsystem.component.EmptyState
-import vn.nhom2.lokap.core.designsystem.component.ErrorState
-import vn.nhom2.lokap.core.designsystem.component.GlassChip
-import vn.nhom2.lokap.core.designsystem.component.OfflineBanner
-import vn.nhom2.lokap.core.designsystem.component.ShimmerBox
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.User
-
 fun NavGraphBuilder.inboxScreen(navController: NavController) {
     composable<Route.Inbox> {
         InboxRoute(
@@ -70,6 +58,15 @@ fun NavGraphBuilder.inboxScreen(navController: NavController) {
             },
             onNavigateBack = {
                 navController.popBackStackSafely()
+            },
+            onNavigateToTab = { tab ->
+                when (tab) {
+                    MainTab.FEED -> navController.navigateSingleTop(Route.Feed)
+                    MainTab.MAP -> navController.navigateSingleTop(Route.Map)
+                    MainTab.CAMERA -> navController.navigateSingleTop(Route.Camera)
+                    MainTab.INBOX -> Unit
+                    MainTab.PROFILE -> navController.navigateSingleTop(Route.Profile())
+                }
             }
         )
     }
@@ -79,6 +76,7 @@ fun NavGraphBuilder.inboxScreen(navController: NavController) {
 fun InboxRoute(
     onNavigateToChat: (String) -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToTab: (MainTab) -> Unit = {},
     viewModel: InboxViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -94,7 +92,8 @@ fun InboxRoute(
 
     InboxScreen(
         uiState = uiState,
-        onAction = viewModel::onAction
+        onAction = viewModel::onAction,
+        onNavigateToTab = onNavigateToTab
     )
 }
 
@@ -103,10 +102,27 @@ fun InboxRoute(
 fun InboxScreen(
     uiState: InboxUiState,
     onAction: (InboxAction) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToTab: (MainTab) -> Unit = {}
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredItems = remember(uiState.items, searchQuery) {
+        if (searchQuery.isBlank()) {
+            uiState.items
+        } else {
+            uiState.items.filter { item ->
+                item.conversation.friend.displayName.contains(searchQuery, ignoreCase = true) ||
+                    item.displayPreview.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    val totalUnread = remember(uiState.items) {
+        uiState.items.sumOf { it.conversation.unreadCount }
+    }
 
     Column(
         modifier = modifier
@@ -115,6 +131,7 @@ fun InboxScreen(
             .systemBarsPadding()
     ) {
         InboxTopBar(
+            totalUnreadCount = totalUnread,
             onBackClick = { onAction(InboxAction.NavigateBack) },
             onNewMessageClick = { onAction(InboxAction.OpenNewMessageSheet) }
         )
@@ -124,6 +141,63 @@ fun InboxScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.md, vertical = spacing.xs)
+            )
+        }
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = {
+                Text(
+                    text = "Tìm kiếm cuộc trò chuyện...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textTertiary
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Xoá",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = colors.surfaceHigh,
+                unfocusedContainerColor = colors.surfaceHigh,
+                focusedBorderColor = colors.primary.copy(alpha = 0.5f),
+                unfocusedBorderColor = Color.Transparent,
+                focusedTextColor = colors.textPrimary,
+                unfocusedTextColor = colors.textPrimary
+            ),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.lg, vertical = spacing.xs)
+        )
+
+        if (uiState.friends.isNotEmpty() && searchQuery.isBlank()) {
+            ActiveFriendsStoriesBar(
+                friends = uiState.friends,
+                onSelectFriend = { friend ->
+                    onAction(InboxAction.SelectFriendToChat(friend))
+                },
+                onCameraClick = {
+                    onNavigateToTab(MainTab.CAMERA)
+                }
             )
         }
 
@@ -149,9 +223,9 @@ fun InboxScreen(
 
                 uiState.items.isEmpty() -> {
                     EmptyState(
-                        title = "Chưa có tin nhắn. Trả lời một bức ảnh để bắt đầu",
-                        subtitle = "Hoặc nhấn Soạn mới để gửi lời chào đến hội bạn thân",
-                        actionLabel = "Soạn mới",
+                        title = "Chưa có tin nhắn nào",
+                        subtitle = "Chụp một bức ảnh hoặc nhấn Soạn tin để gửi lời chào đến hội bạn thân",
+                        actionLabel = "Soạn tin mới",
                         onActionClick = { onAction(InboxAction.OpenNewMessageSheet) },
                         modifier = Modifier
                             .fillMaxSize()
@@ -159,17 +233,32 @@ fun InboxScreen(
                     )
                 }
 
+                filteredItems.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(spacing.lg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Không tìm thấy cuộc trò chuyện nào phù hợp",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.textSecondary
+                        )
+                    }
+                }
+
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
-                            horizontal = spacing.md,
+                            horizontal = spacing.lg,
                             vertical = spacing.sm
                         ),
-                        verticalArrangement = Arrangement.spacedBy(spacing.xs)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(
-                            items = uiState.items,
+                            items = filteredItems,
                             key = { it.conversation.id }
                         ) { item ->
                             SwipeableConversationRow(
@@ -187,6 +276,12 @@ fun InboxScreen(
                 }
             }
         }
+
+        Spacer(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .height(64.dp)
+        )
     }
 
     if (uiState.isNewMessageSheetOpen) {
@@ -194,7 +289,7 @@ fun InboxScreen(
         ModalBottomSheet(
             onDismissRequest = { onAction(InboxAction.DismissNewMessageSheet) },
             sheetState = sheetState,
-            shape = LokapTheme.shapes.sheet,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             containerColor = colors.surface,
             contentColor = colors.textPrimary
         ) {
@@ -210,6 +305,7 @@ fun InboxScreen(
 
 @Composable
 private fun InboxTopBar(
+    totalUnreadCount: Int,
     onBackClick: () -> Unit,
     onNewMessageClick: () -> Unit
 ) {
@@ -219,34 +315,141 @@ private fun InboxTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = spacing.md, vertical = spacing.sm),
+            .padding(horizontal = spacing.lg, vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Quay lại",
-                    tint = colors.textPrimary
-                )
-            }
             Text(
-                text = "Tin nhắn",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                text = "Hộp thư",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 24.sp
+                ),
                 color = colors.textPrimary
             )
+
+            if (totalUnreadCount > 0) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = colors.primary.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.35f))
+                ) {
+                    Text(
+                        text = "$totalUnreadCount mới",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = colors.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
         }
 
-        GlassChip(
-            label = "Soạn mới",
-            leadingIcon = Icons.Default.Add,
-            selected = true,
-            onClick = onNewMessageClick
-        )
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = colors.primary,
+            shadowElevation = 2.dp,
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onNewMessageClick)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    tint = colors.buttonText,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Soạn tin",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.buttonText
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveFriendsStoriesBar(
+    friends: List<User>,
+    onSelectFriend: (User) -> Unit,
+    onCameraClick: () -> Unit
+) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
+
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = spacing.xs),
+        contentPadding = PaddingValues(horizontal = spacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        item(key = "quick_camera") {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(onClick = onCameraClick)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(colors.surfaceHigh)
+                        .border(1.5.dp, colors.primary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CameraAlt,
+                        contentDescription = "Chụp nhanh",
+                        tint = colors.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Text(
+                    text = "Chụp ảnh",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = colors.textSecondary,
+                    maxLines = 1
+                )
+            }
+        }
+
+        items(items = friends, key = { it.id }) { friend ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .width(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onSelectFriend(friend) }
+            ) {
+                AvatarRing(
+                    avatarUrl = friend.avatarUrl,
+                    displayName = friend.displayName,
+                    size = 52.dp
+                )
+                Text(
+                    text = friend.displayName.split(" ").lastOrNull() ?: friend.displayName,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 
@@ -260,16 +463,17 @@ private fun SwipeableConversationRow(
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
-    val shapes = LokapTheme.shapes
 
     val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onMarkRead()
-            }
-            false
-        }
+        positionalThreshold = { it * 0.5f }
     )
+
+    LaunchedEffect(dismissState.targetValue) {
+        if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
+            onMarkRead()
+            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,
@@ -279,7 +483,7 @@ private fun SwipeableConversationRow(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(shapes.card)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(colors.surfaceHigh)
                     .padding(horizontal = spacing.md),
                 contentAlignment = Alignment.CenterEnd
@@ -293,7 +497,7 @@ private fun SwipeableConversationRow(
                     )
                     Spacer(modifier = Modifier.width(spacing.xs))
                     Text(
-                        text = "Đánh dấu đã đọc",
+                        text = "Đã đọc",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                         color = colors.primary
                     )
@@ -316,80 +520,100 @@ private fun ConversationRowContent(
     onClick: () -> Unit
 ) {
     val colors = LokapTheme.colors
-    val spacing = LokapTheme.spacing
-    val shapes = LokapTheme.shapes
     val conv = item.conversation
     val isUnread = conv.unreadCount > 0
 
-    Row(
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = if (isUnread) colors.surfaceHigh else colors.surface,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isUnread) colors.primary.copy(alpha = 0.35f) else colors.outline.copy(alpha = 0.2f)
+        ),
+        shadowElevation = if (isUnread) 2.dp else 0.5.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shapes.card)
-            .background(if (isUnread) colors.surfaceHigh else colors.surface)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = spacing.md, vertical = spacing.md),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        AvatarRing(
-            avatarUrl = conv.friend.avatarUrl,
-            displayName = conv.friend.displayName,
-            size = 52.dp,
-            hasNewPost = item.hasNewPostFromFriend
-        )
-
-        Spacer(modifier = Modifier.width(spacing.md))
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(spacing.xs)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = conv.friend.displayName,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Medium
-                    ),
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Spacer(modifier = Modifier.width(spacing.sm))
-
-                Text(
-                    text = formatTimeAgo(conv.lastMessageAt, now),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isUnread) colors.primary else colors.textTertiary
+            Box {
+                AvatarRing(
+                    avatarUrl = conv.friend.avatarUrl,
+                    displayName = conv.friend.displayName,
+                    size = 50.dp,
+                    hasNewPost = item.hasNewPostFromFriend
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = item.displayPreview,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = if (isUnread) FontWeight.SemiBold else FontWeight.Normal
-                    ),
-                    color = if (isUnread) colors.textPrimary else colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+            Spacer(modifier = Modifier.width(12.dp))
 
-                if (conv.unreadCount > 0) {
-                    Spacer(modifier = Modifier.width(spacing.sm))
-                    BadgeDot(
-                        count = conv.unreadCount,
-                        modifier = Modifier
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = conv.friend.displayName,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = if (isUnread) FontWeight.ExtraBold else FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = formatTimeAgo(conv.lastMessageAt, now),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isUnread) colors.primary else colors.textTertiary
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = item.displayPreview,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = if (isUnread) FontWeight.SemiBold else FontWeight.Normal,
+                            fontSize = 13.sp
+                        ),
+                        color = if (isUnread) colors.textPrimary else colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (conv.unreadCount > 0) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = colors.primary
+                        ) {
+                            Text(
+                                text = conv.unreadCount.toString(),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = colors.buttonText,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -403,81 +627,127 @@ private fun NewMessageFriendPickerSheet(
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
-    val shapes = LokapTheme.shapes
+    var query by remember { mutableStateOf("") }
+
+    val filtered = remember(friends, query) {
+        if (query.isBlank()) friends
+        else friends.filter {
+            it.displayName.contains(query, ignoreCase = true) ||
+                it.username.contains(query, ignoreCase = true)
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = spacing.md, vertical = spacing.sm)
+            .padding(horizontal = spacing.lg, vertical = spacing.sm)
     ) {
         Text(
             text = "Trò chuyện mới",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
             color = colors.textPrimary,
-            modifier = Modifier.padding(horizontal = spacing.xs, vertical = spacing.xs)
+            modifier = Modifier.padding(vertical = spacing.xs)
         )
         Text(
-            text = "Chọn một người bạn để gửi tin nhắn hoặc ảnh Locket riêng",
+            text = "Chọn bạn bè để bắt đầu gửi ảnh và tin nhắn riêng",
             style = MaterialTheme.typography.bodySmall,
-            color = colors.textSecondary,
-            modifier = Modifier.padding(horizontal = spacing.xs)
+            color = colors.textSecondary
+        )
+
+        Spacer(modifier = Modifier.height(spacing.sm))
+
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = { Text("Tìm tên bạn bè...", color = colors.textTertiary) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+            },
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = colors.surfaceHigh,
+                unfocusedContainerColor = colors.surfaceHigh,
+                focusedBorderColor = colors.primary.copy(alpha = 0.5f),
+                unfocusedBorderColor = Color.Transparent,
+                focusedTextColor = colors.textPrimary,
+                unfocusedTextColor = colors.textPrimary
+            ),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(spacing.md))
 
-        if (friends.isEmpty()) {
+        if (filtered.isEmpty()) {
             EmptyState(
-                title = "Chưa có bạn bè nào",
-                subtitle = "Hãy kết bạn để bắt đầu nhắn tin trên Lokap",
+                title = if (query.isBlank()) "Chưa có bạn bè nào" else "Không tìm thấy kết quả",
+                subtitle = "Hãy kết bạn thêm để bắt đầu trò chuyện trên Lokap",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = spacing.xl)
+                    .padding(vertical = spacing.lg)
             )
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(bottom = spacing.xl),
-                verticalArrangement = Arrangement.spacedBy(spacing.xs)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(
-                    items = friends,
+                    items = filtered,
                     key = { it.id }
                 ) { friend ->
-                    Row(
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = colors.surfaceHigh.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.15f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(shapes.card)
-                            .background(colors.surfaceHigh)
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable { onSelectFriend(friend) }
-                            .padding(horizontal = spacing.md, vertical = spacing.sm),
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        AvatarRing(
-                            avatarUrl = friend.avatarUrl,
-                            displayName = friend.displayName,
-                            size = 44.dp
-                        )
-                        Spacer(modifier = Modifier.width(spacing.md))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = friend.displayName,
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = colors.textPrimary
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AvatarRing(
+                                avatarUrl = friend.avatarUrl,
+                                displayName = friend.displayName,
+                                size = 44.dp
                             )
-                            Text(
-                                text = "@${friend.username}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.textSecondary
-                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = friend.displayName,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = colors.textPrimary
+                                )
+                                Text(
+                                    text = friend.username,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textSecondary
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = colors.primary.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f))
+                            ) {
+                                Text(
+                                    text = "Nhắn tin",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = colors.primary,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
                         }
-                        Text(
-                            text = "Nhắn tin",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = colors.primary
-                        )
                     }
                 }
             }
@@ -493,14 +763,14 @@ private fun InboxLoadingList() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = spacing.md, vertical = spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(spacing.sm)
+            .padding(horizontal = spacing.lg, vertical = spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         repeat(6) {
             ShimmerBox(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(76.dp),
+                    .height(72.dp),
                 shape = shapes.card
             )
         }
@@ -511,53 +781,16 @@ private fun InboxLoadingList() {
 @Composable
 private fun InboxScreenPopulatedPreview() {
     LokapTheme {
-        val sampleItems = SampleData.conversations.mapIndexed { index, conv ->
-            InboxConversationItem(
-                conversation = conv,
-                displayPreview = if (index == 0) "📷 Đã gửi một ảnh" else conv.lastMessagePreview,
-                hasNewPostFromFriend = index % 2 == 0
-            )
-        }
         InboxScreen(
             uiState = InboxUiState(
-                items = sampleItems,
-                friends = SampleData.users
-            ),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(name = "Inbox - Trống", showBackground = true)
-@Composable
-private fun InboxScreenEmptyPreview() {
-    LokapTheme {
-        InboxScreen(
-            uiState = InboxUiState(items = emptyList()),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(name = "Inbox - Đang tải", showBackground = true)
-@Composable
-private fun InboxScreenLoadingPreview() {
-    LokapTheme {
-        InboxScreen(
-            uiState = InboxUiState(isLoading = true),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(name = "Inbox - Lỗi & Offline", showBackground = true)
-@Composable
-private fun InboxScreenErrorOfflinePreview() {
-    LokapTheme {
-        InboxScreen(
-            uiState = InboxUiState(
-                isOffline = true,
-                errorMessage = "Không thể đồng bộ hộp thư. Kiểm tra kết nối mạng của bạn."
+                items = listOf(
+                    InboxConversationItem(
+                        conversation = SampleData.conversations.first(),
+                        displayPreview = "Alo cà phê cuối tuần không?",
+                        hasNewPostFromFriend = true
+                    )
+                ),
+                friends = SampleData.users.drop(1)
             ),
             onAction = {}
         )

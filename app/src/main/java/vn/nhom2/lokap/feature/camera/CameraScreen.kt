@@ -28,22 +28,16 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FlashAuto
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Place
@@ -52,16 +46,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,17 +64,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import vn.nhom2.lokap.core.designsystem.component.AvatarRing
-import vn.nhom2.lokap.core.designsystem.component.BadgeDot
-import vn.nhom2.lokap.core.designsystem.component.ErrorState
-import vn.nhom2.lokap.core.designsystem.component.GlassChip
-import vn.nhom2.lokap.core.designsystem.component.PinkButton
-import vn.nhom2.lokap.core.designsystem.component.ShutterButton
-import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
-
+import vn.nhom2.lokap.core.designsystem.component.*
+import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
+import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 @Composable
 fun CameraRoute(
     onNavigateToComposer: (String) -> Unit,
@@ -110,7 +89,6 @@ fun CameraRoute(
         ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
     } ?: false
 
-    // Không dùng State: chỉ cần nhớ giữa lúc mở hộp thoại và lúc nhận kết quả, không cần vẽ lại UI
     val rationaleBeforeRequest = remember { booleanArrayOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -130,7 +108,6 @@ fun CameraRoute(
         permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    // Kiểm tra quyền khi vào màn hình hoặc quay lại từ Cài đặt
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -141,8 +118,7 @@ fun CameraRoute(
                 if (granted) {
                     viewModel.onAction(CameraAction.OnSyncPermissionGranted)
                 } else if (viewModel.uiState.value.permission == CameraPermissionState.NOT_REQUESTED) {
-                    // Đọc thẳng từ ViewModel: kết quả xin quyền đã ghi vào đây trước ON_RESUME,
-                    // còn `state` của Compose chỉ cập nhật ở frame sau → tránh tự xin lại sau khi bị từ chối.
+
                     requestCameraPermission()
                 }
             }
@@ -185,6 +161,15 @@ fun CameraRoute(
     CameraScreen(
         state = state,
         onAction = viewModel::onAction,
+        onNavigateToTab = { tab ->
+            when (tab) {
+                MainTab.FEED -> onNavigateToFeed()
+                MainTab.MAP -> onNavigateToMap()
+                MainTab.CAMERA -> Unit
+                MainTab.INBOX -> onNavigateToInbox()
+                MainTab.PROFILE -> onNavigateToProfile(null)
+            }
+        },
         captureTriggerTick = captureTriggerTick,
         modifier = modifier
     )
@@ -195,6 +180,7 @@ fun CameraScreen(
     state: CameraUiState,
     onAction: (CameraAction) -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToTab: (MainTab) -> Unit = {},
     captureTriggerTick: Int = 0
 ) {
     val colors = LokapTheme.colors
@@ -225,7 +211,7 @@ fun CameraScreen(
         verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Thanh trên: AvatarRing, Chip "Bạn bè · N", Nút Map, Nút Inbox + BadgeDot
+
         CameraTopBar(
             state = state,
             onAction = onAction,
@@ -234,7 +220,6 @@ fun CameraScreen(
                 .padding(horizontal = spacing.lg, vertical = spacing.sm)
         )
 
-        // 2. Khung Preview vuông bo 40dp (cameraFrame), cách lề ngang 16dp
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -274,7 +259,6 @@ fun CameraScreen(
                 }
             }
 
-            // Lớp phủ đang chụp
             if (state.isCapturing) {
                 Box(
                     modifier = Modifier
@@ -297,7 +281,6 @@ fun CameraScreen(
             }
         }
 
-        // 3. Thanh điều khiển dưới: Flash, ShutterButton, Lật Camera (KHÔNG có nút thư viện ảnh)
         CameraControlsBar(
             state = state,
             onAction = onAction,
@@ -306,24 +289,11 @@ fun CameraScreen(
                 .padding(horizontal = spacing.xl)
         )
 
-        // 4. Gợi ý vuốt lên xem bài
-        Column(
+        Spacer(
             modifier = Modifier
-                .clickable { onAction(CameraAction.OnSwipeUpToFeed) }
-                .padding(bottom = spacing.md, top = spacing.xs),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.KeyboardArrowUp,
-                contentDescription = null,
-                tint = colors.textSecondary
-            )
-            Text(
-                text = "Vuốt lên xem bài",
-                style = MaterialTheme.typography.labelLarge,
-                color = colors.textSecondary
-            )
-        }
+                .navigationBarsPadding()
+                .height(64.dp)
+        )
     }
 }
 
@@ -350,10 +320,7 @@ private fun CameraTopBar(
             onClick = { onAction(CameraAction.OnProfileClick) }
         )
 
-        GlassChip(
-            label = "Bạn bè · ${state.friendCount}",
-            onClick = { onAction(CameraAction.OnFriendsClick) }
-        )
+        LokapLogo(size = 28.dp, showText = true)
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -409,18 +376,12 @@ private fun CameraControlsBar(
         !state.isCapturing &&
         state.cameraError == null
 
-    val flashLabel = when (state.flashMode) {
-        FlashMode.OFF -> "⚡ Tắt"
-        FlashMode.ON -> "⚡ Bật"
-        FlashMode.AUTO -> "⚡ Tự động"
-    }
-
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        // Nút Flash
+
         Box(
             modifier = Modifier
                 .size(56.dp)
@@ -428,27 +389,29 @@ private fun CameraControlsBar(
                 .background(colors.surfaceHigh)
                 .border(
                     width = 1.dp,
-                    color = if (state.flashMode != FlashMode.OFF) colors.accentYellow else colors.outline,
+                    color = if (state.flashMode != FlashMode.OFF) colors.primary else colors.outline,
                     shape = pill
                 )
                 .clickable(enabled = controlsEnabled) { onAction(CameraAction.OnCycleFlash) },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = flashLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = if (state.flashMode != FlashMode.OFF) colors.accentYellow else colors.textPrimary,
-                textAlign = TextAlign.Center
+            Icon(
+                imageVector = when (state.flashMode) {
+                    FlashMode.OFF -> Icons.Filled.FlashOff
+                    FlashMode.ON -> Icons.Filled.FlashOn
+                    FlashMode.AUTO -> Icons.Filled.FlashAuto
+                },
+                contentDescription = "Flash",
+                tint = if (state.flashMode != FlashMode.OFF) colors.primary else colors.textSecondary,
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        // Nút chụp ảnh chính
         ShutterButton(
             onClick = { onAction(CameraAction.OnShutterClick) },
             enabled = controlsEnabled
         )
 
-        // Nút lật camera trước/sau
         Box(
             modifier = Modifier
                 .size(56.dp)
@@ -535,7 +498,7 @@ private fun CameraPreviewViewport(
     val isPreview = LocalInspectionMode.current
 
     if (isPreview) {
-        // Trong @Preview: vẽ khung giả, tuyệt đối không gọi CameraX
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -573,10 +536,9 @@ private fun CameraPreviewViewport(
 
     var cameraRef by remember { mutableStateOf<Camera?>(null) }
     var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
-    // Đọc zoom mới nhất mà không khởi động lại pointerInput (khởi động lại sẽ cắt ngang cử chỉ chụm)
+
     val currentZoom by rememberUpdatedState(state.zoomRatio)
 
-    // Bind CameraX theo lifecycle và lensFacing
     LaunchedEffect(state.lensFacing, lifecycleOwner) {
         try {
             val cameraProvider = ProcessCameraProvider.awaitInstance(context)
@@ -626,13 +588,12 @@ private fun CameraPreviewViewport(
             cameraRef = boundCamera
             imageCaptureRef = captureUseCase
         } catch (e: CancellationException) {
-            throw e // lật camera nhanh làm effect bị huỷ: không phải lỗi
+            throw e
         } catch (_: Exception) {
             onCameraError("Máy ảnh đang bận hoặc không thể khởi tạo. Vui lòng thử lại.")
         }
     }
 
-    // Cập nhật chế độ đèn Flash
     LaunchedEffect(state.flashMode, imageCaptureRef) {
         imageCaptureRef?.flashMode = when (state.flashMode) {
             FlashMode.OFF -> ImageCapture.FLASH_MODE_OFF
@@ -641,12 +602,10 @@ private fun CameraPreviewViewport(
         }
     }
 
-    // Cập nhật mức Zoom
     LaunchedEffect(state.zoomRatio, cameraRef) {
         cameraRef?.cameraControl?.setZoomRatio(state.zoomRatio)
     }
 
-    // Chụp ảnh ra cacheDir khi nhận TriggerCapture; lật ngang nếu là camera trước
     LaunchedEffect(captureTriggerTick) {
         if (captureTriggerTick == 0) return@LaunchedEffect
         val capture = imageCaptureRef ?: run {
@@ -686,8 +645,7 @@ private fun CameraPreviewViewport(
                 )
             }
             .pointerInput(Unit) {
-                // Chỉ bắt cử chỉ 2 ngón (chụm/zoom). Kéo 1 ngón không bị tiêu thụ
-                // để màn cha vẫn nhận "vuốt lên xem bài".
+
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     do {

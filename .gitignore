@@ -16,3 +16,4 @@ local.properties
 .kotlin
 /.idea/deviceManager.xml
 /.idea/deploymentTargetSelector.xml
+.vscode/

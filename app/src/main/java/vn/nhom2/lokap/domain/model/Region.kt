@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.domain.model
 
 import androidx.compose.runtime.Immutable
-
 enum class RegionLevel {
     PROVINCE,
     WARD

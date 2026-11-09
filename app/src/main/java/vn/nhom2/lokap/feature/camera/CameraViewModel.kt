@@ -1,8 +1,5 @@
 package vn.nhom2.lokap.feature.camera
 
-import vn.nhom2.lokap.domain.model.FriendStatus
-import vn.nhom2.lokap.data.fake.SampleSocialData
-import vn.nhom2.lokap.data.fake.FakeChatStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.channels.Channel
@@ -13,7 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
+import vn.nhom2.lokap.data.fake.FakeChatStore
+import vn.nhom2.lokap.data.fake.SampleSocialData
+import vn.nhom2.lokap.domain.model.FriendStatus
 class CameraViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(CameraUiState())
@@ -23,11 +22,11 @@ class CameraViewModel : ViewModel() {
     val effects: Flow<CameraEffect> = _effects.receiveAsFlow()
 
     init {
-        // Badge tin nhắn lấy từ FakeChatStore: mở chat xong số giảm ngay
+
         viewModelScope.launch {
             FakeChatStore.totalUnread.collect { unread -> _uiState.update { it.copy(unreadMessages = unread) } }
         }
-        // Số bạn bè lấy từ SampleSocialData: kết bạn/huỷ bạn ở màn Bạn bè cập nhật chip "Bạn bè · N"
+
         viewModelScope.launch {
             SampleSocialData.friendStatuses.collect { statuses ->
                 _uiState.update { it.copy(friendCount = statuses.values.count { s -> s == FriendStatus.FRIENDS }) }
@@ -46,11 +45,11 @@ class CameraViewModel : ViewModel() {
             is CameraAction.OnPermissionResult -> {
                 val nextPermission = when {
                     action.isGranted -> CameraPermissionState.GRANTED
-                    // Từ chối lần đầu: hệ thống bật rationale → còn hỏi lại được
+
                     action.shouldShowRationale -> CameraPermissionState.DENIED
-                    // Trước đó có rationale, giờ mất → người dùng từ chối lần 2 (hoặc "Không hỏi lại")
+
                     action.shouldShowRationaleBefore -> CameraPermissionState.PERMANENTLY_DENIED
-                    // Lần hỏi đầu mà cả trước và sau đều không có rationale → đóng hộp thoại bằng Back/chạm ra ngoài
+
                     _uiState.value.permission == CameraPermissionState.NOT_REQUESTED -> CameraPermissionState.DENIED
                     else -> CameraPermissionState.PERMANENTLY_DENIED
                 }

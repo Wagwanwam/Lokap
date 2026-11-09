@@ -24,7 +24,6 @@ object AuthValidators {
         }
     }
 
-    /** Lúc đăng nhập chỉ cần không trống; sai thì server báo chung "Email hoặc mật khẩu không đúng". */
     fun validateLoginPassword(password: String): String? =
         if (password.isEmpty()) "Mật khẩu không được để trống" else null
 
@@ -54,5 +53,32 @@ object AuthValidators {
             !USERNAME_REGEX.matches(username) -> "Chỉ dùng chữ thường a–z, số 0–9, dấu chấm (.) và gạch dưới (_)"
             else -> null
         }
+    }
+
+    fun calculatePasswordStrength(password: String): PasswordStrength {
+        if (password.isEmpty()) return PasswordStrength.NONE
+        var score = 0
+        if (password.length >= 8) score++
+        if (password.length >= 10) score++
+        if (password.any { it.isDigit() } && password.any { it.isLetter() }) score++
+        if (password.any { !it.isLetterOrDigit() } || (password.any { it.isUpperCase() } && password.any { it.isLowerCase() })) score++
+        return when {
+            score <= 1 -> PasswordStrength.WEAK
+            score in 2..3 -> PasswordStrength.MEDIUM
+            else -> PasswordStrength.STRONG
+        }
+    }
+
+    fun validateBirthYear(year: Int): String? {
+        val currentYear = java.time.LocalDate.now().year
+        return when {
+            year < 1920 || year > currentYear -> "Năm sinh không hợp lệ"
+            currentYear - year < 13 -> "Bạn phải đủ 13 tuổi trở lên để sử dụng Lokap"
+            else -> null
+        }
+    }
+
+    fun validateBio(bio: String): String? {
+        return if (bio.length > 60) "Giới thiệu tối đa 60 ký tự" else null
     }
 }

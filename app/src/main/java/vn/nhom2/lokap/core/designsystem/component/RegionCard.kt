@@ -3,16 +3,7 @@ package vn.nhom2.lokap.core.designsystem.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,7 +20,6 @@ import coil3.compose.AsyncImage
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import vn.nhom2.lokap.data.fake.SampleData
-
 @Composable
 fun RegionCard(
     code: String,
@@ -38,7 +28,6 @@ fun RegionCard(
     postCount: Int,
     visited: Boolean,
     modifier: Modifier = Modifier,
-    stickers: List<String> = listOf("✨", "📸"),
     onClick: (() -> Unit)? = null
 ) {
     val colors = LokapTheme.colors
@@ -51,11 +40,12 @@ fun RegionCard(
             .fillMaxWidth()
             .height(220.dp)
             .clip(shapes.card)
-            .background(regionGradient(code))
+            .background(regionGradient(code, colors.isDark))
+            .border(1.dp, colors.outline, shapes.card)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(spacing.lg)
     ) {
-        // 3 ảnh xếp chồng nghiêng ±6° kiểu Polaroid ở góc phải
+
         val polaroidAngles = listOf(-6f, 6f, 0f)
         val polaroidOffsets = listOf(
             (-18).dp to 8.dp,
@@ -72,7 +62,7 @@ fun RegionCard(
                 val url = photoUrls.getOrNull(i)
                 val angle = polaroidAngles[i]
                 val (offsetX, offsetY) = polaroidOffsets[i]
-                val polaroidShape = RoundedCornerShape(14.dp)
+                val polaroidShape = RoundedCornerShape(10.dp)
 
                 Box(
                     modifier = Modifier
@@ -80,13 +70,14 @@ fun RegionCard(
                         .graphicsLayer { rotationZ = angle }
                         .size(width = 104.dp, height = 118.dp)
                         .clip(polaroidShape)
-                        .background(colors.textPrimary)
-                        .padding(start = 6.dp, top = 6.dp, end = 6.dp, bottom = 18.dp)
+                        .background(androidx.compose.ui.graphics.Color.White)
+                        .border(0.5.dp, androidx.compose.ui.graphics.Color(0x33000000), polaroidShape)
+                        .padding(start = 5.dp, top = 5.dp, end = 5.dp, bottom = 16.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(6.dp))
                             .background(colors.surfaceHigh)
                     ) {
                         if (!isPreview && url != null) {
@@ -102,36 +93,16 @@ fun RegionCard(
             }
         }
 
-        // Sticker Emoji trang trí
-        Row(
-            modifier = Modifier.align(Alignment.TopEnd),
-            horizontalArrangement = Arrangement.spacedBy(spacing.xs)
-        ) {
-            stickers.take(2).forEach { emoji ->
-                Box(
-                    modifier = Modifier
-                        .clip(shapes.pill)
-                        .background(colors.background.copy(alpha = 0.35f))
-                        .padding(horizontal = spacing.sm, vertical = spacing.xs)
-                ) {
-                    Text(
-                        text = emoji,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-            }
-        }
-
-        // Cột thông tin bên trái
         Column(
             modifier = Modifier.align(Alignment.TopStart),
             verticalArrangement = Arrangement.spacedBy(spacing.sm)
         ) {
-            // Badge số ảnh
+
             Box(
                 modifier = Modifier
                     .clip(shapes.pill)
-                    .background(colors.background.copy(alpha = 0.78f))
+                    .background(colors.surface.copy(alpha = 0.9f))
+                    .border(0.5.dp, colors.outline, shapes.pill)
                     .padding(horizontal = spacing.md, vertical = spacing.xs)
             ) {
                 Text(
@@ -147,23 +118,23 @@ fun RegionCard(
                         .graphicsLayer { rotationZ = -4f }
                         .clip(shapes.pill)
                         .background(colors.accentLime)
-                        .border(1.5.dp, colors.onPrimary, shapes.pill)
+                        .border(1.dp, colors.outline, shapes.pill)
                         .padding(horizontal = spacing.md, vertical = spacing.xs)
                 ) {
                     Text(
                         text = "ĐÃ ĐẾN",
                         style = MaterialTheme.typography.labelLarge,
-                        color = colors.onPrimary
+                        color = androidx.compose.ui.graphics.Color(0xFF064E3B)
                     )
                 }
             }
         }
 
-        // Tên khu vực kiểu chữ Display ở góc dưới trái
         Text(
             text = regionName,
-            style = MaterialTheme.typography.displayLarge,
-            color = colors.onPrimary,
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+            color = colors.textPrimary,
             modifier = Modifier.align(Alignment.BottomStart)
         )
     }
@@ -184,16 +155,14 @@ private fun RegionCardPreview() {
                 regionName = "Đà Nẵng",
                 photoUrls = SampleData.posts.take(3).map { it.imageUrl },
                 postCount = 512,
-                visited = true,
-                stickers = listOf("🌊", "🔥")
+                visited = true
             )
             RegionCard(
                 code = "hue",
                 regionName = "Huế",
                 photoUrls = SampleData.posts.drop(3).take(3).map { it.imageUrl },
                 postCount = 248,
-                visited = false,
-                stickers = listOf("🏮", "✨")
+                visited = false
             )
         }
     }

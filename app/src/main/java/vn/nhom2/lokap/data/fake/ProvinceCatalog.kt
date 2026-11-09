@@ -1,11 +1,9 @@
-// Dữ liệu tạm cho UI, sẽ thay bằng dữ liệu từ backend
 package vn.nhom2.lokap.data.fake
 
 import vn.nhom2.lokap.domain.model.Province
-
 object ProvinceCatalog {
     val allProvinces: List<Province> = listOf(
-        // 6 Thành phố trực thuộc trung ương
+
         Province(code = "ha-noi", name = "Hà Nội", isCity = true, lat = 21.0285, lng = 105.8542),
         Province(code = "hue", name = "Huế", isCity = true, lat = 16.4637, lng = 107.5909),
         Province(code = "hai-phong", name = "Hải Phòng", isCity = true, lat = 20.8449, lng = 106.6881),
@@ -13,7 +11,6 @@ object ProvinceCatalog {
         Province(code = "tp-ho-chi-minh", name = "Thành phố Hồ Chí Minh", isCity = true, lat = 10.7769, lng = 106.7009),
         Province(code = "can-tho", name = "Cần Thơ", isCity = true, lat = 10.0452, lng = 105.7469),
 
-        // 28 Tỉnh
         Province(code = "lai-chau", name = "Lai Châu", isCity = false, lat = 22.3864, lng = 103.4703),
         Province(code = "dien-bien", name = "Điện Biên", isCity = false, lat = 21.3860, lng = 103.0230),
         Province(code = "son-la", name = "Sơn La", isCity = false, lat = 21.3256, lng = 103.9188),

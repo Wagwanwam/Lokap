@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.data.fake
 
 import vn.nhom2.lokap.domain.model.Place
-
 object SampleData2 {
 
     const val DEFAULT_PROVINCE_CODE = "da-nang"
@@ -9,9 +8,6 @@ object SampleData2 {
     const val DEFAULT_WARD_CODE = "dn-hai-chau"
     const val DEFAULT_WARD_NAME = "Phường Hải Châu"
 
-    /**
-     * 8 địa điểm mẫu quanh Đà Nẵng để chọn trong Composer khi chọn LocationLevel.PLACE
-     */
     val daNangPlaces: List<Place> = listOf(
         Place(
             id = "pl_dn_1",

@@ -1,67 +1,57 @@
 package vn.nhom2.lokap.feature.auth.setup
 
-import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AlternateEmail
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import vn.nhom2.lokap.core.designsystem.component.AvatarRing
-import vn.nhom2.lokap.core.designsystem.component.ErrorState
-import vn.nhom2.lokap.core.designsystem.component.GlassChip
-import vn.nhom2.lokap.core.designsystem.component.OfflineBanner
-import vn.nhom2.lokap.core.designsystem.component.PinkButton
+import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
+import vn.nhom2.lokap.data.fake.ProvinceCatalog
 import vn.nhom2.lokap.feature.auth.lokapTextFieldColors
-
 fun NavGraphBuilder.setupProfileScreen(navController: NavController) {
     composable<SetupProfileRoute> {
         SetupProfileRoute(
@@ -93,231 +83,409 @@ fun SetupProfileRoute(
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SetupProfileScreen(
     uiState: SetupProfileUiState,
     onAction: (SetupProfileAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LokapTheme.colors
+    val spacing = LokapTheme.spacing
     val focusManager = LocalFocusManager.current
+
     var displayNameHadFocus by remember { mutableStateOf(false) }
     var usernameHadFocus by remember { mutableStateOf(false) }
-
-    val previewName = uiState.displayName.trim().ifEmpty { "Lokap" }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(LokapTheme.colors.background)
+            .background(colors.background)
             .systemBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = LokapTheme.spacing.lg, vertical = LokapTheme.spacing.md),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = spacing.lg, vertical = spacing.md)
     ) {
-        if (uiState.isOffline) {
-            OfflineBanner(modifier = Modifier.fillMaxWidth())
-            Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            LokapLogo(size = 28.dp, showText = true)
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = colors.primary.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.35f))
+            ) {
+                Text(
+                    text = "Bước 2/2: Hồ sơ cá nhân",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = colors.primary,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
+        Spacer(modifier = Modifier.height(spacing.md))
+
+        if (uiState.isOffline) {
+            OfflineBanner(modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(spacing.sm))
+        }
 
         Text(
-            text = "Tạo chiếc hồ sơ chất riêng 💅",
+            text = "Thiết lập hồ sơ Lokap",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
-            color = LokapTheme.colors.textPrimary
+            color = colors.textPrimary
         )
 
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
+        Spacer(modifier = Modifier.height(spacing.xs))
 
         Text(
-            text = "Chọn avatar và đặt chiếc username để hội bạn dễ tìm thấy bạn.",
+            text = "Tạo dấu ấn cá nhân của bạn trên bản đồ khoảnh khắc.",
             style = MaterialTheme.typography.bodyMedium,
-            color = LokapTheme.colors.textSecondary
+            color = colors.textSecondary
         )
 
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.lg))
+        Spacer(modifier = Modifier.height(spacing.lg))
 
-        // Main preview AvatarRing (shows initial if selectedAvatarUrl == null)
-        AvatarRing(
-            avatarUrl = uiState.selectedAvatarUrl,
-            displayName = previewName,
-            size = 96.dp,
-            hasNewPost = true
-        )
-
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
-
-        GlassChip(
-            label = if (uiState.selectedAvatarUrl == null) {
-                "Đang dùng chữ cái đầu"
-            } else {
-                "Dùng chữ cái đầu"
-            },
-            selected = uiState.selectedAvatarUrl == null,
-            onClick = { onAction(SetupProfileAction.AvatarSelected(null)) }
-        )
-
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
-
-        Text(
-            text = "Hoặc chọn nhanh 1 trong 6 avatar mẫu:",
-            style = MaterialTheme.typography.labelLarge,
-            color = LokapTheme.colors.textSecondary
-        )
-
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
-
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            uiState.presetAvatars.forEach { avatarUrl ->
-                val isSelected = uiState.selectedAvatarUrl == avatarUrl
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .border(
-                            width = if (isSelected) 3.dp else 1.dp,
-                            color = if (isSelected) LokapTheme.colors.primary else LokapTheme.colors.outline,
-                            shape = CircleShape
-                        )
-                        .clickable(enabled = !uiState.isSubmitting) {
-                            onAction(SetupProfileAction.AvatarSelected(avatarUrl))
-                        }
-                        .padding(3.dp),
-                    contentAlignment = Alignment.Center
+            Box(contentAlignment = Alignment.BottomEnd) {
+                AvatarRing(
+                    avatarUrl = uiState.selectedAvatarUrl,
+                    displayName = uiState.displayName.ifEmpty { "Bạn" },
+                    size = 88.dp
+                )
+
+                Surface(
+                    shape = CircleShape,
+                    color = colors.primary,
+                    border = BorderStroke(2.dp, colors.background),
+                    modifier = Modifier.size(28.dp)
                 ) {
-                    AvatarRing(
-                        avatarUrl = avatarUrl,
-                        displayName = previewName,
-                        size = 56.dp,
-                        hasNewPost = isSelected,
-                        onClick = { onAction(SetupProfileAction.AvatarSelected(avatarUrl)) }
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Filled.CameraAlt,
+                            contentDescription = "Đổi ảnh đại diện",
+                            tint = colors.buttonText,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(spacing.sm))
+
+            Text(
+                text = "Chọn hình đại diện nhanh:",
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.textSecondary
+            )
+
+            Spacer(modifier = Modifier.height(spacing.xs))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                items(uiState.presetAvatars) { avatarUrl ->
+                    val isSelected = uiState.selectedAvatarUrl == avatarUrl
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .border(
+                                width = if (isSelected) 2.5.dp else 1.dp,
+                                color = if (isSelected) colors.primary else colors.outline.copy(alpha = 0.3f),
+                                shape = CircleShape
+                            )
+                            .clickable { onAction(SetupProfileAction.AvatarSelected(avatarUrl)) }
+                    ) {
+                        AvatarRing(
+                            avatarUrl = avatarUrl,
+                            displayName = uiState.displayName.ifEmpty { "Bạn" },
+                            size = 46.dp
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.xl))
+        Spacer(modifier = Modifier.height(spacing.lg))
 
-        // Display name (2 - 30 chars)
-        OutlinedTextField(
-            value = uiState.displayName,
-            onValueChange = { onAction(SetupProfileAction.DisplayNameChanged(it)) },
-            enabled = !uiState.isSubmitting,
-            label = { Text("Tên hiển thị (2–30 ký tự)") },
-            placeholder = { Text("Ví dụ: Minh Anh 🍓") },
-            leadingIcon = {
-                Icon(imageVector = Icons.Default.Person, contentDescription = null)
-            },
-            isError = uiState.displayNameError != null,
-            supportingText = {
-                if (uiState.displayNameError != null) {
-                    Text(text = uiState.displayNameError, color = LokapTheme.colors.error)
-                } else {
-                    Text(
-                        text = "${uiState.displayName.trim().length}/30 ký tự",
-                        color = LokapTheme.colors.textTertiary
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.2f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(spacing.md),
+                verticalArrangement = Arrangement.spacedBy(spacing.md)
+            ) {
+
+                Column {
+                    OutlinedTextField(
+                        value = uiState.displayName,
+                        onValueChange = { onAction(SetupProfileAction.DisplayNameChanged(it)) },
+                        label = { Text("Họ và tên") },
+                        placeholder = { Text("ví dụ: Nguyễn Minh Khôi") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = null,
+                                tint = if (uiState.displayNameError != null) colors.error else colors.primary
+                            )
+                        },
+                        isError = uiState.displayNameError != null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = lokapTextFieldColors(),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { state ->
+                                if (state.isFocused) {
+                                    displayNameHadFocus = true
+                                } else if (displayNameHadFocus) {
+                                    onAction(SetupProfileAction.DisplayNameFocusLost)
+                                }
+                            }
                     )
-                }
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                imeAction = ImeAction.Next
-            ),
-            shape = LokapTheme.shapes.card,
-            colors = lokapTextFieldColors(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { state ->
-                    if (state.isFocused) {
-                        displayNameHadFocus = true
-                    } else if (displayNameHadFocus) {
-                        onAction(SetupProfileAction.DisplayNameFocusLost)
-                    }
-                }
-        )
-
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
-
-        // Username (3-20 chars, lowercase, debounce 400ms with ✓ / ✗ inside field)
-        OutlinedTextField(
-            value = uiState.username,
-            onValueChange = { onAction(SetupProfileAction.UsernameChanged(it)) },
-            enabled = !uiState.isSubmitting,
-            label = { Text("Username (3–20 ký tự)") },
-            placeholder = { Text("minhanh.2k5") },
-            prefix = {
-                Text(
-                    text = "@",
-                    color = LokapTheme.colors.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            trailingIcon = {
-                UsernameAvailabilityTrailingIcon(availability = uiState.usernameAvailability)
-            },
-            isError = uiState.usernameError != null || uiState.usernameAvailability == UsernameAvailability.TAKEN,
-            supportingText = {
-                when {
-                    uiState.usernameError != null -> {
-                        Text(text = uiState.usernameError, color = LokapTheme.colors.error)
-                    }
-
-                    uiState.usernameAvailability == UsernameAvailability.AVAILABLE -> {
+                    if (uiState.displayNameError != null) {
                         Text(
-                            text = "✓ Username hợp lệ và chưa ai dùng",
-                            color = LokapTheme.colors.success
-                        )
-                    }
-
-                    uiState.usernameAvailability == UsernameAvailability.CHECKING -> {
-                        Text(
-                            text = "Đang kiểm tra độ trùng...",
-                            color = LokapTheme.colors.textSecondary
-                        )
-                    }
-
-                    else -> {
-                        Text(
-                            text = "Chỉ dùng a–z, 0–9, dấu chấm (.) và gạch dưới (_)",
-                            color = LokapTheme.colors.textTertiary
+                            text = uiState.displayNameError,
+                            color = colors.error,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(start = 12.dp, top = 4.dp)
                         )
                     }
                 }
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Ascii,
-                capitalization = KeyboardCapitalization.None,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    focusManager.clearFocus()
-                    if (uiState.isFormValid) {
-                        onAction(SetupProfileAction.SubmitClicked)
+
+                Column {
+                    OutlinedTextField(
+                        value = uiState.username,
+                        onValueChange = { onAction(SetupProfileAction.UsernameChanged(it)) },
+                        label = { Text("Tên người dùng (@username)") },
+                        placeholder = { Text("ví dụ: minhkhoi") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.AlternateEmail,
+                                contentDescription = null,
+                                tint = if (uiState.usernameError != null) colors.error else colors.primary
+                            )
+                        },
+                        trailingIcon = {
+                            when (uiState.usernameAvailability) {
+                                UsernameAvailability.CHECKING -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = colors.primary
+                                    )
+                                }
+                                UsernameAvailability.AVAILABLE -> {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = "Hợp lệ",
+                                        tint = Color(0xFF10B981)
+                                    )
+                                }
+                                UsernameAvailability.TAKEN, UsernameAvailability.INVALID -> {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Không hợp lệ",
+                                        tint = colors.error
+                                    )
+                                }
+                                UsernameAvailability.IDLE -> Unit
+                            }
+                        },
+                        isError = uiState.usernameError != null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Ascii,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = lokapTextFieldColors(),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { state ->
+                                if (state.isFocused) {
+                                    usernameHadFocus = true
+                                } else if (usernameHadFocus) {
+                                    onAction(SetupProfileAction.UsernameFocusLost)
+                                }
+                            }
+                    )
+                    if (uiState.usernameError != null) {
+                        Text(
+                            text = uiState.usernameError,
+                            color = colors.error,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                        )
                     }
                 }
-            ),
-            shape = LokapTheme.shapes.card,
-            colors = lokapTextFieldColors(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { state ->
-                    if (state.isFocused) {
-                        usernameHadFocus = true
-                    } else if (usernameHadFocus) {
-                        onAction(SetupProfileAction.UsernameFocusLost)
+
+                Column {
+                    OutlinedTextField(
+                        value = if (uiState.birthYear > 0) uiState.birthYear.toString() else "",
+                        onValueChange = { str ->
+                            val year = str.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
+                            onAction(SetupProfileAction.BirthYearChanged(year))
+                        },
+                        label = { Text("Năm sinh") },
+                        placeholder = { Text("ví dụ: 2004") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Cake,
+                                contentDescription = null,
+                                tint = if (uiState.birthYearError != null) colors.error else colors.primary
+                            )
+                        },
+                        isError = uiState.birthYearError != null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = lokapTextFieldColors(),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (uiState.birthYearError != null) {
+                        Text(
+                            text = uiState.birthYearError,
+                            color = colors.error,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "Yêu cầu đủ 13 tuổi trở lên theo quy định an toàn",
+                            color = colors.textTertiary,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                        )
                     }
                 }
-        )
+
+                Column {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = uiState.homeProvince,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Tỉnh / Thành phố sinh sống") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.LocationOn,
+                                    contentDescription = null,
+                                    tint = colors.primary
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = { onAction(SetupProfileAction.ToggleProvincePicker) }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = "Chọn tỉnh thành",
+                                        tint = colors.textSecondary
+                                    )
+                                }
+                            },
+                            colors = lokapTextFieldColors(),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onAction(SetupProfileAction.ToggleProvincePicker) }
+                        )
+
+                        DropdownMenu(
+                            expanded = uiState.isProvincePickerOpen,
+                            onDismissRequest = { onAction(SetupProfileAction.ToggleProvincePicker) },
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .height(260.dp)
+                                .background(colors.surface)
+                        ) {
+                            ProvinceCatalog.allProvinces.forEach { province ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = province.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = if (province.name == uiState.homeProvince) colors.primary else colors.textPrimary,
+                                            fontWeight = if (province.name == uiState.homeProvince) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        onAction(SetupProfileAction.HomeProvinceChanged(province.name))
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Column {
+                    OutlinedTextField(
+                        value = uiState.bio,
+                        onValueChange = { onAction(SetupProfileAction.BioChanged(it.take(60))) },
+                        label = { Text("Giới thiệu bản thân (Bio)") },
+                        placeholder = { Text("Chia sẻ đôi lời về bạn…") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                tint = colors.primary
+                            )
+                        },
+                        isError = uiState.bioError != null,
+                        maxLines = 2,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = {
+                            focusManager.clearFocus()
+                            if (uiState.isFormValid) onAction(SetupProfileAction.SubmitClicked)
+                        }),
+                        colors = lokapTextFieldColors(),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        if (uiState.bioError != null) {
+                            Text(
+                                text = uiState.bioError,
+                                color = colors.error,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.width(1.dp))
+                        }
+                        Text(
+                            text = "${uiState.bio.length}/60",
+                            color = colors.textTertiary,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+        }
 
         if (uiState.serverError != null) {
-            Spacer(modifier = Modifier.height(LokapTheme.spacing.sm))
+            Spacer(modifier = Modifier.height(spacing.sm))
             ErrorState(
                 message = uiState.serverError,
                 onRetry = { onAction(SetupProfileAction.RetryClicked) },
@@ -325,79 +493,18 @@ fun SetupProfileScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(LokapTheme.spacing.xl))
+        Spacer(modifier = Modifier.height(spacing.lg))
 
         PinkButton(
-            text = "Vào Lokap",
-            onClick = {
-                focusManager.clearFocus()
-                onAction(SetupProfileAction.SubmitClicked)
-            },
-            enabled = uiState.isFormValid,
+            text = "Hoàn tất & Bắt đầu",
+            onClick = { onAction(SetupProfileAction.SubmitClicked) },
             loading = uiState.isSubmitting,
-            modifier = Modifier.fillMaxWidth()
+            enabled = uiState.isFormValid,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
         )
-    }
-}
 
-@Composable
-private fun UsernameAvailabilityTrailingIcon(availability: UsernameAvailability) {
-    when (availability) {
-        UsernameAvailability.IDLE -> Unit
-        UsernameAvailability.CHECKING -> {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-                color = LokapTheme.colors.primary
-            )
-        }
-
-        UsernameAvailability.AVAILABLE -> {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Hợp lệ",
-                tint = LokapTheme.colors.success
-            )
-        }
-
-        UsernameAvailability.TAKEN, UsernameAvailability.INVALID -> {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Không hợp lệ",
-                tint = LokapTheme.colors.error
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "SetupProfile - Available Ready")
-@Composable
-private fun SetupProfileAvailablePreview() {
-    LokapTheme {
-        SetupProfileScreen(
-            uiState = SetupProfileUiState(
-                displayName = "Minh Anh",
-                username = "minhanh.2k5",
-                usernameAvailability = UsernameAvailability.AVAILABLE
-            ),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "SetupProfile - Username Taken")
-@Composable
-private fun SetupProfileTakenPreview() {
-    LokapTheme {
-        SetupProfileScreen(
-            uiState = SetupProfileUiState(
-                displayName = "Lokap Official",
-                username = "lokap",
-                usernameTouched = true,
-                usernameAvailability = UsernameAvailability.TAKEN,
-                usernameError = "Username này đã có người dùng"
-            ),
-            onAction = {}
-        )
+        Spacer(modifier = Modifier.height(spacing.xl))
     }
 }

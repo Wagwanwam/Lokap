@@ -2,9 +2,7 @@ package vn.nhom2.lokap.feature.inbox
 
 import java.time.Instant
 import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.domain.model.Conversation
-import vn.nhom2.lokap.domain.model.User
-
+import vn.nhom2.lokap.domain.model.*
 data class InboxConversationItem(
     val conversation: Conversation,
     val displayPreview: String,

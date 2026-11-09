@@ -1,9 +1,5 @@
 package vn.nhom2.lokap.feature.notifications
 
-import vn.nhom2.lokap.domain.model.FriendStatus
-import vn.nhom2.lokap.data.fake.SampleSocialData
-import vn.nhom2.lokap.data.fake.FakeChatStore
-import vn.nhom2.lokap.data.fake.FakeNotificationStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.channels.Channel
@@ -14,10 +10,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import vn.nhom2.lokap.data.fake.FakeChatStore
+import vn.nhom2.lokap.data.fake.FakeNotificationStore
 import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.domain.model.AppNotification
-import vn.nhom2.lokap.domain.model.NotificationType
-
+import vn.nhom2.lokap.data.fake.SampleSocialData
+import vn.nhom2.lokap.domain.model.*
 class NotificationsViewModel : ViewModel() {
 
     private val handledRequests = MutableStateFlow<Map<String, Boolean>>(emptyMap())
@@ -63,10 +60,10 @@ class NotificationsViewModel : ViewModel() {
             }
 
             is NotificationsAction.AcceptFriendRequest -> {
-                // Cập nhật danh sách bạn thật, không chỉ đánh dấu trên màn hình
+
                 val actorId = findActorId(action.notificationId)
                 if (actorId != null && !SampleSocialData.acceptFriendRequest(actorId)) {
-                    return // đã đủ 20 bạn: giữ thông báo để người dùng xử lý sau
+                    return
                 }
                 markRequestHandled(action.notificationId, accepted = true)
             }
@@ -94,7 +91,7 @@ class NotificationsViewModel : ViewModel() {
             NotificationType.NEW_POST,
             NotificationType.REACTION,
             NotificationType.POST_HIDDEN -> {
-                // Không có bài thì không mở gì (trước đây mở bừa bài đầu tiên)
+
                 notification.postId?.let { sendEffect(NotificationsEffect.NavigateToPostDetail(it)) }
             }
 
@@ -104,7 +101,7 @@ class NotificationsViewModel : ViewModel() {
             }
 
             NotificationType.NEW_MESSAGE -> {
-                // Mở đúng cuộc trò chuyện với người gửi; không rõ người gửi thì về Hộp thư
+
                 val actor = notification.actor
                 if (actor != null && SampleSocialData.getFriendStatus(actor.id) == FriendStatus.FRIENDS) {
                     val conv = FakeChatStore.getOrCreateConversationWithFriend(actor)
