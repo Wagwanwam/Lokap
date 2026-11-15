@@ -38,7 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -47,8 +47,8 @@ import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
+import vn.nhom2.lokap.core.navigation.navigateToTab
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.User
 fun NavGraphBuilder.inboxScreen(navController: NavController) {
     composable<Route.Inbox> {
@@ -61,11 +61,11 @@ fun NavGraphBuilder.inboxScreen(navController: NavController) {
             },
             onNavigateToTab = { tab ->
                 when (tab) {
-                    MainTab.FEED -> navController.navigateSingleTop(Route.Feed)
-                    MainTab.MAP -> navController.navigateSingleTop(Route.Map)
-                    MainTab.CAMERA -> navController.navigateSingleTop(Route.Camera)
+                    MainTab.FEED -> navController.navigateToTab(Route.Feed)
+                    MainTab.MAP -> navController.navigateToTab(Route.Map)
+                    MainTab.CAMERA -> navController.navigateToTab(Route.Camera)
                     MainTab.INBOX -> Unit
-                    MainTab.PROFILE -> navController.navigateSingleTop(Route.Profile())
+                    MainTab.PROFILE -> navController.navigateToTab(Route.Profile())
                 }
             }
         )
@@ -77,7 +77,7 @@ fun InboxRoute(
     onNavigateToChat: (String) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToTab: (MainTab) -> Unit = {},
-    viewModel: InboxViewModel = viewModel()
+    viewModel: InboxViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -159,7 +159,7 @@ fun InboxScreen(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
                     tint = colors.textSecondary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(25.dp)
                 )
             },
             trailingIcon = {
@@ -169,7 +169,7 @@ fun InboxScreen(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Xoá",
                             tint = colors.textSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -224,7 +224,6 @@ fun InboxScreen(
                 uiState.items.isEmpty() -> {
                     EmptyState(
                         title = "Chưa có tin nhắn nào",
-                        subtitle = "Chụp một bức ảnh hoặc nhấn Soạn tin để gửi lời chào đến hội bạn thân",
                         actionLabel = "Soạn tin mới",
                         onActionClick = { onAction(InboxAction.OpenNewMessageSheet) },
                         modifier = Modifier
@@ -327,7 +326,7 @@ private fun InboxTopBar(
                 text = "Hộp thư",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 24.sp
+                    fontSize = 26.5.sp
                 ),
                 color = colors.textPrimary
             )
@@ -348,29 +347,22 @@ private fun InboxTopBar(
             }
         }
 
+        // Soạn tin: chỉ dấu cộng, vùng chạm 48dp
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = CircleShape,
             color = colors.primary,
             shadowElevation = 2.dp,
             modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .clickable(onClick = onNewMessageClick)
+                .size(48.dp)
+                .clip(CircleShape)
+                .clickable(onClickLabel = "Soạn tin mới", onClick = onNewMessageClick)
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+            Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = null,
+                    contentDescription = "Soạn tin mới",
                     tint = colors.buttonText,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    text = "Soạn tin",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = colors.buttonText
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
@@ -415,7 +407,7 @@ private fun ActiveFriendsStoriesBar(
                         imageVector = Icons.Filled.CameraAlt,
                         contentDescription = "Chụp nhanh",
                         tint = colors.primary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
                 Text(
@@ -493,7 +485,7 @@ private fun SwipeableConversationRow(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
                         tint = colors.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(spacing.xs))
                     Text(
@@ -566,7 +558,7 @@ private fun ConversationRowContent(
                         text = conv.friend.displayName,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = if (isUnread) FontWeight.ExtraBold else FontWeight.SemiBold,
-                            fontSize = 15.sp
+                            fontSize = 16.5.sp
                         ),
                         color = colors.textPrimary,
                         maxLines = 1,
@@ -592,7 +584,7 @@ private fun ConversationRowContent(
                         text = item.displayPreview,
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = if (isUnread) FontWeight.SemiBold else FontWeight.Normal,
-                            fontSize = 13.sp
+                            fontSize = 14.5.sp
                         ),
                         color = if (isUnread) colors.textPrimary else colors.textSecondary,
                         maxLines = 1,
@@ -648,11 +640,6 @@ private fun NewMessageFriendPickerSheet(
             color = colors.textPrimary,
             modifier = Modifier.padding(vertical = spacing.xs)
         )
-        Text(
-            text = "Chọn bạn bè để bắt đầu gửi ảnh và tin nhắn riêng",
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textSecondary
-        )
 
         Spacer(modifier = Modifier.height(spacing.sm))
 
@@ -665,7 +652,7 @@ private fun NewMessageFriendPickerSheet(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
                     tint = colors.textSecondary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             },
             shape = RoundedCornerShape(14.dp),
@@ -685,8 +672,7 @@ private fun NewMessageFriendPickerSheet(
 
         if (filtered.isEmpty()) {
             EmptyState(
-                title = if (query.isBlank()) "Chưa có bạn bè nào" else "Không tìm thấy kết quả",
-                subtitle = "Hãy kết bạn thêm để bắt đầu trò chuyện trên Lokap",
+                title = if (query.isBlank()) "Chưa có bạn" else "Không tìm thấy",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = spacing.lg)
@@ -774,25 +760,5 @@ private fun InboxLoadingList() {
                 shape = shapes.card
             )
         }
-    }
-}
-
-@Preview(name = "Inbox - Đầy đủ", showBackground = true)
-@Composable
-private fun InboxScreenPopulatedPreview() {
-    LokapTheme {
-        InboxScreen(
-            uiState = InboxUiState(
-                items = listOf(
-                    InboxConversationItem(
-                        conversation = SampleData.conversations.first(),
-                        displayPreview = "Alo cà phê cuối tuần không?",
-                        hasNewPostFromFriend = true
-                    )
-                ),
-                friends = SampleData.users.drop(1)
-            ),
-            onAction = {}
-        )
     }
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tag trên PreviewView: bộ lọc màu đang áp, tránh đặt lại layer mỗi lần recompose -->
+    <item name="lokap_preview_filter" type="id" />
+</resources>

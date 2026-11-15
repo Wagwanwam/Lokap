@@ -1,0 +1,522 @@
+rules_version = '2';
+
+// Lokap — Security Rules cho Firestore (thay cho RLS + RPC của Postgres).
+// Rules KHÔNG lọc dữ liệu: truy vấn của app phải tự có điều kiện khớp rules (status == 'active',
+// viewerIds array-contains uid…), nếu không cả truy vấn bị từ chối. Xem docs/database.md.
+// Test: cd firebase && npm test (chạy trên Firebase Emulator).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------ hàm dùng chung
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // Ghi dữ liệu cần email đã xác nhận (Firebase gửi link khi đăng ký)
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function docPath(collection, id) {
+      return /databases/$(database)/documents/$(collection)/$(id);
+    }
+
+    function hasProfile() {
+      return exists(docPath('users', uid()));
+    }
+
+    function blockedEitherWay(a, b) {
+      return exists(docPath('blocks', a + '_' + b)) || exists(docPath('blocks', b + '_' + a));
+    }
+
+    // Id cặp bạn = uid nhỏ + '_' + uid lớn; thử cả hai thứ tự để khỏi cần so sánh chuỗi
+    function areFriends(a, b) {
+      return (exists(docPath('friendships', a + '_' + b)) && get(docPath('friendships', a + '_' + b)).data.status == 'accepted')
+        || (exists(docPath('friendships', b + '_' + a)) && get(docPath('friendships', b + '_' + a)).data.status == 'accepted');
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ------------------------------------------------------------------ users
+
+    function validPublicProfile(d) {
+      return d.keys().hasOnly(['username', 'displayName', 'searchName', 'avatarUrl', 'bio', 'friendCount', 'createdAt'])
+        && d.username is string && d.username.matches('^[a-z0-9._]{3,20}$')
+        && d.displayName is string && d.displayName.size() >= 2 && d.displayName.size() <= 30
+        && d.searchName is string && d.searchName.size() <= 60
+        && (d.avatarUrl == null || (d.avatarUrl is string && d.avatarUrl.size() <= 500))
+        && d.bio is string && d.bio.size() <= 60
+        && d.friendCount is int && d.friendCount >= 0 && d.friendCount <= 20;
+    }
+
+    function validPrivateProfile(d) {
+      return d.keys().hasOnly(['email', 'birthYear', 'homeProvinceCode', 'defaultLocationLevel',
+                               'notifyNewPhotos', 'notifyReactions', 'notifyMessages', 'notifyFriendRequests'])
+        && (!('birthYear' in d) || d.birthYear == null
+            || (d.birthYear is int && d.birthYear >= 1900 && d.birthYear <= request.time.year() - 13))
+        && (!('defaultLocationLevel' in d) || d.defaultLocationLevel in ['PLACE', 'WARD', 'PROVINCE', 'COUNTRY']);
+    }
+
+    match /users/{userId} {
+      // Hồ sơ công khai: username, tên, ảnh, giới thiệu, số bạn
+      allow read: if signedIn();
+      allow create: if verified() && uid() == userId
+        && validPublicProfile(request.resource.data)
+        && request.resource.data.friendCount == 0
+        && request.resource.data.createdAt == request.time
+        && getAfter(docPath('usernames', request.resource.data.username)).data.uid == userId;
+      allow update: if verified() && uid() == userId
+        && validPublicProfile(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (request.resource.data.username == resource.data.username
+            || getAfter(docPath('usernames', request.resource.data.username)).data.uid == userId);
+      allow delete: if signedIn() && uid() == userId;
+
+      // Email, năm sinh, cài đặt: chỉ chủ tài khoản
+      match /private/{docId} {
+        allow read, delete: if signedIn() && uid() == userId;
+        allow create, update: if verified() && uid() == userId && docId == 'profile'
+          && validPrivateProfile(request.resource.data);
+      }
+    }
+
+    // ------------------------------------------------------------------ usernames (giữ username duy nhất)
+
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if verified()
+        && name.matches('^[a-z0-9._]{3,20}$')
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == uid()
+        && getAfter(docPath('users', uid())).data.username == name;
+      // Ghi lại đúng chủ (làm lại bước tạo hồ sơ) thì cho qua
+      allow update: if signedIn() && resource.data.uid == uid() && request.resource.data.uid == uid();
+      // Đổi username hoặc xoá tài khoản: chỉ chủ, và hồ sơ không còn dùng tên này
+      allow delete: if signedIn() && resource.data.uid == uid()
+        && (!existsAfter(docPath('users', uid())) || getAfter(docPath('users', uid())).data.username != name);
+    }
+
+    // ------------------------------------------------------------------ friendships
+
+    match /friendships/{pairId} {
+      // get theo id cặp (kể cả khi chưa có, để transaction mời kết bạn đọc được); list theo users
+      allow get: if signedIn() && uid() in pairId.split('_');
+      allow list: if signedIn() && uid() in resource.data.users;
+      allow create: if verified() && hasProfile()
+        && request.resource.data.keys().hasOnly(['users', 'requesterId', 'addresseeId', 'status', 'createdAt'])
+        && request.resource.data.requesterId == uid()
+        && request.resource.data.addresseeId is string
+        && request.resource.data.addresseeId != uid()
+        && request.resource.data.users.size() == 2
+        && request.resource.data.users[0] < request.resource.data.users[1]
+        && request.resource.data.users.hasAll([uid(), request.resource.data.addresseeId])
+        && pairId == request.resource.data.users[0] + '_' + request.resource.data.users[1]
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && exists(docPath('users', request.resource.data.addresseeId))
+        && !blockedEitherWay(uid(), request.resource.data.addresseeId);
+      // Chỉ người được mời mới chấp nhận
+      allow update: if verified()
+        && resource.data.addresseeId == uid()
+        && resource.data.status == 'pending'
+        && changedKeys().hasOnly(['status', 'acceptedAt'])
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.acceptedAt == request.time;
+      // Thu hồi / từ chối / huỷ kết bạn / chặn: một trong hai người (cả khi document chưa có)
+      allow delete: if signedIn() && uid() in pairId.split('_');
+    }
+
+    // ------------------------------------------------------------------ blocks
+
+    match /blocks/{blockId} {
+      allow read: if signedIn() && resource.data.blockerId == uid();
+      allow create: if verified()
+        && request.resource.data.keys().hasOnly(['blockerId', 'blockedId', 'createdAt'])
+        && request.resource.data.blockerId == uid()
+        && request.resource.data.blockedId is string
+        && request.resource.data.blockedId != uid()
+        && blockId == uid() + '_' + request.resource.data.blockedId
+        && request.resource.data.createdAt == request.time;
+      allow delete: if signedIn() && resource.data.blockerId == uid();
+    }
+
+    // Live chat: only the two members can read; sending/editing requires an active friendship.
+    function chatMember(id) {
+      return signedIn() && uid() in get(docPath('conversations', id)).data.members;
+    }
+    function chatWritable(id) {
+      let members = get(docPath('conversations', id)).data.members;
+      return verified() && uid() in members && areFriends(members[0], members[1])
+        && !blockedEitherWay(members[0], members[1]);
+    }
+    function readablePost(id) {
+      let p = get(docPath('posts', id)).data;
+      return signedIn() && (p.authorId == uid() || (p.status == 'active'
+        && (uid() in p.viewerIds || (p.audience == 'public' && p.publicVisibleAt <= request.time))))
+        && !blockedEitherWay(uid(), p.authorId);
+    }
+    function textBody(text) { return text is string && text.size() > 0 && text.size() <= 1000; }
+
+    match /conversations/{id} {
+      allow get: if signedIn() && (resource == null || uid() in resource.data.members);
+      allow list: if signedIn() && uid() in resource.data.members;
+      allow create: if verified() && hasProfile()
+        && request.resource.data.keys().hasOnly(['members', 'createdAt', 'readAt'])
+        && request.resource.data.members is list && request.resource.data.members.size() == 2
+        && request.resource.data.members[0] < request.resource.data.members[1]
+        && uid() in request.resource.data.members
+        && id == request.resource.data.members[0] + '_' + request.resource.data.members[1]
+        && areFriends(request.resource.data.members[0], request.resource.data.members[1])
+        && !blockedEitherWay(request.resource.data.members[0], request.resource.data.members[1])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.readAt == {};
+      allow update: if verified() && uid() in resource.data.members
+        && changedKeys().hasOnly(['readAt'])
+        && request.resource.data.readAt.diff(resource.data.readAt).affectedKeys().hasOnly([uid()])
+        && request.resource.data.readAt[uid()] == request.time;
+      match /messages/{messageId} {
+        allow read: if chatMember(id);
+        allow create: if chatWritable(id)
+          && request.resource.data.keys().hasOnly(['senderId', 'body', 'createdAt', 'updatedAt'])
+          && request.resource.data.senderId == uid() && textBody(request.resource.data.body)
+          && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+        allow update: if chatWritable(id) && resource.data.senderId == uid()
+          && changedKeys().hasOnly(['body', 'updatedAt']) && textBody(request.resource.data.body)
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if verified() && chatMember(id) && resource.data.senderId == uid();
+      }
+    }
+    match /posts/{postId}/comments/{commentId} {
+      allow read: if readablePost(postId);
+      allow create: if verified() && hasProfile() && readablePost(postId)
+        && request.resource.data.keys().hasOnly(['authorId', 'content', 'parentId', 'createdAt', 'updatedAt', 'votes'])
+        && request.resource.data.authorId == uid() && textBody(request.resource.data.content)
+        && (request.resource.data.parentId == null || (request.resource.data.parentId is string
+          && exists(/databases/$(database)/documents/posts/$(postId)/comments/$(request.resource.data.parentId))))
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && request.resource.data.votes == {};
+      allow update: if verified() && readablePost(postId) && (
+        (resource.data.authorId == uid() && changedKeys().hasOnly(['content', 'updatedAt'])
+          && textBody(request.resource.data.content) && request.resource.data.updatedAt == request.time)
+        || (changedKeys().hasOnly(['votes']) && request.resource.data.votes is map
+          && request.resource.data.votes.diff(resource.data.votes).affectedKeys().hasOnly([uid()])
+          && (!(uid() in request.resource.data.votes) || request.resource.data.votes[uid()] in [-1, 1])));
+      allow delete: if verified() && (resource.data.authorId == uid() || get(docPath('posts', postId)).data.authorId == uid());
+    }
+    // One immutable delivery receipt prevents replay after a recipient deletes their notice.
+    match /posts/{postId}/notificationReceipts/{recipientId} {
+      allow read: if signedIn() && get(docPath('posts', postId)).data.authorId == uid();
+      allow delete: if signedIn() && get(docPath('posts', postId)).data.authorId == uid()
+        && !existsAfter(docPath('posts', postId));
+      allow create: if verified() && get(docPath('posts', postId)).data.authorId == uid()
+        && recipientId != uid() && recipientId in get(docPath('posts', postId)).data.viewerIds
+        && !blockedEitherWay(uid(), recipientId)
+        && request.resource.data.keys().hasOnly(['createdAt']) && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/users/$(recipientId)/notifications/$('post_' + postId)).data.postId == postId
+        && getAfter(/databases/$(database)/documents/users/$(recipientId)/notifications/$('post_' + postId)).data.createdAt == request.time;
+    }
+    match /users/{userId}/chatPreferences/{id} {
+      allow read, delete: if signedIn() && uid() == userId;
+      allow create, update: if verified() && uid() == userId
+        && request.resource.data.keys().hasOnly(['presetId', 'customWallpaperUri', 'wallpaperAlignment'])
+        && request.resource.data.presetId is string && request.resource.data.presetId.size() <= 50
+        && (request.resource.data.customWallpaperUri == null || (request.resource.data.customWallpaperUri is string && request.resource.data.customWallpaperUri.size() <= 2000))
+        && request.resource.data.wallpaperAlignment in ['CENTER', 'TOP', 'BOTTOM'];
+    }
+    match /users/{userId}/notifications/{notificationId} {
+      function validSource(d) {
+        return (d.type == 'NEW_MESSAGE' && newMessage(d))
+          || (d.type == 'COMMENT' && newComment(d))
+          || (d.type == 'FRIEND_REQUEST' && friendRequest(d))
+          || (d.type == 'FRIEND_ACCEPTED' && friendAccepted(d))
+          || (d.type == 'REACTION' && reaction(d))
+          || (d.type == 'NEW_POST' && newPost(d));
+      }
+      function newMessage(d) {
+        let path = /databases/$(database)/documents/conversations/$(d.conversationId)/messages/$(d.sourceId);
+        return d.postId == null && notificationId == 'message_' + d.sourceId
+          && uid() in getAfter(docPath('conversations', d.conversationId)).data.members
+          && userId in getAfter(docPath('conversations', d.conversationId)).data.members
+          && !exists(path) && getAfter(path).data.senderId == uid() && getAfter(path).data.createdAt == request.time;
+      }
+      function newComment(d) {
+        let path = /databases/$(database)/documents/posts/$(d.postId)/comments/$(d.sourceId);
+        return d.conversationId == null && notificationId == 'comment_' + d.sourceId
+          && get(docPath('posts', d.postId)).data.authorId == userId
+          && !exists(path) && getAfter(path).data.authorId == uid() && getAfter(path).data.createdAt == request.time;
+      }
+      function friendRequest(d) {
+        let path = docPath('friendships', d.sourceId);
+        return d.postId == null && d.conversationId == null && !exists(path)
+          && getAfter(path).data.requesterId == uid() && getAfter(path).data.addresseeId == userId
+          && getAfter(path).data.status == 'pending' && getAfter(path).data.createdAt == request.time;
+      }
+      function friendAccepted(d) {
+        let path = docPath('friendships', d.sourceId);
+        return d.postId == null && d.conversationId == null && get(path).data.status == 'pending'
+          && getAfter(path).data.requesterId == userId && getAfter(path).data.addresseeId == uid()
+          && getAfter(path).data.status == 'accepted' && getAfter(path).data.acceptedAt == request.time;
+      }
+      function reaction(d) {
+        let path = docPath('posts', d.postId);
+        return d.conversationId == null && d.sourceId == uid() && get(path).data.authorId == userId
+          && uid() in getAfter(path).data.reactions
+          && getAfter(path).data.reactions.diff(get(path).data.reactions).affectedKeys().hasOnly([uid()])
+          && getAfter(path).data.reactions.diff(get(path).data.reactions).affectedKeys().size() == 1;
+      }
+      function newPost(d) {
+        let path = docPath('posts', d.postId);
+        let receipt = /databases/$(database)/documents/posts/$(d.postId)/notificationReceipts/$(userId);
+        return d.conversationId == null && d.sourceId == d.postId && notificationId == 'post_' + d.postId
+          && get(path).data.authorId == uid() && userId in get(path).data.viewerIds
+          && !exists(receipt) && getAfter(receipt).data.createdAt == request.time;
+      }
+      allow read, delete: if signedIn() && uid() == userId;
+      allow create: if verified() && hasProfile() && userId != uid() && !blockedEitherWay(uid(), userId)
+        && request.resource.data.keys().hasOnly(['type', 'actorId', 'postId', 'conversationId', 'sourceId', 'createdAt', 'isRead'])
+        && request.resource.data.actorId == uid() && request.resource.data.isRead == false
+        && request.resource.data.sourceId is string && request.resource.data.sourceId.size() <= 150
+        && request.resource.data.createdAt == request.time && validSource(request.resource.data);
+      allow update: if verified() && uid() == userId && changedKeys().hasOnly(['isRead'])
+        && request.resource.data.isRead is bool;
+    }
+
+    // ------------------------------------------------------------------ landmarks
+
+    // Địa danh do người dùng đã xác nhận email thêm từ một địa điểm VietMap (id = băm mã VietMap, không trùng).
+    // Toạ độ là điểm công khai của địa điểm, nằm trong khung Việt Nam. Không xoá: ảnh của người khác đang gắn vào.
+    // Ảnh bìa không lưu ở đây: app chọn bài public có nhiều cảm xúc nhất (không có Cloud Functions để tính hộ).
+    match /landmarks/{landmarkId} {
+
+      function validLandmark(d) {
+        return d.keys().hasOnly(['name', 'searchName', 'address', 'description', 'provinceCode', 'provinceName',
+                                 'wardCode', 'wardName', 'lat', 'lng', 'vietmapRef', 'createdBy', 'createdAt',
+                                 'status', 'reportCount'])
+          && d.name is string && d.name.size() >= 2 && d.name.size() <= 60
+          && d.searchName is string && d.searchName.size() <= 120
+          && d.address is string && d.address.size() <= 200
+          && (d.description == null || (d.description is string && d.description.size() <= 150))
+          && d.provinceCode is string && d.provinceCode.size() > 0 && d.provinceCode.size() <= 40
+          && d.provinceName is string && d.provinceName.size() <= 60
+          && (d.wardCode == null || (d.wardCode is string && d.wardCode.size() <= 120))
+          && (d.wardName == null || (d.wardName is string && d.wardName.size() <= 80))
+          && d.lat is number && d.lat >= 8 && d.lat <= 24
+          && d.lng is number && d.lng >= 102 && d.lng <= 118
+          && d.vietmapRef is string && d.vietmapRef.size() <= 300;
+      }
+
+      // Báo cáo địa danh rác: giống báo cáo bài (đúng +1, kèm phiếu, đủ 3 phiếu thì ẩn)
+      function landmarkReportUpdate() {
+        let reportPath = /databases/$(database)/documents/landmarks/$(landmarkId)/reports/$(uid());
+        let next = resource.data.reportCount + 1;
+        return resource.data.status == 'active'
+          && resource.data.createdBy != uid()
+          && changedKeys().hasOnly(['reportCount', 'status'])
+          && request.resource.data.reportCount == next
+          && !exists(reportPath)
+          && existsAfter(reportPath)
+          && ((next >= 3 && request.resource.data.status == 'hidden')
+              || (next < 3 && request.resource.data.status == resource.data.status));
+      }
+
+      // Chưa tồn tại → trả "không có" (transaction tạo mới đọc trước); bị ẩn thì chỉ người tạo còn thấy
+      allow get: if signedIn()
+        && (resource == null || resource.data.status == 'active' || resource.data.createdBy == uid());
+      allow list: if signedIn() && resource.data.status == 'active';
+      allow create: if verified() && hasProfile()
+        && landmarkId.matches('^[A-Za-z0-9_-]{3,64}$')
+        && validLandmark(request.resource.data)
+        && request.resource.data.createdBy == uid()
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.status == 'active'
+        && request.resource.data.reportCount == 0;
+      allow update: if verified() && landmarkReportUpdate();
+
+      match /reports/{reporterId} {
+        allow get: if signedIn() && reporterId == uid();
+        allow create: if verified() && reporterId == uid()
+          && request.resource.data.keys().hasOnly(['reason', 'createdAt'])
+          && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+          && request.resource.data.createdAt == request.time
+          && get(docPath('users', uid())).data.createdAt < request.time - duration.value(1, 'd')
+          && getAfter(docPath('landmarks', landmarkId)).data.reportCount
+               == get(docPath('landmarks', landmarkId)).data.reportCount + 1;
+      }
+    }
+
+    // ------------------------------------------------------------------ posts
+
+    match /posts/{postId} {
+
+      // Luật hiển thị: tác giả; hoặc bài đang active và (có tên trong viewerIds = bạn bè / người nhận,
+      // hoặc bài public đã tới giờ hiện theo giờ server).
+      function canRead() {
+        return signedIn() && (
+          resource.data.authorId == uid()
+          || (resource.data.status == 'active' && (
+                uid() in resource.data.viewerIds
+                || (resource.data.audience == 'public' && resource.data.publicVisibleAt <= request.time)
+             ))
+        );
+      }
+
+      function validLocation(d) {
+        return d.locationLevel in ['place', 'ward', 'province', 'country']
+          && ((d.locationLevel == 'country'
+                && d.provinceCode == null && d.wardCode == null && d.placeId == null
+                && d.displayLat == null && d.displayLng == null)
+              || (d.locationLevel != 'country'
+                && d.provinceCode is string
+                && d.displayLat is number && d.displayLng is number
+                && (d.locationLevel != 'ward' || d.wardCode is string)
+                && (d.locationLevel != 'place' || d.placeName is string)));
+      }
+
+      // Hẹn giờ: publicVisibleAt = giờ server + delayDays (cho lệch 15 phút vì app tính bằng đồng hồ máy)
+      function validSchedule(d) {
+        return d.delayDays in [0, 1, 3, 7]
+          && ((d.audience == 'public'
+                && d.publicVisibleAt is timestamp
+                && d.publicVisibleAt > request.time + duration.value(d.delayDays * 1440 - 15, 'm')
+                && d.publicVisibleAt < request.time + duration.value(d.delayDays * 1440 + 15, 'm'))
+              || (d.audience != 'public' && d.publicVisibleAt == null && d.delayDays == 0));
+      }
+
+      function validAudience(d) {
+        return d.audience in ['friends', 'direct', 'public']
+          && d.viewerIds is list && d.viewerIds.size() <= 22 && uid() in d.viewerIds
+          && ((d.audience == 'direct'
+                && d.recipientId is string
+                && d.viewerIds.toSet() == [uid(), d.recipientId].toSet()
+                && areFriends(uid(), d.recipientId))
+              || (d.audience != 'direct' && d.recipientId == null));
+      }
+
+      // Gắn địa danh: chỉ bài public ở mức địa điểm, địa danh còn hoạt động, toạ độ hiển thị = điểm công khai
+      // của địa danh (không phải toạ độ người chụp), cùng tỉnh với địa danh.
+      function validLandmarkTag(d) {
+        return !('landmarkId' in d) || d.landmarkId == null
+          || (d.landmarkId is string
+              && d.audience == 'public'
+              && d.locationLevel == 'place'
+              && exists(docPath('landmarks', d.landmarkId))
+              && get(docPath('landmarks', d.landmarkId)).data.status == 'active'
+              && d.displayLat == get(docPath('landmarks', d.landmarkId)).data.lat
+              && d.displayLng == get(docPath('landmarks', d.landmarkId)).data.lng
+              && d.provinceCode == get(docPath('landmarks', d.landmarkId)).data.provinceCode);
+      }
+
+      function validNewPost(d) {
+        return d.keys().hasOnly(['authorId', 'author', 'imageUrl', 'imagePublicId', 'caption', 'audience',
+                                 'viewerIds', 'recipientId', 'locationLevel', 'provinceCode', 'provinceName',
+                                 'wardCode', 'wardName', 'placeId', 'placeName', 'landmarkId',
+                                 'displayLat', 'displayLng', 'delayDays', 'publicVisibleAt', 'takenAt',
+                                 'createdAt', 'status', 'reactions', 'reportCount'])
+          && d.authorId == uid()
+          && d.author.keys().hasOnly(['username', 'displayName', 'avatarUrl'])
+          && d.imageUrl is string && d.imageUrl.matches('^https://res[.]cloudinary[.]com/.+')
+          && d.imagePublicId is string
+          && (d.caption == null || (d.caption is string && d.caption.size() <= 60))
+          && validAudience(d)
+          && validLocation(d)
+          && validLandmarkTag(d)
+          && validSchedule(d)
+          && d.takenAt is timestamp
+          && d.createdAt == request.time
+          && d.status == 'active'
+          && d.reactions == {}
+          && d.reportCount == 0;
+      }
+
+      // Tác giả sửa lời nhắn, cập nhật người xem (kết bạn / huỷ bạn) và tên/ảnh của mình
+      function authorUpdate() {
+        return resource.data.authorId == uid()
+          && changedKeys().hasOnly(['caption', 'viewerIds', 'author'])
+          && (request.resource.data.caption == null
+              || (request.resource.data.caption is string && request.resource.data.caption.size() <= 60))
+          && request.resource.data.viewerIds is list
+          && uid() in request.resource.data.viewerIds
+          && request.resource.data.viewerIds.size() <= 22
+          && request.resource.data.author.keys().hasOnly(['username', 'displayName', 'avatarUrl']);
+      }
+
+      // Tác giả gắn bài public đã gửi vào địa danh (đổi vị trí sang điểm của địa danh) hoặc gỡ ra
+      function authorLandmarkUpdate() {
+        let d = request.resource.data;
+        return resource.data.authorId == uid()
+          && resource.data.audience == 'public'
+          && changedKeys().hasOnly(['landmarkId', 'locationLevel', 'provinceCode', 'provinceName', 'wardCode',
+                                    'wardName', 'placeId', 'placeName', 'displayLat', 'displayLng'])
+          && ((d.landmarkId == null && changedKeys().hasOnly(['landmarkId']))
+              || (d.landmarkId is string && validLocation(d) && validLandmarkTag(d)));
+      }
+
+      // Thả / bỏ cảm xúc: người xem chỉ được đổi đúng ô reactions.<uid của mình>
+      function reactionUpdate() {
+        return canRead()
+          && changedKeys().hasOnly(['reactions'])
+          && request.resource.data.reactions.diff(resource.data.reactions).affectedKeys().hasOnly([uid()])
+          && (!(uid() in request.resource.data.reactions)
+              || (request.resource.data.reactions[uid()] is string && request.resource.data.reactions[uid()].size() <= 16));
+      }
+
+      // Hết là bạn / chặn: người xem tự rút tên mình khỏi viewerIds
+      function leaveViewers() {
+        return uid() in resource.data.viewerIds
+          && resource.data.authorId != uid()
+          && changedKeys().hasOnly(['viewerIds'])
+          && request.resource.data.viewerIds.toSet() == resource.data.viewerIds.toSet().difference([uid()].toSet());
+      }
+
+      // Báo cáo: tăng đúng 1, kèm phiếu reports/{uid} mới trong cùng transaction; đủ 3 phiếu thì ẩn bài
+      function reportUpdate() {
+        let reportPath = /databases/$(database)/documents/posts/$(postId)/reports/$(uid());
+        let next = resource.data.reportCount + 1;
+        return canRead()
+          && resource.data.authorId != uid()
+          && changedKeys().hasOnly(['reportCount', 'status'])
+          && request.resource.data.reportCount == next
+          && !exists(reportPath)
+          && existsAfter(reportPath)
+          && ((next >= 3 && request.resource.data.status == 'hidden')
+              || (next < 3 && request.resource.data.status == resource.data.status));
+      }
+
+      // get bài không tồn tại → trả "không có" thay vì lỗi quyền (app phân biệt được bài đã xoá)
+      allow get: if signedIn() && (resource == null || canRead());
+      allow list: if canRead();
+      allow create: if verified() && hasProfile() && validNewPost(request.resource.data);
+      allow update: if verified()
+        && (authorUpdate() || authorLandmarkUpdate() || reactionUpdate() || leaveViewers() || reportUpdate());
+      allow delete: if signedIn() && resource.data.authorId == uid();
+
+      // Toạ độ GPS gốc: chỉ tác giả đọc được
+      match /private/{docId} {
+        allow read: if signedIn() && get(docPath('posts', postId)).data.authorId == uid();
+        allow create: if signedIn() && docId == 'location'
+          && getAfter(docPath('posts', postId)).data.authorId == uid()
+          && request.resource.data.keys().hasOnly(['lat', 'lng', 'accuracyM'])
+          && request.resource.data.lat is number && request.resource.data.lng is number;
+        allow delete: if signedIn() && get(docPath('posts', postId)).data.authorId == uid();
+      }
+
+      // Phiếu báo cáo: mỗi người 1 phiếu, tài khoản tạo trên 24 giờ, không xem được phiếu của người khác
+      match /reports/{reporterId} {
+        allow get: if signedIn() && reporterId == uid();
+        allow create: if verified() && reporterId == uid()
+          && request.resource.data.keys().hasOnly(['reason', 'createdAt'])
+          && request.resource.data.reason is string && request.resource.data.reason.size() <= 200
+          && request.resource.data.createdAt == request.time
+          && get(docPath('users', uid())).data.createdAt < request.time - duration.value(1, 'd')
+          && getAfter(docPath('posts', postId)).data.reportCount == get(docPath('posts', postId)).data.reportCount + 1;
+      }
+    }
+  }
+}

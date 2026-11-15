@@ -2,6 +2,8 @@ package vn.nhom2.lokap.core.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
+import vn.nhom2.lokap.feature.addfriend.addFriendScreen
 import vn.nhom2.lokap.feature.auth.forgotPasswordScreen
 import vn.nhom2.lokap.feature.auth.loginScreen
 import vn.nhom2.lokap.feature.auth.registerScreen
@@ -49,6 +52,7 @@ import vn.nhom2.lokap.feature.profile.profileScreen
 import vn.nhom2.lokap.feature.region.regionAlbumScreen
 import vn.nhom2.lokap.feature.search.searchScreen
 import vn.nhom2.lokap.feature.settings.settingsScreen
+import vn.nhom2.lokap.feature.auth.verify.verifyEmailScreen
 private const val NAV_ANIM_DURATION = 320
 private const val NAV_TAB_TRANSITION_MS = 200
 
@@ -99,9 +103,13 @@ fun AppNavHost(
             .fillMaxSize()
             .background(LokapTheme.colors.background)
     ) {
+        // Đang khôi phục phiên đăng nhập (AuthSession.Loading): giữ nền đen, chưa dựng NavHost.
+        // Điểm bắt đầu được chốt một lần (rememberStartDestination) nên graph không bị dựng lại.
+        val start = startDestination ?: return@Box
+
         NavHost(
             navController = navController,
-            startDestination = startDestination,
+            startDestination = start,
             modifier = Modifier
                 .fillMaxSize()
                 .background(LokapTheme.colors.background),
@@ -144,13 +152,37 @@ fun AppNavHost(
                         animationSpec = tween(NAV_ANIM_DURATION)
                     )
                 }
-            }
+            },
+            // Vuốt back từ mép màn hình (predictive back, bật sẵn từ targetSdk 36). Mặc định của Navigation 2.10
+            // là scaleOut(0.7f) + fadeIn: màn cũ co thành khung nhỏ trôi trên màn trước rồi mới thu lại.
+            // Nhóm chọn đổi màn ngay (15/11): lúc vuốt màn hiện tại đứng yên, thả tay là sang màn trước.
+            // Nút mũi tên back trên màn và back 3 phím không đi qua đây, vẫn dùng popEnter/popExit ở trên.
+            predictivePopEnterTransition = { EnterTransition.None },
+            predictivePopExitTransition = { ExitTransition.None }
         ) {
             composable<Route.Camera> {
                 CameraRoute(
                     onNavigateToComposer = { path -> navController.navigateSingleTop(Route.Composer(path)) },
-                    onNavigateToFeed = { navController.navigateSingleTop(Route.Feed) },
-                    onNavigateToMap = { navController.navigateSingleTop(Route.Map) },
+                    onNavigateToFeed = { navController.navigateToTab(Route.Feed) },
+                    onNavigateToMap = { navController.navigateToTab(Route.Map) },
+                    onNavigateToFriends = { navController.navigateSingleTop(Route.Friends) },
+                    onNavigateToInbox = { navController.navigateToTab(Route.Inbox) },
+                    onNavigateToProfile = { userId ->
+                        // null = tab Hồ sơ của tôi; có userId = mở hồ sơ bạn bè (màn con, giữ trong stack)
+                        if (userId == null) navController.navigateToTab(Route.Profile())
+                        else navController.navigateSingleTop(Route.Profile(userId))
+                    }
+                )
+            }
+
+            // Camera mở từ màn Địa danh: chụp xong sang Composer đã chọn sẵn địa danh
+            // (Huỷ ở Composer quay lại camera để chụp lại; gửi xong về thẳng màn Địa danh)
+            composable<Route.LandmarkCamera> { entry ->
+                val landmarkId = entry.toRoute<Route.LandmarkCamera>().landmarkId
+                CameraRoute(
+                    onNavigateToComposer = { path -> navController.navigateSingleTop(Route.Composer(path, landmarkId)) },
+                    onNavigateToFeed = { navController.popBackStackSafely() },
+                    onNavigateToMap = { navController.popBackStackSafely() },
                     onNavigateToFriends = { navController.navigateSingleTop(Route.Friends) },
                     onNavigateToInbox = { navController.navigateSingleTop(Route.Inbox) },
                     onNavigateToProfile = { userId -> navController.navigateSingleTop(Route.Profile(userId)) }
@@ -162,6 +194,8 @@ fun AppNavHost(
             loginScreen(navController)
 
             registerScreen(navController)
+
+            verifyEmailScreen(navController)
 
             forgotPasswordScreen(navController)
 
@@ -182,6 +216,8 @@ fun AppNavHost(
             profileScreen(navController)
 
             friendsScreen(navController)
+
+            addFriendScreen(navController)
 
             notificationsScreen(navController)
 
@@ -210,11 +246,11 @@ fun AppNavHost(
                 currentTab = lastSelectedTab,
                 onTabSelected = { selectedTab ->
                     when (selectedTab) {
-                        MainTab.FEED -> navController.navigateSingleTop(Route.Feed)
-                        MainTab.MAP -> navController.navigateSingleTop(Route.Map)
-                        MainTab.CAMERA -> navController.navigateSingleTop(Route.Camera)
-                        MainTab.INBOX -> navController.navigateSingleTop(Route.Inbox)
-                        MainTab.PROFILE -> navController.navigateSingleTop(Route.Profile())
+                        MainTab.FEED -> navController.navigateToTab(Route.Feed)
+                        MainTab.MAP -> navController.navigateToTab(Route.Map)
+                        MainTab.CAMERA -> navController.navigateToTab(Route.Camera)
+                        MainTab.INBOX -> navController.navigateToTab(Route.Inbox)
+                        MainTab.PROFILE -> navController.navigateToTab(Route.Profile())
                     }
                 }
             )
@@ -260,8 +296,7 @@ fun PlaceholderScreen(
         }
 
         EmptyState(
-            title = subtitle,
-            subtitle = "Màn hình \"$title\" sẽ được hoàn thiện ở bước tiếp theo."
+            title = subtitle
         )
 
         GhostButton(

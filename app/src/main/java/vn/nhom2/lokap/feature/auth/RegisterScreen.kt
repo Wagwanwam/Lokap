@@ -52,6 +52,8 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import vn.nhom2.lokap.feature.auth.verify.VerifyEmailRoute
 fun NavGraphBuilder.registerScreen(navController: NavController) {
     composable<RegisterRoute> {
         RegisterRoute(
@@ -60,6 +62,9 @@ fun NavGraphBuilder.registerScreen(navController: NavController) {
             },
             onNavigateBackToLogin = {
                 navController.popBackStackSafely()
+            },
+            onNavigateToVerifyEmail = { email ->
+                navController.navigate(VerifyEmailRoute(email = email)) { launchSingleTop = true }
             }
         )
     }
@@ -69,7 +74,8 @@ fun NavGraphBuilder.registerScreen(navController: NavController) {
 fun RegisterRoute(
     onNavigateToSetupProfile: () -> Unit,
     onNavigateBackToLogin: () -> Unit,
-    viewModel: RegisterViewModel = viewModel()
+    onNavigateToVerifyEmail: (String) -> Unit,
+    viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -78,6 +84,7 @@ fun RegisterRoute(
             when (effect) {
                 RegisterEffect.NavigateToSetupProfile -> onNavigateToSetupProfile()
                 RegisterEffect.NavigateBackToLogin -> onNavigateBackToLogin()
+                is RegisterEffect.NavigateToVerifyEmail -> onNavigateToVerifyEmail(effect.email)
             }
         }
     }
@@ -129,7 +136,7 @@ fun RegisterScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Quay lại",
                         tint = colors.textPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                 }
             }
@@ -167,13 +174,7 @@ fun RegisterScreen(
             color = colors.textPrimary
         )
 
-        Spacer(modifier = Modifier.height(spacing.xs))
 
-        Text(
-            text = "Nhập email và mật khẩu an toàn để khởi tạo tài khoản.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.textSecondary
-        )
 
         Spacer(modifier = Modifier.height(spacing.lg))
 
@@ -359,7 +360,7 @@ fun RegisterScreen(
                             )
                         )
                         Text(
-                            text = "Tôi đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của Lokap",
+                            text = "Đồng ý Điều khoản & Chính sách",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textPrimary,
                             modifier = Modifier.padding(start = 6.dp)
@@ -454,7 +455,7 @@ private fun PasswordStrengthBar(strength: PasswordStrength) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
                 color = animatedColor
             )
         }
@@ -481,7 +482,7 @@ private fun EmailAvailabilityTrailingIcon(availability: EmailAvailability) {
                 imageVector = Icons.Filled.Check,
                 contentDescription = "Email dùng được",
                 tint = LokapTheme.colors.success,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(30.dp)
             )
         }
 
@@ -490,7 +491,7 @@ private fun EmailAvailabilityTrailingIcon(availability: EmailAvailability) {
                 imageVector = Icons.Filled.Close,
                 contentDescription = "Email đã được đăng ký",
                 tint = LokapTheme.colors.error,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(30.dp)
             )
         }
     }

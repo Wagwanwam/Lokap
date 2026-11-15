@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
-import vn.nhom2.lokap.data.fake.SampleData
 @Composable
 fun RegionCard(
     code: String,
@@ -158,33 +157,5 @@ fun RegionCard(
             color = colors.textPrimary,
             modifier = Modifier.align(Alignment.BottomStart)
         )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun RegionCardPreview() {
-    LokapTheme {
-        Column(
-            modifier = Modifier
-                .background(LokapTheme.colors.background)
-                .padding(LokapTheme.spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md)
-        ) {
-            RegionCard(
-                code = "da-nang",
-                regionName = "Đà Nẵng",
-                photoUrls = SampleData.posts.take(3).map { it.imageUrl },
-                postCount = 512,
-                visited = true
-            )
-            RegionCard(
-                code = "hue",
-                regionName = "Huế",
-                photoUrls = SampleData.posts.drop(3).take(3).map { it.imageUrl },
-                postCount = 248,
-                visited = false
-            )
-        }
     }
 }

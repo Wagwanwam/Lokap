@@ -9,7 +9,7 @@ enum class SearchTab {
 data class SearchUiState(
     val query: String = "",
     val selectedTab: SearchTab = SearchTab.PEOPLE,
-    val recentSearches: List<String> = listOf("Cầu Rồng", "Hội An", "Trần Khánh Linh", "Đà Nẵng", "Sơn Trà"),
+    val recentSearches: List<String> = emptyList(),
     val userResults: List<User> = emptyList(),
     val placeResults: List<Place> = emptyList(),
     val friendStatuses: Map<String, FriendStatus> = emptyMap(),
@@ -30,5 +30,7 @@ sealed interface SearchAction {
 sealed interface SearchEffect {
     data object NavigateBack : SearchEffect
     data class NavigateToProfile(val userId: String) : SearchEffect
-    data class NavigateToPlace(val placeId: String) : SearchEffect
+    data class NavigateToPlace(val place: Place) : SearchEffect
+    /** Lỗi tìm kiếm / kết bạn (mất mạng, đủ 20 bạn…) hiện snackbar. */
+    data class ShowMessage(val message: String) : SearchEffect
 }

@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.feature.composer
 
 import androidx.compose.runtime.Immutable
-import vn.nhom2.lokap.data.fake.SampleData2
 import vn.nhom2.lokap.domain.model.*
 enum class LocationAcquisitionState {
     READY,
@@ -17,17 +16,6 @@ enum class PostFilterTemplate(val labelVi: String) {
     VINTAGE("Cổ điển")
 }
 
-enum class PhotoColorFilter(val labelVi: String) {
-    ORIGINAL("Gốc"),
-    VIVID("Tươi rực"),
-    WARM_GOLDEN("Ấm áp"),
-    COOL_BREEZE("Trong trẻo"),
-    NOSTALGIA("Hoài niệm"),
-    MONO_CHIC("Đen trắng"),
-    DREAMY_PASTEL("Mộng mơ"),
-    CINEMATIC("Điện ảnh")
-}
-
 enum class PhotoWatermarkStamp(val labelVi: String) {
     NONE("Không dấu"),
     LOKAP_MINIMAL("Lokap Minimal"),
@@ -35,10 +23,7 @@ enum class PhotoWatermarkStamp(val labelVi: String) {
     TRAVEL_PASSPORT("Dấu mộc Visa"),
     ART_POLAROID("Khung Polaroid"),
     KODAK_FILM_35MM("Khung Film 35mm"),
-    GPS_COORDINATES("Tọa độ GPS"),
-    WEATHER_REPORT("Thời tiết"),
     VHS_CAMCORDER("Băng VHS 1998"),
-    VINYL_MUSIC("Giai điệu"),
     MEMORY_RECEIPT("Vé kỷ niệm"),
     VIETNAM_PRIDE("Tự hào VN")
 }
@@ -50,26 +35,44 @@ data class ComposerUiState(
     val audience: Audience = Audience.FRIENDS,
     val locationLevel: LocationLevel = LocationLevel.PROVINCE,
     val locationStatus: LocationAcquisitionState = LocationAcquisitionState.READY,
-    val currentProvinceCode: String = SampleData2.DEFAULT_PROVINCE_CODE,
-    val currentProvinceName: String = SampleData2.DEFAULT_PROVINCE_NAME,
-    val currentWardCode: String = SampleData2.DEFAULT_WARD_CODE,
-    val currentWardName: String = SampleData2.DEFAULT_WARD_NAME,
+    val currentProvinceCode: String = "",
+    val currentProvinceName: String = "",
+    val currentWardCode: String = "",
+    val currentWardName: String = "",
     val selectedPlace: Place? = null,
     val isPlaceSheetOpen: Boolean = false,
     val placeSearchQuery: String = "",
-    val filteredPlaces: List<Place> = SampleData2.daNangPlaces,
+    val filteredPlaces: List<Place> = emptyList(),
     val publishDelay: PublishDelay = PublishDelay.NOW,
     val showDiscardDialog: Boolean = false,
     val isSubmitting: Boolean = false,
     val selectedTemplate: PostFilterTemplate = PostFilterTemplate.NONE,
-    val selectedColorFilter: PhotoColorFilter = PhotoColorFilter.ORIGINAL,
     val selectedStamp: PhotoWatermarkStamp = PhotoWatermarkStamp.NONE,
-    val streakCount: Int = 5
+    /** Mở từ màn Địa danh: ảnh luôn Công khai, vị trí = điểm công khai của địa danh. */
+    val isLandmarkMode: Boolean = false,
+    /** Địa danh đã tải (null khi đang tải hoặc địa danh không còn). */
+    val landmark: Landmark? = null
 ) {
     val canSend: Boolean
-        get() = !isSubmitting &&
-            locationStatus != LocationAcquisitionState.FETCHING &&
-            (locationLevel != LocationLevel.PLACE || selectedPlace != null)
+        get() = !isSubmitting && when {
+            // Vị trí lấy từ địa danh nên không cần chờ GPS
+            isLandmarkMode -> landmark != null
+            else -> locationStatus != LocationAcquisitionState.FETCHING &&
+                (locationLevel != LocationLevel.PLACE || selectedPlace?.lat?.isNaN() == false)
+        }
+
+    /** Tên vị trí sẽ gắn vào bài, đúng mức đang chọn (mặc định: tỉnh). */
+    val locationLabel: String
+        get() = when {
+            isLandmarkMode -> landmark?.name ?: "Đang tải…"
+            locationStatus == LocationAcquisitionState.FETCHING -> "Đang định vị…"
+            locationStatus == LocationAcquisitionState.UNAVAILABLE ||
+                locationLevel == LocationLevel.COUNTRY -> "Việt Nam"
+            locationLevel == LocationLevel.PLACE -> selectedPlace?.name ?: currentProvinceName
+            locationLevel == LocationLevel.WARD ->
+                listOf(currentWardName, currentProvinceName).filter { it.isNotBlank() }.joinToString(", ")
+            else -> currentProvinceName
+        }.ifBlank { "Việt Nam" }
 }
 
 sealed interface ComposerAction {
@@ -77,7 +80,6 @@ sealed interface ComposerAction {
     data class OnSelectAudience(val audience: Audience) : ComposerAction
     data class OnSelectLocationLevel(val level: LocationLevel) : ComposerAction
     data class OnSelectTemplate(val template: PostFilterTemplate) : ComposerAction
-    data class OnSelectColorFilter(val filter: PhotoColorFilter) : ComposerAction
     data class OnSelectStamp(val stamp: PhotoWatermarkStamp) : ComposerAction
     data object OnOpenPlaceSheet : ComposerAction
     data object OnDismissPlaceSheet : ComposerAction
@@ -91,5 +93,10 @@ sealed interface ComposerAction {
 }
 
 sealed interface ComposerEffect {
+    /** Huỷ: quay lại camera (hoặc màn Địa danh nếu chọn ảnh từ thư viện). */
     data object NavigateBackToCamera : ComposerEffect
+    /** Đã lưu bài vào hàng đợi gửi. */
+    data object PostSent : ComposerEffect
+    /** Gửi thất bại (mất mạng, ảnh hỏng…): hiện lỗi, nút Gửi mở lại. */
+    data class ShowMessage(val message: String) : ComposerEffect
 }

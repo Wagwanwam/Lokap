@@ -26,7 +26,16 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.combine
+import vn.nhom2.lokap.data.location.ProvinceCatalog
+import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.PostRepository
+import vn.nhom2.lokap.domain.repository.SocialRepository
+import vn.nhom2.lokap.domain.repository.observeMapPosts
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -46,27 +55,26 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.FakePostStore
-import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.data.fake.SampleMapData
 import vn.nhom2.lokap.domain.model.*
+/** Khớp bộ lọc của bản đồ: mặc định "Tất cả" để album đếm đúng các bài đã thấy trên bản đồ. */
 enum class RegionAudienceFilter(val label: String) {
+    ALL("Tất cả"),
     FRIENDS("Bạn bè"),
     PUBLIC("Public")
 }
 
 data class RegionAlbumUiState(
     val level: String = "PROVINCE",
-    val code: String = "48",
-    val regionName: String = "Đà Nẵng",
+    val code: String = "",
+    val regionName: String = "",
     val isLoading: Boolean = true,
     val isLoadingMore: Boolean = false,
     val errorMessage: String? = null,
-    val filter: RegionAudienceFilter = RegionAudienceFilter.PUBLIC,
+    val filter: RegionAudienceFilter = RegionAudienceFilter.ALL,
     val displayedPosts: List<Post> = emptyList(),
     val totalPostCount: Int = 0,
     val canLoadMore: Boolean = false,
-    val visited: Boolean = true
+    val visited: Boolean = false
 )
 
 sealed interface RegionAlbumAction {
@@ -84,8 +92,12 @@ sealed interface RegionAlbumEffect {
     data class ShowSnackbar(val message: String) : RegionAlbumEffect
 }
 
-class RegionAlbumViewModel(
-    savedStateHandle: SavedStateHandle
+@HiltViewModel
+class RegionAlbumViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val posts: PostRepository,
+    private val social: SocialRepository,
+    private val auth: AuthRepository
 ) : ViewModel() {
 
     private val routeArgs: Route.RegionAlbum = runCatching {
@@ -93,7 +105,7 @@ class RegionAlbumViewModel(
     }.getOrElse {
         Route.RegionAlbum(
             level = savedStateHandle["level"] ?: "PROVINCE",
-            code = savedStateHandle["code"] ?: "da-nang"
+            code = savedStateHandle["code"] ?: ""
         )
     }
 
@@ -101,7 +113,7 @@ class RegionAlbumViewModel(
         RegionAlbumUiState(
             level = routeArgs.level,
             code = routeArgs.code,
-            regionName = SampleMapData.findRegionName(routeArgs.level, routeArgs.code),
+            regionName = ProvinceCatalog.findByCode(routeArgs.code)?.name ?: "Khu vực",
             isLoading = true
         )
     )
@@ -114,16 +126,27 @@ class RegionAlbumViewModel(
     private var currentPage = 1
     private var allRegionPosts: List<Post> = emptyList()
 
+    private var loadJob: Job? = null
+    private var friendIds: Set<String> = emptySet()
+
     init {
-        loadRegionPosts()
+        // Mở màn: dùng cache có hạn (thường vừa tải ở Bản đồ / Feed / Hồ sơ)
+        loadRegionPosts(force = false)
     }
 
-    private fun loadRegionPosts() {
-        viewModelScope.launch {
+    private fun loadRegionPosts(force: Boolean = true) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            delay(320)
-            FakePostStore.posts.collectLatest { storePosts ->
-                val base = storePosts.ifEmpty { SampleData.posts }
+            launch {
+                posts.refreshFeeds(force).onFailure { error ->
+                    _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
+                }
+            }
+            combine(posts.observeMapPosts(), social.graph) { visible, graph ->
+                visible to graph.statuses.filterValues { it == FriendStatus.FRIENDS }.keys
+            }.collectLatest { (base, friends) ->
+                friendIds = friends
 
                 allRegionPosts = base
                     .filter { it.location.level != LocationLevel.COUNTRY }
@@ -135,6 +158,9 @@ class RegionAlbumViewModel(
                         }
                     }
                     .sortedByDescending { it.takenAt }
+                val location = allRegionPosts.firstOrNull()?.location
+                val name = if (routeArgs.level.equals("WARD", true)) location?.wardName else location?.provinceName
+                _uiState.update { it.copy(regionName = name ?: it.regionName) }
                 applyFilterAndPagination(resetPage = true)
             }
         }
@@ -166,7 +192,7 @@ class RegionAlbumViewModel(
             RegionAlbumAction.OnShareClick -> {
                 viewModelScope.launch {
                     _effect.send(
-                        RegionAlbumEffect.ShowSnackbar("Sắp có: chia sẻ thẻ khu vực")
+                        RegionAlbumEffect.ShowSnackbar("Sắp có")
                     )
                 }
             }
@@ -184,12 +210,16 @@ class RegionAlbumViewModel(
     private fun applyFilterAndPagination(resetPage: Boolean) {
         if (resetPage) currentPage = 1
         val currentFilter = _uiState.value.filter
+        val myId = auth.currentUser.value?.id
 
         val filtered = allRegionPosts.filter { post ->
             when (currentFilter) {
+                RegionAudienceFilter.ALL -> true
+                // Vòng bạn bè gồm cả bài của chính mình
                 RegionAudienceFilter.FRIENDS ->
-                    post.audience == Audience.FRIENDS || post.audience == Audience.DIRECT
-                RegionAudienceFilter.PUBLIC -> post.audience == Audience.PUBLIC
+                    post.author.id == myId || post.author.id in friendIds
+                RegionAudienceFilter.PUBLIC -> post.audience == Audience.PUBLIC &&
+                    (post.publicVisibleAt == null || !post.publicVisibleAt.isAfter(posts.now()))
             }
         }
 
@@ -224,7 +254,7 @@ fun NavGraphBuilder.regionAlbumScreen(navController: NavController) {
 fun RegionAlbumRoute(
     onBackClick: () -> Unit,
     onNavigateToPostDetail: (postId: String) -> Unit,
-    viewModel: RegionAlbumViewModel = viewModel()
+    viewModel: RegionAlbumViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -397,8 +427,7 @@ fun RegionAlbumScreen(
                         if (uiState.displayedPosts.isEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 EmptyState(
-                                    title = "Chưa ai đăng ở đây, hãy là người đầu tiên",
-                                    subtitle = "Mở camera Lokap và thả chiếc ảnh đầu tiên tại ${uiState.regionName} nhé!",
+                                    title = "Chưa có ảnh",
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = spacing.xxl)
@@ -498,26 +527,7 @@ private fun RegionAlbumLoadingContent(modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(name = "RegionAlbum - Đầy đủ dữ liệu", showBackground = true)
-@Composable
-private fun RegionAlbumPopulatedPreview() {
-    LokapTheme {
-        RegionAlbumScreen(
-            uiState = RegionAlbumUiState(
-                level = "PROVINCE",
-                code = "48",
-                regionName = "Đà Nẵng",
-                isLoading = false,
-                displayedPosts = SampleData.posts,
-                totalPostCount = 24,
-                canLoadMore = true,
-                visited = true
-            ),
-            snackbarHostState = remember { SnackbarHostState() },
-            onAction = {}
-        )
-    }
-}
+
 
 @Preview(name = "RegionAlbum - Trống", showBackground = true)
 @Composable
@@ -558,7 +568,7 @@ private fun RegionAlbumErrorPreview() {
         RegionAlbumScreen(
             uiState = RegionAlbumUiState(
                 isLoading = false,
-                errorMessage = "Không thể tải album khu vực này. Thử lại sau nhé!"
+                errorMessage = "Không tải được"
             ),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {}

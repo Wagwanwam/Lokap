@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.feature.inbox
 
 import java.time.Instant
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.*
 data class InboxConversationItem(
     val conversation: Conversation,
@@ -16,7 +15,7 @@ data class InboxUiState(
     val items: List<InboxConversationItem> = emptyList(),
     val friends: List<User> = emptyList(),
     val isNewMessageSheetOpen: Boolean = false,
-    val now: Instant = SampleData.NOW
+    val now: Instant = Instant.now()
 )
 
 sealed interface InboxAction {

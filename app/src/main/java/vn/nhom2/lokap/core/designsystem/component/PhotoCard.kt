@@ -1,5 +1,8 @@
 package vn.nhom2.lokap.core.designsystem.component
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,7 +49,6 @@ import coil3.compose.AsyncImage
 import vn.nhom2.lokap.core.common.formatTimeAgo
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.Audience
 import vn.nhom2.lokap.domain.model.LocationLevel
 import vn.nhom2.lokap.domain.model.Post
@@ -253,22 +255,21 @@ fun PhotoCard(
                 }
             }
 
-            // Chú thích ảnh phía dưới căn giữa ngang
+            // Chú thích ảnh phía dưới căn giữa: viên thuốc nền tối mờ, chữ trắng (giống ô chú thích lúc đăng)
             if (!post.caption.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(spacing.md)
-                        .clip(shapes.pill)
-                        .background(colors.background.copy(alpha = 0.78f))
-                        .border(1.dp, colors.outline, shapes.pill)
-                        .padding(horizontal = spacing.lg, vertical = spacing.sm),
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = post.caption,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textPrimary,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color.White,
                         textAlign = TextAlign.Center,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -360,47 +361,5 @@ private fun formatPostLocationLabel(location: PostLocation): String {
         LocationLevel.WARD -> location.wardName ?: location.provinceName ?: "Việt Nam"
         LocationLevel.PROVINCE -> location.provinceName ?: "Việt Nam"
         LocationLevel.COUNTRY -> "Việt Nam"
-    }
-}
-
-@Preview(name = "PhotoCard - Đã gửi", showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun PhotoCardSentPreview() {
-    LokapTheme {
-        Box(
-            modifier = Modifier
-                .background(LokapTheme.colors.background)
-                .padding(LokapTheme.spacing.lg)
-        ) {
-            PhotoCard(
-                post = SampleData.posts[0],
-                now = SampleData.NOW,
-                onReact = {},
-                onRetrySend = {},
-                onReport = {},
-                onBlockUser = {}
-            )
-        }
-    }
-}
-
-@Preview(name = "PhotoCard - Gửi lỗi", showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun PhotoCardFailedPreview() {
-    LokapTheme {
-        Box(
-            modifier = Modifier
-                .background(LokapTheme.colors.background)
-                .padding(LokapTheme.spacing.lg)
-        ) {
-            PhotoCard(
-                post = SampleData.posts[6],
-                now = SampleData.NOW,
-                onReact = {},
-                onRetrySend = {},
-                onReport = {},
-                onBlockUser = {}
-            )
-        }
     }
 }

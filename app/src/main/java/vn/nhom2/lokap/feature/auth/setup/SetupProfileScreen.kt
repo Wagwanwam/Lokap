@@ -50,8 +50,9 @@ import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
-import vn.nhom2.lokap.data.fake.ProvinceCatalog
+import vn.nhom2.lokap.data.location.ProvinceCatalog
 import vn.nhom2.lokap.feature.auth.lokapTextFieldColors
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 fun NavGraphBuilder.setupProfileScreen(navController: NavController) {
     composable<SetupProfileRoute> {
         SetupProfileRoute(
@@ -65,7 +66,7 @@ fun NavGraphBuilder.setupProfileScreen(navController: NavController) {
 @Composable
 fun SetupProfileRoute(
     onNavigateToCamera: () -> Unit,
-    viewModel: SetupProfileViewModel = viewModel()
+    viewModel: SetupProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -92,6 +93,7 @@ fun SetupProfileScreen(
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
     val focusManager = LocalFocusManager.current
+
 
     var displayNameHadFocus by remember { mutableStateOf(false) }
     var usernameHadFocus by remember { mutableStateOf(false) }
@@ -140,13 +142,7 @@ fun SetupProfileScreen(
             color = colors.textPrimary
         )
 
-        Spacer(modifier = Modifier.height(spacing.xs))
 
-        Text(
-            text = "Tạo dấu ấn cá nhân của bạn trên bản đồ khoảnh khắc.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.textSecondary
-        )
 
         Spacer(modifier = Modifier.height(spacing.lg))
 
@@ -154,65 +150,11 @@ fun SetupProfileScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(contentAlignment = Alignment.BottomEnd) {
-                AvatarRing(
-                    avatarUrl = uiState.selectedAvatarUrl,
-                    displayName = uiState.displayName.ifEmpty { "Bạn" },
-                    size = 88.dp
-                )
-
-                Surface(
-                    shape = CircleShape,
-                    color = colors.primary,
-                    border = BorderStroke(2.dp, colors.background),
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Filled.CameraAlt,
-                            contentDescription = "Đổi ảnh đại diện",
-                            tint = colors.buttonText,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(spacing.sm))
-
-            Text(
-                text = "Chọn hình đại diện nhanh:",
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.textSecondary
+            AvatarRing(
+                avatarUrl = uiState.selectedAvatarUrl,
+                displayName = uiState.displayName.ifEmpty { "Bạn" },
+                size = 88.dp
             )
-
-            Spacer(modifier = Modifier.height(spacing.xs))
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                modifier = Modifier.padding(vertical = 4.dp)
-            ) {
-                items(uiState.presetAvatars) { avatarUrl ->
-                    val isSelected = uiState.selectedAvatarUrl == avatarUrl
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .border(
-                                width = if (isSelected) 2.5.dp else 1.dp,
-                                color = if (isSelected) colors.primary else colors.outline.copy(alpha = 0.3f),
-                                shape = CircleShape
-                            )
-                            .clickable { onAction(SetupProfileAction.AvatarSelected(avatarUrl)) }
-                    ) {
-                        AvatarRing(
-                            avatarUrl = avatarUrl,
-                            displayName = uiState.displayName.ifEmpty { "Bạn" },
-                            size = 46.dp
-                        )
-                    }
-                }
-            }
         }
 
         Spacer(modifier = Modifier.height(spacing.lg))
@@ -337,7 +279,7 @@ fun SetupProfileScreen(
 
                 Column {
                     OutlinedTextField(
-                        value = if (uiState.birthYear > 0) uiState.birthYear.toString() else "",
+                        value = uiState.birthYear?.toString().orEmpty(),
                         onValueChange = { str ->
                             val year = str.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
                             onAction(SetupProfileAction.BirthYearChanged(year))
@@ -370,7 +312,7 @@ fun SetupProfileScreen(
                         )
                     } else {
                         Text(
-                            text = "Yêu cầu đủ 13 tuổi trở lên theo quy định an toàn",
+                            text = "Từ 13 tuổi",
                             color = colors.textTertiary,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(start = 12.dp, top = 4.dp)

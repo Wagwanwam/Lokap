@@ -33,10 +33,7 @@ data class ProfileUiState(
     val totalProvincesCount: Int = 34,
     val postCount: Int = 0,
     val friendCount: Int = 0,
-    val followersCount: Int = 142,
-    val followingCount: Int = 89,
-    val isFollowing: Boolean = false,
-    val bio: String = "Ghi lại khoảnh khắc đẹp tại các tỉnh thành Việt Nam.",
+    val bio: String = "",
     val isFriendLimitReached: Boolean = false,
     val selectedTab: ProfileTab = ProfileTab.PHOTOS,
     val visiblePosts: List<Post> = emptyList(),
@@ -63,6 +60,8 @@ sealed interface ProfileAction {
     data object Retry : ProfileAction
     data object NavigateBack : ProfileAction
     data object OpenSettings : ProfileAction
+    data object OpenFriends : ProfileAction
+    data object OpenAddFriend : ProfileAction
     data class SelectTab(val tab: ProfileTab) : ProfileAction
     data class ClickPost(val postId: String) : ProfileAction
     data class ClickProvinceCard(val provinceCode: String) : ProfileAction
@@ -76,8 +75,6 @@ sealed interface ProfileAction {
     data class ChangeEditBio(val value: String) : ProfileAction
     data object SaveEditProfile : ProfileAction
 
-    data object ToggleFollow : ProfileAction
-
     data object SendFriendRequest : ProfileAction
     data object CancelFriendRequest : ProfileAction
     data object AcceptFriendRequest : ProfileAction
@@ -90,6 +87,8 @@ sealed interface ProfileAction {
 sealed interface ProfileEffect {
     data object NavigateBack : ProfileEffect
     data object NavigateToSettings : ProfileEffect
+    data object NavigateToFriends : ProfileEffect
+    data object NavigateToAddFriend : ProfileEffect
     data class NavigateToPostDetail(val postId: String) : ProfileEffect
     data class NavigateToChat(val conversationId: String) : ProfileEffect
     data class NavigateToRegionAlbum(val provinceCode: String) : ProfileEffect

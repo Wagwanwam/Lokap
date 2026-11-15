@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-import vn.nhom2.lokap.data.fake.SampleData
 @Composable
 fun GlassChip(
     label: String,
@@ -62,31 +61,5 @@ fun GlassChip(
             style = MaterialTheme.typography.labelLarge,
             color = if (selected) colors.primary else colors.textPrimary
         )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun GlassChipPreview() {
-    LokapTheme {
-        Row(
-            modifier = Modifier
-                .background(LokapTheme.colors.background)
-                .padding(LokapTheme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.sm)
-        ) {
-            GlassChip(
-                label = "Bạn bè · ${SampleData.users.size - 1}",
-                leadingIcon = Icons.Rounded.Person,
-                selected = false,
-                onClick = {}
-            )
-            GlassChip(
-                label = SampleData.landmarks.first().name,
-                leadingIcon = Icons.Rounded.LocationOn,
-                selected = true,
-                onClick = {}
-            )
-        }
     }
 }

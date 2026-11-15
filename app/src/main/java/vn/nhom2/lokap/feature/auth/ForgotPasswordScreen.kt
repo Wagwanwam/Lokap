@@ -33,6 +33,7 @@ import androidx.navigation.compose.composable
 import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 fun NavGraphBuilder.forgotPasswordScreen(navController: NavController) {
     composable<ForgotPasswordRoute> {
         ForgotPasswordRoute(
@@ -46,7 +47,7 @@ fun NavGraphBuilder.forgotPasswordScreen(navController: NavController) {
 @Composable
 fun ForgotPasswordRoute(
     onNavigateBack: () -> Unit,
-    viewModel: ForgotPasswordViewModel = viewModel()
+    viewModel: ForgotPasswordViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -107,11 +108,6 @@ fun ForgotPasswordScreen(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
 
-        Text(
-            text = "Nhập email bạn dùng trên Lokap, tụi mình sẽ gửi hướng dẫn đặt lại mật khẩu.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = LokapTheme.colors.textSecondary
-        )
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.lg))
 
@@ -135,15 +131,9 @@ fun ForgotPasswordScreen(
                     modifier = Modifier.size(36.dp)
                 )
                     Text(
-                        text = "Đã gửi link đặt lại mật khẩu tới ${uiState.submittedEmail}",
+                        text = "Đã gửi link tới ${uiState.submittedEmail}",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = LokapTheme.colors.textPrimary,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Hãy kiểm tra hộp thư đến hoặc thư rác (Spam) trong vài phút tới nhé.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LokapTheme.colors.textSecondary,
                         textAlign = TextAlign.Center
                     )
                 }

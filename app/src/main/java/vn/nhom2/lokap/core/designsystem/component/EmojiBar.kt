@@ -13,7 +13,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.Reaction
 private val DefaultEmojiSet = listOf("😍", "😂", "🔥", "😮", "😢")
 
@@ -71,25 +70,6 @@ fun EmojiBar(
                     )
                 }
             }
-        }
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun EmojiBarPreview() {
-    LokapTheme {
-        val samplePost = SampleData.posts.first()
-        Row(
-            modifier = Modifier
-                .background(LokapTheme.colors.background)
-                .padding(LokapTheme.spacing.lg)
-        ) {
-            EmojiBar(
-                reactions = samplePost.reactions,
-                selectedEmoji = samplePost.myReaction,
-                onSelectEmoji = {}
-            )
         }
     }
 }

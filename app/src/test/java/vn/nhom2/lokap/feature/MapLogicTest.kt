@@ -11,14 +11,18 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import vn.nhom2.lokap.data.fake.SampleData
+import vn.nhom2.lokap.data.fake.*
+import vn.nhom2.lokap.domain.repository.PostRepository
+import kotlinx.coroutines.flow.flowOf
 import vn.nhom2.lokap.domain.model.Audience
 import vn.nhom2.lokap.domain.model.LocationLevel
 import vn.nhom2.lokap.domain.model.MapBubbleType
+import vn.nhom2.lokap.domain.model.PROVINCE_WIDE_MAX_ZOOM
 import vn.nhom2.lokap.domain.model.PostSendState
 import vn.nhom2.lokap.feature.map.MapAudienceFilter
 import vn.nhom2.lokap.feature.landmark.LandmarkViewModel
@@ -49,6 +53,17 @@ class MapLogicTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
+    private fun mapPosts(): PostRepository = object : PostRepository by FakePostRepository() {
+        override val friendFeed = flowOf(SampleData.posts)
+        override val publicPosts = flowOf(emptyList<vn.nhom2.lokap.domain.model.Post>())
+    }
+
+    private fun map() = MapViewModel(FakeLocationRepository(), mapPosts(), FakeSocialRepository(), FakeLandmarkRepository())
+
+    private fun landmarkVm(id: String, landmarks: FakeLandmarkRepository = FakeLandmarkRepository()) = LandmarkViewModel(
+        SavedStateHandle(mapOf("id" to id)), mapPosts(), landmarks, FakeSocialRepository(), FakeAuthRepository(), FakeImageImporter()
+    )
+
     private fun MapViewModel.bubblesAt(zoom: Float) =
         apply { onAction(MapAction.OnCameraChanged(MapCameraState(16.05, 108.2, zoom))) }
             .uiState.value.visibleBubbles
@@ -57,16 +72,16 @@ class MapLogicTest {
 
     @Test
     fun `zoom duoi 8 chi co bong bong tinh, khong trung`() {
-        val bubbles = MapViewModel().bubblesAt(6f)
+        val bubbles = map().bubblesAt(6f)
         assertTrue(bubbles.isNotEmpty())
         assertTrue(bubbles.all { it.type == MapBubbleType.PROVINCE })
         assertEquals("Trùng tỉnh: ${bubbles.map { it.code }}", bubbles.size, bubbles.distinctBy { it.code }.size)
     }
 
     @Test
-    fun `zoom 8 den 12 la phuong va dung mot bong bong Khap tinh moi tinh`() {
+    fun `zoom 8 den 13 la phuong va toi da mot bong bong Khap tinh moi tinh`() {
         for (zoom in listOf(8f, 10f, 12.9f)) {
-            val bubbles = MapViewModel().bubblesAt(zoom)
+            val bubbles = map().bubblesAt(zoom)
             assertTrue(bubbles.all { it.type == MapBubbleType.WARD || it.type == MapBubbleType.PROVINCE_WIDE })
             assertTrue(bubbles.any { it.type == MapBubbleType.WARD })
             val wide = bubbles.filter { it.type == MapBubbleType.PROVINCE_WIDE }
@@ -76,16 +91,64 @@ class MapLogicTest {
     }
 
     @Test
+    fun `Khap tinh chi hien o zoom 8 den 11, zoom gan hon chi con bai co vi tri that`() {
+        val vm = map()
+        val far = vm.bubblesAt(10.9f)
+        assertTrue("Zoom 10.9 phải còn \"Khắp tỉnh\"", far.any { it.type == MapBubbleType.PROVINCE_WIDE })
+        for (zoom in listOf(PROVINCE_WIDE_MAX_ZOOM, 12f, 12.9f, 14f)) {
+            val near = vm.bubblesAt(zoom)
+            assertTrue("Zoom $zoom không được có \"Khắp tỉnh\": ${near.map { it.label }}", near.none { it.type == MapBubbleType.PROVINCE_WIDE })
+        }
+        // Bài mức phường / địa điểm vẫn gom theo phường như cũ
+        assertTrue(vm.bubblesAt(12f).any { it.type == MapBubbleType.WARD })
+    }
+
+    @Test
+    fun `bam ve vi tri cua toi thi co cham do dung vi tri may va phong to`() {
+        val vm = map()
+        assertNull(vm.uiState.value.myLocation)
+        vm.onAction(MapAction.OnMyLocationClick)
+        val state = vm.uiState.value
+        val here = state.myLocation!!
+        // FakeLocationRepository: Hải Châu, Đà Nẵng
+        assertEquals(16.0678, here.lat, 1e-9)
+        assertEquals(108.2208, here.lng, 1e-9)
+        assertEquals(here.lat, state.camera.centerLat, 1e-9)
+        assertEquals(13f, state.camera.zoom, 0f)
+    }
+
+    @Test
+    fun `chua cap quyen vi tri thi khong ve cham do va giu nguyen ban do`() {
+        val vm = MapViewModel(FakeLocationRepository(available = false), mapPosts(), FakeSocialRepository(), FakeLandmarkRepository())
+        val before = vm.uiState.value.camera
+        vm.onAction(MapAction.OnMyLocationClick)
+        assertNull(vm.uiState.value.myLocation)
+        assertEquals(before, vm.uiState.value.camera)
+    }
+
+    @Test
+    fun `cham Khap tinh mo album tinh ngay, khong phong to lam bong bong bien mat`() {
+        val vm = map()
+        val wide = vm.bubblesAt(9f).first { it.type == MapBubbleType.PROVINCE_WIDE }
+        vm.onAction(MapAction.OnBubbleClick(wide))
+        val preview = vm.uiState.value.selectedRegionPreview
+        assertEquals("PROVINCE", preview?.level)
+        assertEquals(wide.code, preview?.code)
+        assertFalse(preview!!.regionName.startsWith("Khắp"))
+        assertEquals(9f, vm.uiState.value.camera.zoom, 0f)
+    }
+
+    @Test
     fun `so tren bong bong dem tu bai that, khong go cung`() {
         val posts = SampleData.posts.filter {
-            it.location.level != LocationLevel.COUNTRY && it.sendState == PostSendState.SENT
+            it.location.level != LocationLevel.COUNTRY && it.sendState == PostSendState.SENT && it.audience != Audience.DIRECT
         }
         // Mức tỉnh: mọi bài trong tỉnh
-        MapViewModel().bubblesAt(6f).forEach { b ->
+        map().bubblesAt(6f).forEach { b ->
             assertEquals(b.label, posts.count { it.location.provinceCode == b.code }, b.postCount)
         }
         // Mức phường: bài mức phường + địa điểm; "Khắp tỉnh": chỉ bài người đăng chọn mức tỉnh
-        MapViewModel().bubblesAt(10f).forEach { b ->
+        map().bubblesAt(10f).forEach { b ->
             val expected = if (b.type == MapBubbleType.WARD) {
                 posts.count {
                     it.location.wardCode == b.code &&
@@ -101,11 +164,11 @@ class MapLogicTest {
 
     @Test
     fun `loc Public khong dem bai public dang hen gio`() {
-        val vm = MapViewModel()
+        val vm = map()
         vm.onAction(MapAction.OnAudienceFilterChange(MapAudienceFilter.PUBLIC))
         val total = vm.bubblesAt(6f).sumOf { it.postCount }
         val expected = SampleData.posts.count {
-            it.location.level != LocationLevel.COUNTRY && it.sendState == PostSendState.SENT &&
+            it.location.level != LocationLevel.COUNTRY && it.sendState == PostSendState.SENT && it.audience != Audience.DIRECT &&
                 it.audience == Audience.PUBLIC && it.location.provinceCode != null &&
                 (it.publicVisibleAt == null || !it.publicVisibleAt!!.isAfter(SampleData.NOW))
         }
@@ -113,15 +176,43 @@ class MapLogicTest {
     }
 
     @Test
+    fun `chon mot nguoi ban thi chi dem bai cua nguoi do, doi nhom thi bo chon`() {
+        val vm = map()
+        val friends = vm.uiState.value.friends
+        assertTrue("Dữ liệu mẫu phải có bạn bè", friends.isNotEmpty())
+        val friend = friends.first()
+        vm.onAction(MapAction.OnFriendFilterChange(friend.id))
+        assertEquals(MapAudienceFilter.FRIENDS, vm.uiState.value.audienceFilter)
+        assertEquals(friend.id, vm.uiState.value.selectedFriendId)
+
+        val total = vm.bubblesAt(6f).sumOf { it.postCount }
+        val expected = SampleData.posts.count {
+            it.location.level != LocationLevel.COUNTRY && it.sendState == PostSendState.SENT &&
+                it.audience != Audience.DIRECT && it.location.provinceCode != null && it.author.id == friend.id
+        }
+        assertTrue("Người bạn đứng đầu danh sách phải có ảnh trên bản đồ", expected > 0)
+        assertEquals(expected, total)
+
+        // Chọn "Tất cả bạn bè" thì đếm lại bài của mọi bạn
+        vm.onAction(MapAction.OnFriendFilterChange(null))
+        assertNull(vm.uiState.value.selectedFriendId)
+        assertTrue(vm.bubblesAt(6f).sumOf { it.postCount } >= total)
+
+        vm.onAction(MapAction.OnFriendFilterChange(friend.id))
+        vm.onAction(MapAction.OnAudienceFilterChange(MapAudienceFilter.PUBLIC))
+        assertNull(vm.uiState.value.selectedFriendId)
+    }
+
+    @Test
     fun `zoom tu 13 chi co ghim dia diem`() {
-        val bubbles = MapViewModel().bubblesAt(13f)
+        val bubbles = map().bubblesAt(13f)
         assertTrue(bubbles.isNotEmpty())
         assertTrue(bubbles.all { it.type == MapBubbleType.PLACE })
     }
 
     @Test
     fun `cham bong bong tinh thi zoom sang muc phuong`() {
-        val vm = MapViewModel()
+        val vm = map()
         val province = vm.bubblesAt(6f).first { it.code == "da-nang" }
         vm.onAction(MapAction.OnBubbleClick(province))
         assertTrue(vm.uiState.value.camera.zoom >= 8f)
@@ -160,7 +251,7 @@ class MapLogicTest {
         val (lw, lh) = (100 * density).roundToInt() to (110 * density).roundToInt()
         val (w, h) = 1080 to 2000
         for (zoom in listOf(9f, 10f, 10.9f)) {
-            val vm = MapViewModel()
+            val vm = map()
             val cam = MapCameraState(16.05, 108.2, zoom)
             vm.onAction(MapAction.OnCameraChanged(cam))
             val state = vm.uiState.value
@@ -186,8 +277,38 @@ class MapLogicTest {
 
     // ---------- Album khu vực ----------
 
-    private fun album(level: String, code: String) =
-        RegionAlbumViewModel(SavedStateHandle(mapOf("level" to level, "code" to code)))
+    private fun album(level: String, code: String, posts: PostRepository = mapPosts(), auth: FakeAuthRepository = FakeAuthRepository()) =
+        RegionAlbumViewModel(SavedStateHandle(mapOf("level" to level, "code" to code)), posts, FakeSocialRepository(), auth)
+
+    @Test
+    fun `album hien bai cua chinh minh giong ban do, ke ca bai che do ban be`() = runTest(dispatcher) {
+        val auth = FakeAuthRepository()
+        val base = SampleData.posts.first()
+        val mine = base.copy(
+            id = "mine_da_nang",
+            author = auth.currentUser.value!!,
+            audience = Audience.FRIENDS,
+            sendState = PostSendState.SENT,
+            location = base.location.copy(
+                level = LocationLevel.PROVINCE, provinceCode = "da-nang", provinceName = "Đà Nẵng",
+                wardCode = null, wardName = null, placeName = null, landmarkId = null
+            )
+        )
+        val repo = object : PostRepository by FakePostRepository() {
+            override val friendFeed = flowOf(listOf(mine))
+            override val publicPosts = flowOf(emptyList<vn.nhom2.lokap.domain.model.Post>())
+        }
+        val vm = album("PROVINCE", "da-nang", repo, auth)
+        advanceUntilIdle()
+        // Mặc định "Tất cả" như bản đồ
+        assertEquals(RegionAudienceFilter.ALL, vm.uiState.value.filter)
+        assertEquals(listOf("mine_da_nang"), vm.uiState.value.displayedPosts.map { it.id })
+        assertEquals(1, vm.uiState.value.totalPostCount)
+        vm.onAction(RegionAlbumAction.OnFilterSelected(RegionAudienceFilter.FRIENDS))
+        assertEquals(listOf("mine_da_nang"), vm.uiState.value.displayedPosts.map { it.id })
+        vm.onAction(RegionAlbumAction.OnFilterSelected(RegionAudienceFilter.PUBLIC))
+        assertTrue(vm.uiState.value.displayedPosts.isEmpty())
+    }
 
     @Test
     fun `album tinh chi co bai dung tinh, khong co bai muc Viet Nam, khong trung id`() = runTest(dispatcher) {
@@ -215,7 +336,7 @@ class MapLogicTest {
 
     @Test
     fun `dia danh chi hien bai gan dung dia danh`() = runTest(dispatcher) {
-        val vm = LandmarkViewModel(SavedStateHandle(mapOf("id" to "lm_cau_rong")))
+        val vm = landmarkVm("lm_cau_rong")
         advanceUntilIdle()
         val posts = vm.uiState.value.posts
         assertTrue(posts.isNotEmpty())
@@ -224,7 +345,7 @@ class MapLogicTest {
 
     @Test
     fun `dia danh khong ton tai thi bao loi, khong mo dia danh khac`() = runTest(dispatcher) {
-        val vm = LandmarkViewModel(SavedStateHandle(mapOf("id" to "lm_khong_co")))
+        val vm = landmarkVm("lm_khong_co")
         advanceUntilIdle()
         assertNull(vm.uiState.value.landmark)
         assertTrue(vm.uiState.value.errorMessage != null)

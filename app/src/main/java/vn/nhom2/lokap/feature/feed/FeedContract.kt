@@ -2,7 +2,6 @@ package vn.nhom2.lokap.feature.feed
 
 import androidx.compose.runtime.Immutable
 import java.time.Instant
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.*
 enum class FeedTab(val labelVi: String) {
     EXPLORE("Khám phá"),
@@ -47,7 +46,7 @@ data class FeedUiState(
     val allPublicPosts: List<Post> = emptyList(),
     val nearbyPosts: List<Post> = emptyList(),
     val landmarkPosts: List<Post> = emptyList(),
-    val unreadNotificationsCount: Int = SampleData.notifications.count { !it.isRead },
+    val unreadNotificationsCount: Int = 0,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val isOffline: Boolean = false,
@@ -56,8 +55,8 @@ data class FeedUiState(
     val locationSearchQuery: String = "",
     val isProvincePickerOpen: Boolean = false,
     val provinceFilterSearch: String = "",
-    val now: Instant = SampleData.NOW,
-    val currentUserId: String = SampleData.currentUser.id,
+    val now: Instant = Instant.now(),
+    val currentUserId: String = "",
     val pendingBlock: BlockTarget? = null,
     val repostedPostIds: Set<String> = emptySet(),
     val commentsCountMap: Map<String, Int> = emptyMap(),
@@ -65,14 +64,23 @@ data class FeedUiState(
     val activeReactionPickerPostId: String? = null,
     val searchQuery: String = "",
     val searchResults: List<User> = emptyList(),
-    val friendStatuses: Map<String, FriendStatus> = emptyMap()
-)
+    val friendStatuses: Map<String, FriendStatus> = emptyMap(),
+    /** Người có thể chọn trong dropdown tab Bạn bè (bạn bè + tác giả có bài trong feed). */
+    val friendFilterOptions: List<User> = emptyList(),
+    /** null = xem tất cả. */
+    val selectedFriendId: String? = null
+) {
+    val visibleFriendPosts: List<Post>
+        get() = selectedFriendId?.let { id -> friendPosts.filter { it.author.id == id } } ?: friendPosts
+}
 
 @Immutable
 data class BlockTarget(val userId: String, val displayName: String)
 
 sealed interface FeedAction {
     data class OnSelectTab(val tab: FeedTab) : FeedAction
+    /** userId = null: xem ảnh của tất cả. */
+    data class OnSelectFriendFilter(val userId: String?) : FeedAction
     data object OnRefresh : FeedAction
     data object OnRetry : FeedAction
     data object OnSwipeDownToCamera : FeedAction

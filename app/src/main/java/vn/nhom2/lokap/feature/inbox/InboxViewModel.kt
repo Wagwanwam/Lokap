@@ -1,116 +1,45 @@
 package vn.nhom2.lokap.feature.inbox
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import java.time.Instant
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.FakeChatStore
-import vn.nhom2.lokap.data.fake.FakePostStore
-import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.data.fake.SampleSocialData
 import vn.nhom2.lokap.domain.model.*
-class InboxViewModel : ViewModel() {
-
+import vn.nhom2.lokap.domain.repository.*
+@HiltViewModel
+class InboxViewModel @Inject constructor(private val messages: MessagingRepository, private val social: SocialRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(InboxUiState(isLoading = true))
-    val uiState: StateFlow<InboxUiState> = _uiState.asStateFlow()
-
+    val uiState = _uiState.asStateFlow()
     private val _effects = Channel<InboxEffect>(Channel.BUFFERED)
-    val effects: Flow<InboxEffect> = _effects.receiveAsFlow()
-
-    init {
-        observeInboxData()
-    }
-
-    private fun observeInboxData() {
-        viewModelScope.launch {
-            combine(
-                FakeChatStore.conversations,
-                FakeChatStore.messages,
-                FakePostStore.posts,
-                SampleSocialData.friendStatuses
-            ) { conversations, messages, posts, statuses ->
-                val myId = SampleData.currentUser.id
-                val authorIdsWithPosts = posts.map { it.author.id }.toSet()
-
-                val sortedItems = conversations
-                    .sortedByDescending { it.lastMessageAt }
-                    .map { conv ->
-                        val preview = FakeChatStore.previewForConversation(conv, messages)
-                        InboxConversationItem(
-                            conversation = conv,
-                            displayPreview = preview.ifBlank { "Bắt đầu cuộc trò chuyện" },
-                            hasNewPostFromFriend = conv.friend.id in authorIdsWithPosts
-                        )
-                    }
-
-                val availableFriends = SampleSocialData.directoryUsers.filter {
-                    it.id != myId && statuses[it.id] == FriendStatus.FRIENDS
-                }
-                sortedItems to availableFriends
-            }.collect { (sortedItems, availableFriends) ->
-                _uiState.update { state ->
-                    state.copy(
-                        isLoading = false,
-                        errorMessage = null,
-                        items = sortedItems,
-                        friends = availableFriends,
-                        now = SampleData.NOW
-                    )
-                }
+    val effects = _effects.receiveAsFlow()
+    private var observer: Job? = null
+    init { observe() }
+    private fun observe() {
+        observer?.cancel()
+        observer = viewModelScope.launch {
+            social.refresh()
+            combine(messages.observeInbox(), social.graph) { result, graph -> result to graph }.collect { (result, graph) ->
+                _uiState.update { it.copy(isLoading = false, errorMessage = result.exceptionOrNull()?.message,
+                    items = result.getOrDefault(emptyList()).map { conv -> InboxConversationItem(conv, conv.lastMessagePreview.ifBlank { "Bắt đầu cuộc trò chuyện" }) },
+                    friends = graph.usersWith(FriendStatus.FRIENDS), now = Instant.now()) }
             }
         }
     }
-
-    fun onAction(action: InboxAction) {
-        when (action) {
-            is InboxAction.OpenConversation -> {
-                FakeChatStore.markConversationRead(action.conversationId)
-                sendEffect(InboxEffect.NavigateToChat(action.conversationId))
-            }
-
-            is InboxAction.MarkAsRead -> {
-                FakeChatStore.markConversationRead(action.conversationId)
-            }
-
-            InboxAction.OpenNewMessageSheet -> {
-                _uiState.update { it.copy(isNewMessageSheetOpen = true) }
-            }
-
-            InboxAction.DismissNewMessageSheet -> {
-                _uiState.update { it.copy(isNewMessageSheetOpen = false) }
-            }
-
-            is InboxAction.SelectFriendToChat -> {
-                handleSelectFriend(action.friend)
-            }
-
-            InboxAction.Retry -> {
-                _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                observeInboxData()
-            }
-
-            InboxAction.NavigateBack -> {
-                sendEffect(InboxEffect.NavigateBack)
-            }
+    fun onAction(action: InboxAction) { when(action) {
+        is InboxAction.OpenConversation -> _effects.trySend(InboxEffect.NavigateToChat(action.conversationId))
+        is InboxAction.MarkAsRead -> viewModelScope.launch { messages.markRead(action.conversationId).onFailure { e -> _uiState.update { it.copy(errorMessage = e.message) } } }
+        InboxAction.OpenNewMessageSheet -> { _uiState.update { it.copy(isNewMessageSheetOpen = true) }; viewModelScope.launch { social.refresh() } }
+        InboxAction.DismissNewMessageSheet -> _uiState.update { it.copy(isNewMessageSheetOpen = false) }
+        is InboxAction.SelectFriendToChat -> viewModelScope.launch {
+            messages.openConversation(action.friend.id).fold(onSuccess = { id ->
+                _uiState.update { it.copy(isNewMessageSheetOpen = false) }; _effects.send(InboxEffect.NavigateToChat(id))
+            }, onFailure = { e -> _uiState.update { it.copy(errorMessage = e.message) } })
         }
-    }
-
-    private fun handleSelectFriend(friend: User) {
-        _uiState.update { it.copy(isNewMessageSheetOpen = false) }
-        val conversation = FakeChatStore.getOrCreateConversationWithFriend(friend)
-        sendEffect(InboxEffect.NavigateToChat(conversation.id))
-    }
-
-    private fun sendEffect(effect: InboxEffect) {
-        viewModelScope.launch {
-            _effects.send(effect)
-        }
-    }
+        InboxAction.Retry -> observe()
+        InboxAction.NavigateBack -> _effects.trySend(InboxEffect.NavigateBack)
+    } }
 }

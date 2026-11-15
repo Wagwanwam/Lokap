@@ -11,9 +11,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.AuthStoreException
-import vn.nhom2.lokap.data.fake.FakeAuthStore
-class RegisterViewModel : ViewModel() {
+import vn.nhom2.lokap.domain.repository.AuthStoreException
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.RegisterResult
+import vn.nhom2.lokap.domain.repository.isOffline
+@HiltViewModel
+class RegisterViewModel @Inject constructor(
+    private val auth: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
@@ -148,7 +155,7 @@ class RegisterViewModel : ViewModel() {
 
         emailCheckJob = viewModelScope.launch {
             delay(400) // debounce: đợi ngừng gõ rồi mới hỏi
-            val result = FakeAuthStore.isEmailAvailable(value)
+            val result = auth.isEmailAvailable(value)
             _uiState.update { state ->
                 if (state.email != value) return@update state
                 result.fold(
@@ -158,11 +165,12 @@ class RegisterViewModel : ViewModel() {
                             emailError = if (available) null else AuthStoreException.EmailAlreadyTaken.MESSAGE
                         )
                     },
-                    // Không đặt serverError: nút Thử lại của nó gửi cả form
-                    onFailure = {
+                    // Không đặt serverError: nút Thử lại của nó gửi cả form.
+                    // Lỗi khác mất mạng (ví dụ kiểm tra quá nhiều lần) thì chỉ bỏ qua, lúc gửi form server tự báo trùng.
+                    onFailure = { error ->
                         state.copy(
                             emailAvailability = EmailAvailability.IDLE,
-                            isOffline = true
+                            isOffline = error.isOffline
                         )
                     }
                 )
@@ -219,14 +227,19 @@ class RegisterViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            val result = FakeAuthStore.register(
+            val result = auth.register(
                 email = current.email,
                 password = current.password
             )
             result.fold(
-                onSuccess = {
+                onSuccess = { registered ->
                     _uiState.update { it.copy(isLoading = false) }
-                    _effect.send(RegisterEffect.NavigateToSetupProfile)
+                    when (registered) {
+                        RegisterResult.SignedIn -> _effect.send(RegisterEffect.NavigateToSetupProfile)
+                        // Firebase gửi link xác nhận: bấm link trước khi tạo hồ sơ
+                        is RegisterResult.NeedsEmailVerification ->
+                            _effect.send(RegisterEffect.NavigateToVerifyEmail(registered.email))
+                    }
                 },
                 onFailure = { error ->
                     val isOffline = error is AuthStoreException.NetworkError

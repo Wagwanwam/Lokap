@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -36,7 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -45,12 +46,12 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.SampleSocialData
 import vn.nhom2.lokap.domain.model.*
 fun NavGraphBuilder.friendsScreen(navController: NavController) {
     composable<Route.Friends> {
         FriendsRoute(
             onNavigateBack = { navController.popBackStackSafely() },
+            onNavigateToAddFriend = { navController.navigateSingleTop(Route.AddFriend()) },
             onNavigateToProfile = { userId ->
                 navController.navigateSingleTop(Route.Profile(userId = userId))
             }
@@ -61,8 +62,9 @@ fun NavGraphBuilder.friendsScreen(navController: NavController) {
 @Composable
 fun FriendsRoute(
     onNavigateBack: () -> Unit,
+    onNavigateToAddFriend: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
-    viewModel: FriendsViewModel = viewModel()
+    viewModel: FriendsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -71,6 +73,7 @@ fun FriendsRoute(
         viewModel.effects.collect { effect ->
             when (effect) {
                 FriendsEffect.NavigateBack -> onNavigateBack()
+                FriendsEffect.NavigateToAddFriend -> onNavigateToAddFriend()
                 is FriendsEffect.NavigateToProfile -> onNavigateToProfile(effect.userId)
                 is FriendsEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             }
@@ -100,9 +103,10 @@ fun FriendsScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             FriendsTopBar(
-                friendCount = uiState.friends.size,
+                friendCount = uiState.friendCount,
                 maxFriends = uiState.maxFriends,
-                onBackClick = { onAction(FriendsAction.NavigateBack) }
+                onBackClick = { onAction(FriendsAction.NavigateBack) },
+                onAddFriendClick = { onAction(FriendsAction.OpenAddFriend) }
             )
         }
     ) { innerPadding ->
@@ -168,8 +172,7 @@ fun FriendsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             EmptyState(
-                                title = "Không có ai tên như vậy",
-                                subtitle = "Thử kiểm tra lại @username xem có gõ nhầm ký tự nào không nhé.",
+                                title = "Không tìm thấy",
                                 actionLabel = "Xoá tìm kiếm",
                                 onActionClick = { onAction(FriendsAction.ClearSearch) },
                                 modifier = Modifier.padding(LokapTheme.spacing.lg)
@@ -271,8 +274,9 @@ fun FriendsScreen(
                         if (uiState.friends.isEmpty()) {
                             item(key = "empty_friends") {
                                 EmptyState(
-                                    title = "Rủ bạn bè cài Lokap nhé",
-                                    subtitle = "Kết nối tối đa 20 người bạn thân nhất để bắn ảnh trực tiếp và gom dấu chân khắp 34 tỉnh thành!",
+                                    title = "Chưa có bạn",
+                                    actionLabel = "Thêm bạn",
+                                    onActionClick = { onAction(FriendsAction.OpenAddFriend) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = LokapTheme.spacing.xl)
@@ -310,7 +314,8 @@ fun FriendsScreen(
 private fun FriendsTopBar(
     friendCount: Int,
     maxFriends: Int,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onAddFriendClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -337,7 +342,7 @@ private fun FriendsTopBar(
                 color = LokapTheme.colors.textPrimary
             )
             Text(
-                text = "$friendCount/$maxFriends người bạn trên Lokap",
+                text = "$friendCount/$maxFriends bạn",
                 style = MaterialTheme.typography.labelSmall,
                 color = LokapTheme.colors.textSecondary
             )
@@ -368,6 +373,15 @@ private fun FriendsTopBar(
                 } else {
                     LokapTheme.colors.primary
                 }
+            )
+        }
+
+        IconButton(onClick = onAddFriendClick) {
+            Icon(
+                imageVector = Icons.Default.PersonAdd,
+                contentDescription = "Thêm bạn",
+                tint = LokapTheme.colors.primary,
+                modifier = Modifier.size(32.dp)
             )
         }
     }
@@ -439,7 +453,7 @@ private fun FriendLimitWarningBanner(
             .padding(LokapTheme.spacing.sm)
     ) {
         Text(
-            text = "Bạn đã đạt tối đa $maxFriends/$maxFriends người bạn như Locket. Các nút Kết bạn và Chấp nhận tạm khoá cho tới khi bạn bớt danh sách.",
+            text = "Đã đủ $maxFriends bạn",
             style = MaterialTheme.typography.bodySmall,
             color = LokapTheme.colors.accentYellow
         )
@@ -855,46 +869,9 @@ private fun FriendsLoadingList(modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(name = "Friends - Đầy đủ danh sách", showBackground = true)
-@Composable
-private fun FriendsPopulatedPreview() {
-    val sampleUsers = SampleSocialData.directoryUsers
-    LokapTheme {
-        FriendsScreen(
-            uiState = FriendsUiState(
-                isLoading = false,
-                incomingRequests = sampleUsers.take(2),
-                sentRequests = sampleUsers.drop(2).take(1),
-                friends = sampleUsers.drop(3).take(4)
-            ),
-            onAction = {}
-        )
-    }
-}
 
-@Preview(name = "Friends - Đủ 20/20 bạn bè", showBackground = true)
-@Composable
-private fun FriendsMaxLimitPreview() {
-    val twentyFriends = (1..20).map { idx ->
-        User(
-            id = "u_$idx",
-            username = "banthen_$idx",
-            displayName = "Bạn Thân #$idx",
-            avatarUrl = null
-        )
-    }
-    LokapTheme {
-        FriendsScreen(
-            uiState = FriendsUiState(
-                isLoading = false,
-                incomingRequests = SampleSocialData.directoryUsers.take(1),
-                friends = twentyFriends,
-                maxFriends = 20
-            ),
-            onAction = {}
-        )
-    }
-}
+
+
 
 @Preview(name = "Friends - Không tìm thấy username", showBackground = true)
 @Composable

@@ -1,7 +1,7 @@
 package vn.nhom2.lokap.feature.camera
 
 import androidx.compose.runtime.Immutable
-import vn.nhom2.lokap.data.fake.SampleData
+import vn.nhom2.lokap.core.image.PhotoColorFilter
 import vn.nhom2.lokap.domain.model.User
 enum class CameraPermissionState {
     NOT_REQUESTED,
@@ -27,12 +27,23 @@ data class CameraUiState(
     val lensFacing: CameraLens = CameraLens.BACK,
     val flashMode: FlashMode = FlashMode.OFF,
     val isCapturing: Boolean = false,
-    val friendCount: Int = SampleData.users.size - 1,
-    val unreadMessages: Int = SampleData.conversations.sumOf { it.unreadCount },
-    val me: User = SampleData.currentUser,
+    val friendCount: Int = 0,
+    val unreadMessages: Int = 0,
+    /** Người đang đăng nhập; rỗng cho tới khi AuthRepository tải xong hồ sơ. */
+    val me: User = User(id = "", username = "", displayName = "", avatarUrl = null),
     val zoomRatio: Float = 1f,
-    val cameraError: String? = null
-)
+    val cameraError: String? = null,
+    /** Bộ lọc màu đang dùng: áp lên khung xem trước và vào ảnh khi chụp. */
+    val selectedFilter: PhotoColorFilter = PhotoColorFilter.ORIGINAL,
+    /** Vòng bộ lọc đang mở (người dùng đang nhấn giữ nút chụp). */
+    val isFilterPickerOpen: Boolean = false,
+    /** Bộ lọc dưới ngón tay khi đang lướt trên vòng; null = ngón tay còn ở giữa. */
+    val hoveredFilter: PhotoColorFilter? = null
+) {
+    /** Bộ lọc hiện trên khung xem trước: đang lướt thì xem thử bộ lọc dưới ngón tay. */
+    val previewFilter: PhotoColorFilter
+        get() = if (isFilterPickerOpen) hoveredFilter ?: selectedFilter else selectedFilter
+}
 
 sealed interface CameraAction {
     data class OnPermissionResult(
@@ -49,6 +60,13 @@ sealed interface CameraAction {
     data object OnCycleFlash : CameraAction
     data class OnZoomChange(val zoomRatio: Float) : CameraAction
     data object OnShutterClick : CameraAction
+    /** Nhấn giữ nút chụp: mở vòng bộ lọc. */
+    data object OnFilterPickerOpen : CameraAction
+    data class OnFilterHover(val filter: PhotoColorFilter?) : CameraAction
+    /** Thả tay: chọn bộ lọc đang trỏ (nếu có) rồi đóng vòng; chưa chụp. */
+    data object OnFilterPickerRelease : CameraAction
+    /** TalkBack: nhấn giữ nút chụp để chuyển sang bộ lọc kế tiếp. */
+    data object OnCycleFilter : CameraAction
     data class OnPhotoSaved(val imagePath: String) : CameraAction
     data class OnCameraError(val message: String) : CameraAction
     data object OnRetryCamera : CameraAction

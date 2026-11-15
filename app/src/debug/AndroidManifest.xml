@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gộp vào manifest chính chỉ ở bản debug: thêm cấu hình cho phép HTTP tới Firebase Emulator trên máy dev. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Android 17 (API 37) chặn kết nối tới mạng cục bộ (10.0.2.2 = máy dev) nếu app không có quyền này
+         (lỗi "Mất kết nối mạng" sau 10 giây). Chỉ bản debug cần; cấp sẵn khi chạy thử:
+         adb shell pm grant vn.nhom2.lokap android.permission.ACCESS_LOCAL_NETWORK -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
+    <application
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:ignore="UnusedAttribute" />
+
+</manifest>

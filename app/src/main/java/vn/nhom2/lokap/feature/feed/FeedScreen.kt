@@ -17,6 +17,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.pager.VerticalPager
@@ -52,6 +54,9 @@ import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ripple
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,12 +80,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -95,15 +101,15 @@ import vn.nhom2.lokap.core.designsystem.theme.ThemeManager
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
-import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.SampleData
+import vn.nhom2.lokap.core.navigation.navigateToTab
 import vn.nhom2.lokap.domain.model.*
 private const val FEED_TRANSITION_MS = 320
 
 fun NavGraphBuilder.feedScreen(navController: NavController) {
     composable<Route.Feed> {
         FeedRoute(
-            onNavigateBackToCamera = { navController.popBackStackSafely() },
+            // Feed là màn gốc khi mở app đã đăng nhập: pop thì không về được Camera, nên mở tab Camera
+            onNavigateBackToCamera = { navController.navigateToTab(Route.Camera) },
             onNavigateToNotifications = { navController.navigateSingleTop(Route.Notifications) },
             onNavigateToSearch = { navController.navigateSingleTop(Route.Search) },
             onNavigateToPostDetail = { id -> navController.navigateSingleTop(Route.PostDetail(id)) },
@@ -115,10 +121,10 @@ fun NavGraphBuilder.feedScreen(navController: NavController) {
             onNavigateToTab = { tab ->
                 when (tab) {
                     MainTab.FEED -> Unit
-                    MainTab.MAP -> navController.navigateSingleTop(Route.Map)
-                    MainTab.CAMERA -> navController.navigateSingleTop(Route.Camera)
-                    MainTab.INBOX -> navController.navigateSingleTop(Route.Inbox)
-                    MainTab.PROFILE -> navController.navigateSingleTop(Route.Profile())
+                    MainTab.MAP -> navController.navigateToTab(Route.Map)
+                    MainTab.CAMERA -> navController.navigateToTab(Route.Camera)
+                    MainTab.INBOX -> navController.navigateToTab(Route.Inbox)
+                    MainTab.PROFILE -> navController.navigateToTab(Route.Profile())
                 }
             }
         )
@@ -136,7 +142,7 @@ fun FeedRoute(
     onNavigateToChat: (String) -> Unit,
     onNavigateToTab: (MainTab) -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: FeedViewModel = viewModel()
+    viewModel: FeedViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -215,7 +221,11 @@ fun FeedScreen(
                     onSelectTab = { onAction(FeedAction.OnSelectTab(it)) },
                     onBackToCamera = { onAction(FeedAction.OnSwipeDownToCamera) },
                     onNotificationsClick = { onAction(FeedAction.OnNotificationsClick) },
-                    onSearchClick = { onAction(FeedAction.OnSearchClick) }
+                    onSearchClick = { onAction(FeedAction.OnSearchClick) },
+                    friendFilterOptions = state.friendFilterOptions,
+                    selectedFriendId = state.selectedFriendId,
+                    currentUserId = state.currentUserId,
+                    onSelectFriend = { onAction(FeedAction.OnSelectFriendFilter(it)) }
                 )
 
                 if (state.isOffline) {
@@ -251,26 +261,35 @@ fun FeedScreen(
                 }
 
                 state.selectedTab == FeedTab.FRIENDS -> {
-                    if (state.friendPosts.isEmpty()) {
+                    val visiblePosts = remember(state.friendPosts, state.selectedFriendId) {
+                        state.visibleFriendPosts
+                    }
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            EmptyState(
-                                title = "Chưa có bài nào, rủ bạn bè vào Lokap nhé",
-                                subtitle = "Chụp khoảnh khắc đầu tiên hoặc kết bạn để xem ảnh mới mỗi ngày",
-                                actionLabel = "Mở máy ảnh",
-                                onActionClick = { onAction(FeedAction.OnSwipeDownToCamera) }
-                            )
+                            if (visiblePosts.isEmpty()) {
+                                if (state.selectedFriendId == null) {
+                                    EmptyState(
+                                        title = "Chưa có bài",
+                                        actionLabel = "Mở máy ảnh",
+                                        onActionClick = { onAction(FeedAction.OnSwipeDownToCamera) }
+                                    )
+                                } else {
+                                    EmptyState(title = "Chưa có bài")
+                                }
+                            } else {
+                                // Đổi người xem thì về ảnh đầu tiên
+                                key(state.selectedFriendId) {
+                                    FriendsVerticalPager(
+                                        posts = visiblePosts,
+                                        now = state.now,
+                                        currentUserId = state.currentUserId,
+                                        onAction = onAction
+                                    )
+                                }
+                            }
                         }
-                    } else {
-                        FriendsVerticalPager(
-                            posts = state.friendPosts,
-                            now = state.now,
-                            currentUserId = state.currentUserId,
-                            onAction = onAction
-                        )
-                    }
                 }
 
                 state.selectedTab == FeedTab.EXPLORE -> {
@@ -296,16 +315,6 @@ fun FeedScreen(
             }
         }
 
-        if (state.activeCommentPostId != null) {
-            val postId = state.activeCommentPostId
-            val comments = vn.nhom2.lokap.data.fake.FakeCommentStore.getComments(postId)
-            CommentBottomSheet(
-                comments = comments,
-                onDismiss = { onAction(FeedAction.OnDismissComments) },
-                onSendComment = { text -> onAction(FeedAction.OnAddComment(postId, text)) }
-            )
-        }
-
         if (state.isProvincePickerOpen) {
             ProvincePickerBottomSheet(
                 currentProvinceName = state.currentProvinceName,
@@ -326,10 +335,16 @@ private fun FeedTopBar(
     onSelectTab: (FeedTab) -> Unit,
     onBackToCamera: () -> Unit,
     onNotificationsClick: () -> Unit,
-    onSearchClick: () -> Unit
+    onSearchClick: () -> Unit,
+    friendFilterOptions: List<User> = emptyList(),
+    selectedFriendId: String? = null,
+    currentUserId: String = "",
+    onSelectFriend: (String?) -> Unit = {}
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
+    var friendMenuExpanded by remember { mutableStateOf(false) }
+    val arrowRotation by animateFloatAsState(if (friendMenuExpanded) 180f else 0f, label = "friendMenuArrow")
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -365,7 +380,7 @@ private fun FeedTopBar(
                             imageVector = Icons.Rounded.Search,
                             contentDescription = "Tìm kiếm",
                             tint = colors.textPrimary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(25.dp)
                         )
                     }
                 }
@@ -385,7 +400,7 @@ private fun FeedTopBar(
                                 imageVector = Icons.Rounded.Notifications,
                                 contentDescription = "Thông báo",
                                 tint = colors.textPrimary,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -400,7 +415,7 @@ private fun FeedTopBar(
             border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.18f)),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(42.dp)
+                .height(48.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -410,6 +425,7 @@ private fun FeedTopBar(
             ) {
                 FeedTab.entries.forEach { tab ->
                     val isSelected = selectedTab == tab
+                    val isFriendsTab = tab == FeedTab.FRIENDS
                     Surface(
                         shape = RoundedCornerShape(19.dp),
                         color = if (isSelected) colors.surface else Color.Transparent,
@@ -419,17 +435,47 @@ private fun FeedTopBar(
                             .weight(1f)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(19.dp))
-                            .clickable { onSelectTab(tab) }
+                            .clickable {
+                                // Tab Bạn bè đang mở: bấm lần nữa thì mở menu chọn người
+                                if (isFriendsTab && isSelected && friendFilterOptions.isNotEmpty()) {
+                                    friendMenuExpanded = true
+                                } else {
+                                    onSelectTab(tab)
+                                }
+                            }
                     ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Text(
+                        if (isFriendsTab) {
+                            val selectedFriend = friendFilterOptions.firstOrNull { it.id == selectedFriendId }
+                            Box {
+                                FitText(
+                                    text = selectedFriend?.let { friendFilterLabel(it, currentUserId) } ?: tab.labelVi,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                    color = if (isSelected) colors.primary else colors.textSecondary,
+                                    widthFraction = 0.6f
+                                )
+                                Icon(
+                                    imageVector = Icons.Rounded.KeyboardArrowDown,
+                                    contentDescription = "Chọn người",
+                                    tint = if (isSelected) colors.primary else colors.textSecondary,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .padding(end = 10.dp)
+                                        .size(24.dp)
+                                        .rotate(arrowRotation)
+                                )
+                                FriendFilterMenu(
+                                    expanded = friendMenuExpanded,
+                                    onDismiss = { friendMenuExpanded = false },
+                                    options = friendFilterOptions,
+                                    selectedId = selectedFriendId,
+                                    currentUserId = currentUserId,
+                                    onSelect = onSelectFriend
+                                )
+                            }
+                        } else {
+                            FitText(
                                 text = tab.labelVi,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
-                                ),
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                                 color = if (isSelected) colors.primary else colors.textSecondary
                             )
                         }
@@ -438,6 +484,98 @@ private fun FeedTopBar(
             }
         }
     }
+}
+
+/** Menu của tab Bạn bè: xem ảnh của tất cả hoặc của một người. */
+@Composable
+private fun FriendFilterMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    options: List<User>,
+    selectedId: String?,
+    currentUserId: String,
+    onSelect: (String?) -> Unit
+) {
+    val colors = LokapTheme.colors
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier
+            .background(colors.surfaceHigh)
+            .heightIn(max = 360.dp)
+    ) {
+        FriendFilterMenuItem(
+            label = "Tất cả",
+            isSelected = selectedId == null,
+            leading = {
+                Icon(
+                    imageVector = Icons.Filled.People,
+                    contentDescription = null,
+                    tint = colors.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            onClick = {
+                onDismiss()
+                onSelect(null)
+            }
+        )
+        options.forEach { user ->
+            FriendFilterMenuItem(
+                label = friendFilterLabel(user, currentUserId),
+                isSelected = user.id == selectedId,
+                leading = {
+                    AvatarRing(
+                        avatarUrl = user.avatarUrl,
+                        displayName = user.displayName,
+                        size = 28.dp
+                    )
+                },
+                onClick = {
+                    onDismiss()
+                    onSelect(user.id)
+                }
+            )
+        }
+    }
+}
+
+private fun friendFilterLabel(user: User, currentUserId: String): String =
+    if (user.id == currentUserId) "Tôi" else user.displayName
+
+@Composable
+private fun FriendFilterMenuItem(
+    label: String,
+    isSelected: Boolean,
+    leading: @Composable () -> Unit,
+    onClick: () -> Unit
+) {
+    val colors = LokapTheme.colors
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                ),
+                color = if (isSelected) colors.primary else colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        leadingIcon = leading,
+        trailingIcon = if (isSelected) {
+            {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = "Đang chọn",
+                    tint = colors.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        } else null,
+        onClick = onClick
+    )
 }
 
 @Composable
@@ -568,44 +706,54 @@ private fun LocketFriendPageItem(
                         imageVector = Icons.Filled.People,
                         contentDescription = null,
                         tint = colors.buttonText,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Text(
                         text = if (post.audience == Audience.PUBLIC) "Công khai" else "Bạn bè",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.sp
+                            fontSize = 12.sp
                         ),
                         color = colors.buttonText
                     )
                 }
             }
 
+            // Vị trí ở góc phải trên ảnh; vùng chạm phủ cả lề quanh pill để đủ lớn
+            val locationInteraction = remember { MutableInteractionSource() }
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
+                    .clickable(
+                        interactionSource = locationInteraction,
+                        indication = null,
+                        onClickLabel = "Mở album $locationLabel",
+                        role = Role.Button,
+                        onClick = onLocationClick
+                    )
                     .padding(spacing.sm)
+                    .widthIn(max = 190.dp)
                     .clip(shapes.pill)
-                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.65f))
-                    .padding(horizontal = 8.dp, vertical = 3.5.dp)
+                    .background(Color.Black.copy(alpha = 0.65f))
+                    .indication(locationInteraction, ripple())
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Schedule,
-                        contentDescription = null,
-                        tint = androidx.compose.ui.graphics.Color.White,
-                        modifier = Modifier.size(12.dp)
+                        imageVector = Icons.Rounded.LocationOn,
+                        contentDescription = "Vị trí",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = timeLabel,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 11.sp
-                        ),
-                        color = androidx.compose.ui.graphics.Color.White
+                        text = locationLabel,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -716,12 +864,6 @@ private fun LocketFriendPageItem(
                     color = colors.textSecondary
                 )
             }
-
-            GlassChip(
-                label = locationLabel,
-                leadingIcon = Icons.Rounded.LocationOn,
-                onClick = onLocationClick
-            )
         }
 
         Column(
@@ -757,7 +899,7 @@ private fun LocketFriendPageItem(
                     imageVector = Icons.AutoMirrored.Rounded.Send,
                     contentDescription = "Trả lời",
                     tint = colors.primary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -802,17 +944,24 @@ private fun TwitterExploreFeed(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     val displayTitle = if (currentProvinceName == NATIONWIDE_VIETNAM) "Việt Nam" else currentProvinceName
-                    Text(
-                        text = "Khám phá · $displayTitle",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary
-                    )
-                    Text(
-                        text = "${posts.size} khoảnh khắc",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colors.textSecondary
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.LocationOn,
+                            contentDescription = "Khu vực",
+                            tint = colors.primary,
+                            modifier = Modifier.size(35.dp)
+                        )
+                        Text(
+                            text = displayTitle,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.textPrimary,
+                            maxLines = 1
+                        )
+                    }
                 }
 
                 Surface(
@@ -824,7 +973,7 @@ private fun TwitterExploreFeed(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(42.dp)
+                        .height(50.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -837,7 +986,7 @@ private fun TwitterExploreFeed(
                             imageVector = Icons.Filled.Search,
                             contentDescription = "Tìm kiếm",
                             tint = if (locationSearchQuery.isNotEmpty()) colors.primary else colors.textSecondary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                         Box(
                             modifier = Modifier.weight(1f),
@@ -845,8 +994,8 @@ private fun TwitterExploreFeed(
                         ) {
                             if (locationSearchQuery.isEmpty()) {
                                 Text(
-                                    text = "Tìm tỉnh thành, địa danh…",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    text = "Tìm địa danh",
+                                    style = MaterialTheme.typography.bodyLarge,
                                     color = colors.textTertiary,
                                     maxLines = 1
                                 )
@@ -866,7 +1015,7 @@ private fun TwitterExploreFeed(
                                 contentDescription = "Xoá",
                                 tint = colors.textSecondary,
                                 modifier = Modifier
-                                    .size(18.dp)
+                                    .size(22.dp)
                                     .clip(CircleShape)
                                     .clickable { onAction(FeedAction.OnClearLocationSearch) }
                             )
@@ -889,8 +1038,7 @@ private fun TwitterExploreFeed(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         EmptyState(
-                            title = if (currentProvinceName == NATIONWIDE_VIETNAM) "Chưa có bài nào công khai" else "Chưa có bài nào tại $currentProvinceName",
-                            subtitle = if (currentProvinceName == NATIONWIDE_VIETNAM) "Rủ bạn bè vào Lokap để cùng chia sẻ nhé" else "Hãy là người đầu tiên chia sẻ khoảnh khắc tại đây!"
+                            title = "Chưa có bài"
                         )
                         if (currentProvinceName != NATIONWIDE_VIETNAM) {
                             PinkButton(
@@ -907,7 +1055,7 @@ private fun TwitterExploreFeed(
                 key = { "twitter_post_${it.id}" }
             ) { post ->
                 val isReposted = repostedPostIds.contains(post.id)
-                val commentsCount = commentsCountMap[post.id] ?: vn.nhom2.lokap.data.fake.FakeCommentStore.getTotalCount(post.id)
+                val commentsCount = commentsCountMap[post.id] ?: 0
                 val showReactionPicker = activeReactionPickerPostId == post.id
 
                 TwitterPostItem(
@@ -973,7 +1121,7 @@ private fun TwitterPostItem(
                     Text(
                         text = post.author.displayName,
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontSize = 14.sp,
+                            fontSize = 15.5.sp,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary,
@@ -984,13 +1132,13 @@ private fun TwitterPostItem(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "·",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),
                         color = colors.textSecondary
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = formatTimeAgo(post.takenAt, now),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),
                         color = colors.textSecondary,
                         maxLines = 1,
                         softWrap = false
@@ -1010,12 +1158,12 @@ private fun TwitterPostItem(
                             imageVector = Icons.Rounded.LocationOn,
                             contentDescription = null,
                             tint = colors.primary,
-                            modifier = Modifier.size(11.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = locText,
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 11.5.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium
                             ),
                             color = colors.primary,
@@ -1032,8 +1180,8 @@ private fun TwitterPostItem(
             Text(
                 text = captionText,
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 13.5.sp,
-                    lineHeight = 19.sp
+                    fontSize = 14.5.sp,
+                    lineHeight = 21.sp
                 ),
                 color = colors.textPrimary
             )
@@ -1086,13 +1234,13 @@ private fun TwitterPostItem(
                             imageVector = Icons.Filled.People,
                             contentDescription = null,
                             tint = colors.buttonText,
-                            modifier = Modifier.size(11.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = if (post.audience == Audience.PUBLIC) "Công khai" else "Bạn bè",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                             color = colors.buttonText,
-                            fontSize = 10.5.sp
+                            fontSize = 11.5.sp
                         )
                     }
                 }
@@ -1113,13 +1261,13 @@ private fun TwitterPostItem(
                             imageVector = Icons.Filled.Schedule,
                             contentDescription = null,
                             tint = androidx.compose.ui.graphics.Color.White,
-                            modifier = Modifier.size(11.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = formatTimeAgo(post.takenAt, now),
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                             color = androidx.compose.ui.graphics.Color.White,
-                            fontSize = 10.5.sp
+                            fontSize = 11.5.sp
                         )
                     }
                 }
@@ -1159,7 +1307,7 @@ private fun TwitterPostItem(
                 listOf("❤️", "🔥", "😂", "😮", "😢", "👍").forEach { emoji ->
                     Text(
                         text = emoji,
-                        fontSize = 20.sp,
+                        fontSize = 22.sp,
                         modifier = Modifier
                             .clickable {
                                 onAction(FeedAction.OnReact(post.id, emoji))
@@ -1204,7 +1352,7 @@ private fun TwitterPostItem(
                     contentDescription = "Thích",
                     tint = if (isLiked) colors.primary else colors.textSecondary,
                     modifier = Modifier
-                        .size(18.dp)
+                        .size(22.dp)
                         .scale(likeScale)
                 )
                 Text(
@@ -1226,7 +1374,7 @@ private fun TwitterPostItem(
                     imageVector = Icons.Default.ChatBubbleOutline,
                     contentDescription = "Bình luận",
                     tint = colors.textSecondary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(22.dp)
                 )
                 Text(
                     text = commentsCount.toString(),
@@ -1247,7 +1395,7 @@ private fun TwitterPostItem(
                     imageVector = Icons.Default.Repeat,
                     contentDescription = "Đăng lại",
                     tint = if (isReposted) colors.primary else colors.textSecondary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(22.dp)
                 )
                 Text(
                     text = if (isReposted) "1" else "0",
@@ -1264,7 +1412,7 @@ private fun TwitterPostItem(
                     imageVector = Icons.Default.Share,
                     contentDescription = "Chia sẻ liên kết",
                     tint = colors.textSecondary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -1312,7 +1460,7 @@ private fun CommentBottomSheet(
             Text(
                 text = "Bình luận · ${allFlattenedComments.size}",
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 15.sp,
+                    fontSize = 16.5.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 color = colors.textPrimary
@@ -1326,8 +1474,8 @@ private fun CommentBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Chưa có bình luận nào. Hãy là người đầu tiên!",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                        text = "Chưa có bình luận",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.5.sp),
                         color = colors.textSecondary
                     )
                 }
@@ -1363,22 +1511,22 @@ private fun CommentBottomSheet(
                                     Text(
                                         text = comment.authorName,
                                         style = MaterialTheme.typography.titleSmall.copy(
-                                            fontSize = 13.sp,
+                                            fontSize = 14.5.sp,
                                             fontWeight = FontWeight.SemiBold
                                         ),
                                         color = colors.textPrimary
                                     )
                                     Text(
                                         text = comment.timeAgo,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                         color = colors.textSecondary
                                     )
                                 }
                                 Text(
                                     text = comment.content,
                                     style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp
+                                        fontSize = 14.5.sp,
+                                        lineHeight = 20.sp
                                     ),
                                     color = colors.textPrimary,
                                     modifier = Modifier.padding(top = 2.dp)
@@ -1529,7 +1677,7 @@ private fun ProvincePickerBottomSheet(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Xoá",
                                 tint = colors.textTertiary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -1578,14 +1726,14 @@ private fun ProvincePickerBottomSheet(
                                         imageVector = Icons.Rounded.Public,
                                         contentDescription = null,
                                         tint = if (isSelected) colors.primary else colors.textTertiary,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Rounded.LocationOn,
                                         contentDescription = null,
                                         tint = if (isSelected) colors.primary else colors.textTertiary,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                                 Column {
@@ -1628,7 +1776,7 @@ private fun ProvincePickerBottomSheet(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = "Đã chọn",
                                         tint = colors.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(25.dp)
                                     )
                                 }
                             }
@@ -1713,8 +1861,7 @@ private fun FriendSearchTabContent(
                 contentAlignment = Alignment.Center
             ) {
                 EmptyState(
-                    title = "Không tìm thấy bạn bè nào",
-                    subtitle = "Thử tìm kiếm với tên hoặc tag name khác nhé."
+                    title = "Không tìm thấy"
                 )
             }
         } else {
@@ -1750,7 +1897,7 @@ private fun FriendSearchTabContent(
                                 text = user.displayName,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.5.sp
+                                    fontSize = 16.sp
                                 ),
                                 color = colors.textPrimary,
                                 maxLines = 1,
@@ -1759,7 +1906,7 @@ private fun FriendSearchTabContent(
                             Text(
                                 text = "@${user.username}",
                                 style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 12.sp
+                                    fontSize = 13.5.sp
                                 ),
                                 color = colors.textTertiary,
                                 maxLines = 1,
@@ -1786,13 +1933,13 @@ private fun FriendSearchTabContent(
                                             imageVector = Icons.Rounded.Check,
                                             contentDescription = null,
                                             tint = colors.textSecondary,
-                                            modifier = Modifier.size(13.dp)
+                                            modifier = Modifier.size(16.dp)
                                         )
                                         Text(
                                             text = "Đã gửi",
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Medium,
-                                                fontSize = 12.sp
+                                                fontSize = 13.5.sp
                                             ),
                                             color = colors.textSecondary
                                         )
@@ -1817,13 +1964,13 @@ private fun FriendSearchTabContent(
                                             imageVector = Icons.Rounded.DoneAll,
                                             contentDescription = null,
                                             tint = colors.primary,
-                                            modifier = Modifier.size(13.dp)
+                                            modifier = Modifier.size(16.dp)
                                         )
                                         Text(
                                             text = "Bạn bè",
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.SemiBold,
-                                                fontSize = 12.sp
+                                                fontSize = 13.5.sp
                                             ),
                                             color = colors.primary
                                         )
@@ -1847,13 +1994,13 @@ private fun FriendSearchTabContent(
                                             imageVector = Icons.Rounded.PersonAdd,
                                             contentDescription = null,
                                             tint = Color.White,
-                                            modifier = Modifier.size(14.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                         Text(
                                             text = "Kết bạn",
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.SemiBold,
-                                                fontSize = 12.sp
+                                                fontSize = 13.5.sp
                                             ),
                                             color = Color.White
                                         )
@@ -1907,35 +2054,9 @@ private fun formatFeedLocation(location: PostLocation): String {
     }
 }
 
-@Preview(name = "1. Feed - Tab Bạn bè", showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun FeedFriendsPreview() {
-    LokapTheme {
-        FeedScreen(
-            state = FeedUiState(
-                selectedTab = FeedTab.FRIENDS,
-                friendPosts = SampleData.posts.take(5)
-            ),
-            onAction = {}
-        )
-    }
-}
 
-@Preview(name = "2. Feed - Tab Khám phá", showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun FeedExplorePreview() {
-    LokapTheme {
-        FeedScreen(
-            state = FeedUiState(
-                selectedTab = FeedTab.EXPLORE,
-                nearbyPosts = SampleData.posts.filter { it.location.provinceCode == "da-nang" }.take(2),
-                landmarkPosts = SampleData.posts.filter { it.location.landmarkId != null }.take(2),
-                isOffline = true
-            ),
-            onAction = {}
-        )
-    }
-}
+
+
 
 @Preview(name = "3. Feed - Đang tải (Shimmer)", showBackground = true, backgroundColor = 0xFF0B0B0D)
 @Composable
@@ -1943,33 +2064,6 @@ private fun FeedLoadingPreview() {
     LokapTheme {
         FeedScreen(
             state = FeedUiState(isLoading = true),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(name = "4. Feed - Trống", showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun FeedEmptyPreview() {
-    LokapTheme {
-        FeedScreen(
-            state = FeedUiState(
-                selectedTab = FeedTab.FRIENDS,
-                friendPosts = emptyList()
-            ),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(name = "5. Feed - Lỗi", showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun FeedErrorPreview() {
-    LokapTheme {
-        FeedScreen(
-            state = FeedUiState(
-                errorMessage = "Không thể tải bảng tin lúc này. Vui lòng kiểm tra kết nối mạng."
-            ),
             onAction = {}
         )
     }

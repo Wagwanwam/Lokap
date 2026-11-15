@@ -291,3 +291,29 @@ Một thành viên khác clone repo về MacBook Pro M4 16 GB (macOS 26.2) và l
   - Lề ngang chưa thống nhất: Album, Địa danh, Bạn bè, Tin nhắn, Thông báo, Hồ sơ dùng 12dp; các màn còn lại 16dp.
   - Ở zoom 9, chạm bong bóng phường → nhảy zoom 11.2, nơi địa danh có bài được ưu tiên nên bong bóng phường bị ẩn: khó mở sheet "Xem album" của phường từ bản đồ.
   - Ảnh bìa địa danh Cầu Rồng là ảnh dâu tây (dữ liệu giả picsum); màn chờ khởi động vẫn là icon Android mặc định; nút "Tiếp theo" ở màn giới thiệu đặt mũi tên → bên trái chữ.
+
+### Phiên Mac 06/11 (06:50–08:05): slide tuần 2 bản v2 (kiểm trong PowerPoint + rà soát nhiều agent) — không đụng code app
+- Mở deck trong PowerPoint for Mac thật (chạy nền), chụp 11 slide; 7 agent rà (4 nhóm slide, đối chiếu lời nói với code, kịch bản, phong cách/font) + phản biện từng lỗi.
+- Đã sửa trong deck (ghi đè `Lokap-Tuan2-GiaoDien.pptx/.pdf`, bản cũ lưu ở scratchpad phiên):
+  - Icon đổi sang kiểu nét (Lucide) như a.pptx; slide 1 và 11 hai máy không còn che nhau (lề phải 0.889 như lề trái); slide 11 thay album trống nửa màn bằng Chi tiết bài + bản đồ địa danh.
+  - Slide 3: cột "Vào app" trải đều, đường nối xám đậm hơn (máy chiếu thấy rõ). Slide 4: wireframe nét đậm hơn, chạy đúng lề.
+  - Slide 6 và 1: khung ngắm Camera/Soạn bài **ghép ảnh mẫu dreamcatcher** thay cho cảnh tivi bàn cờ của camera ảo (giao diện app giữ nguyên) để 3 máy chụp → gửi → Feed cùng một ảnh.
+  - Slide 7: 3 mảng bản đồ cắt từ ảnh app (tỉnh → phường → địa danh), chữ đọc được khi chiếu; mảng 1 giữ đủ chiều ngang để **không mất chấm Hoàng Sa**; mảng 3 chỉ lấy Ngũ Hành Sơn + Phố cổ Hội An (tránh ảnh dâu tây của Cầu Rồng).
+  - Slide 8: album Đà Nẵng (4 ảnh) thay album P. Hội An; 3 máy cùng cỡ. Slide 10: bố cục Trước – chú thích – Sau, ảnh phóng sát chỗ lỗi; hàng 2 đổi sang lưới avatar 5 + 1 → 3 + 3.
+- `Lokap-Tuan2-ThietKe/mockup/` làm lại: 24 màn, mỗi màn 1 file, đánh số và đặt tên theo sơ đồ luồng (01-gioi-thieu-1 … 24-thong-bao), có `README.txt` ghi chú ảnh ghép và dữ liệu mẫu; bỏ màn Địa danh (ảnh bìa dâu tây).
+- Kịch bản viết lại (~917 tiếng, 6:25 + 3 lần đổi người ≈ 6:40), sửa các câu sai so với code: "bấm Quay lại là về Camera" (thực tế lùi từng màn), wireframe "phác trước khi lên màu" (thực tế vẽ theo toạ độ app), "đã xem và đang nhập" (ảnh chỉ có dấu đã gửi), bảo mật vị trí nói là thiết kế máy chủ. Chia người nói 4 khối: Thuận 1–3, Nhật 4–6, Quang 7–8, Phước 9–11 (có câu chuyển lượt). Có thêm `Lokap-Tuan2-KichBan.docx` (ảnh slide + lời nói).
+- Font: deck nhúng Avenir Next dạng tập con từ a.pptx, thiếu đúng ký tự "≥" (slide 2) nếu trình chiếu trên Windows không có Avenir Next → mang theo PDF dự phòng hoặc mở deck bằng PowerPoint trên Mac và Lưu lại để nhúng lại font.
+
+## Phiên Mac 11/11 (21:30–22:40): gộp code Nhật + CRUD Supabase — ĐANG DỞ, CHƯA commit
+- Đã gộp `origin/wip/onboarding-ui` (7b03ad1 của Nhật) vào `tuan1` = commit `1db3c43` (chỉ ở máy, chưa push). `gradle.properties` đã bỏ đường dẫn JDK `D:\` (chưa commit, cố ý).
+- Backend `supabase/` XONG: migration 0001–0006, seed, 2 file test pgTAP (132/132 xanh với `supabase start` + `supabase test db`). Bổ sung so với tài liệu: `user_settings` (4 công tắc thông báo + năm sinh riêng tư), `profiles.bio`, `profiles.home_province_code`, RPC `is_email_available` (giới hạn 30 lần/10 phút/IP). OTP: `config.toml` bật Confirm email, mẫu email `{{ .Token }}`.
+- Android ĐÃ CÓ: Gradle (KSP 2.3.13, Hilt 2.59.2, Room 2.8.5, WorkManager 2.12.0, supabase-kt 3.2.6), `.env` → BuildConfig (trống = dữ liệu giả), `LokapApp` @HiltAndroidApp, `domain/repository/*` (Auth/Post/Social/Settings + lỗi chung), bản giả `data/fake/FakeRepositories.kt`, bản Supabase `data/repository/*`, Room `data/local`, `UploadPostWorker`, `ImageProcessor` (xoá EXIF), `di/AppModule.kt`. Màn OTP mới `feature/auth/verify/*` đã nối với Đăng nhập/Đăng ký.
+- ViewModel ĐÃ chuyển Hilt: Login, Register, ForgotPassword, SetupProfile, Onboarding, VerifyEmail.
+- CÒN LẠI (theo thứ tự):
+  1. Build `bash ./gradlew --no-daemon assembleDebug` và sửa lỗi biên dịch (phần mới chưa build lần nào).
+  2. Chuyển sang Repository + `hiltViewModel()`: Composer (`PostRepository.createPost(PostDraft)`), Feed, PostDetail (thêm menu bài của mình: Sửa lời nhắn ≤ 60 + Xoá bài), Profile, Friends, Settings (đổi mật khẩu → `auth.changePassword`), Search, Camera.
+  3. `rememberStartDestination` dùng `AuthRepository.session` (Loading → chưa vẽ NavHost).
+  4. Sửa unit test (ViewModel giờ nhận Repository: truyền `FakeAuthRepository()`… trong `data/fake/FakeRepositories.kt`).
+  5. Chạy emulator với Supabase local: `SUPABASE_URL=http://10.0.2.2:54321 SUPABASE_ANON_KEY=<ANON_KEY của supabase status> bash ./gradlew --no-daemon assembleDebug`.
+  6. Viết `docs/database.md`, `supabase stop`, tắt Docker.
+- Bình luận (FakeCommentStore của Nhật) chưa có bảng trong CSDL: cần nhóm chốt trước khi thêm.

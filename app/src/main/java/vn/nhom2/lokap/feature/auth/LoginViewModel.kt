@@ -9,9 +9,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.AuthStoreException
-import vn.nhom2.lokap.data.fake.FakeAuthStore
-class LoginViewModel : ViewModel() {
+import vn.nhom2.lokap.domain.repository.AuthStoreException
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import vn.nhom2.lokap.domain.repository.AuthRepository
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val auth: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -69,23 +74,13 @@ class LoginViewModel : ViewModel() {
 
             LoginAction.SubmitClicked -> submitEmailLogin()
 
-            LoginAction.GoogleSignInClicked -> submitGoogleLogin()
+            LoginAction.GoogleSignInClicked -> requestGoogleSignIn()
 
-            LoginAction.AutofillDemoAccount -> {
-                _uiState.update {
-                    it.copy(
-                        email = "demo@lokap.vn",
-                        password = "lokap123",
-                        emailError = null,
-                        passwordError = null,
-                        serverError = null
-                    )
-                }
-            }
+            is LoginAction.GoogleSignInFinished -> onGoogleSignInFinished(action.result)
 
             LoginAction.RetryClicked -> {
                 if (lastAttemptWasGoogle) {
-                    submitGoogleLogin()
+                    requestGoogleSignIn()
                 } else {
                     submitEmailLogin()
                 }
@@ -134,7 +129,7 @@ class LoginViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            val result = FakeAuthStore.login(current.email, current.password)
+            val result = auth.login(current.email, current.password)
             result.fold(
                 onSuccess = { user ->
 
@@ -145,22 +140,28 @@ class LoginViewModel : ViewModel() {
                     }
                 },
                 onFailure = { error ->
-                    val isOffline = error is AuthStoreException.NetworkError
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isOffline = isOffline,
-                            serverError = error.message ?: "Đã xảy ra lỗi"
-                        )
+                    if (error is AuthStoreException.EmailNotConfirmed) {
+                        // Đã đăng ký nhưng chưa bấm link xác nhận: sang màn Xác nhận email, màn đó tự gửi lại link
+                        _uiState.update { it.copy(isLoading = false) }
+                        _effect.send(LoginEffect.NavigateToVerifyEmail(current.email.trim()))
+                    } else {
+                        val isOffline = error is AuthStoreException.NetworkError
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                isOffline = isOffline,
+                                serverError = error.message ?: "Đã xảy ra lỗi"
+                            )
+                        }
                     }
                 }
             )
         }
     }
 
-    private fun submitGoogleLogin() {
-        val current = _uiState.value
-        if (current.isBusy) return
+    /** Bước 1: giữ trạng thái chờ rồi nhờ màn hình mở hộp chọn tài khoản Google (cần Activity). */
+    private fun requestGoogleSignIn() {
+        if (_uiState.value.isBusy) return
 
         lastAttemptWasGoogle = true
         _uiState.update {
@@ -170,9 +171,24 @@ class LoginViewModel : ViewModel() {
                 isOffline = false
             )
         }
+        viewModelScope.launch { _effect.send(LoginEffect.LaunchGoogleSignIn) }
+    }
 
+    /** Bước 2: hộp chọn tài khoản đóng lại. Có ID token thì đăng nhập Firebase, người dùng tự đóng thì thôi. */
+    private fun onGoogleSignInFinished(result: GoogleSignInResult) {
+        if (!_uiState.value.isGoogleLoading) return
+        when (result) {
+            is GoogleSignInResult.Success -> submitGoogleLogin(result.idToken)
+            GoogleSignInResult.Cancelled -> _uiState.update { it.copy(isGoogleLoading = false) }
+            is GoogleSignInResult.Failure -> _uiState.update {
+                it.copy(isGoogleLoading = false, serverError = result.message)
+            }
+        }
+    }
+
+    private fun submitGoogleLogin(idToken: String) {
         viewModelScope.launch {
-            val result = FakeAuthStore.loginWithGoogle()
+            val result = auth.loginWithGoogle(idToken)
             result.fold(
                 onSuccess = { user ->
                     if (user.username.isBlank()) {

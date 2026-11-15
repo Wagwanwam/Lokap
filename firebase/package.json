@@ -1,0 +1,16 @@
+{
+  "name": "lokap-firebase",
+  "private": true,
+  "type": "module",
+  "description": "Security Rules + index của Firestore cho Lokap, kèm test chạy trên Firebase Emulator",
+  "scripts": {
+    "emulators": "firebase emulators:start --project demo-lokap",
+    "test": "firebase emulators:exec --only firestore --project demo-lokap \"node --test tests/rules.test.js\"",
+    "deploy": "firebase deploy --only firestore:rules,firestore:indexes"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.3.0",
+    "firebase-tools": "^15.36.0"
+  }
+}

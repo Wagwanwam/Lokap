@@ -12,22 +12,13 @@ enum class UsernameAvailability {
     INVALID
 }
 
-val PresetAvatars = listOf(
-    "https://picsum.photos/seed/lokap_avatar_1/200/200",
-    "https://picsum.photos/seed/lokap_avatar_2/200/200",
-    "https://picsum.photos/seed/lokap_avatar_3/200/200",
-    "https://picsum.photos/seed/lokap_avatar_4/200/200",
-    "https://picsum.photos/seed/lokap_avatar_5/200/200",
-    "https://picsum.photos/seed/lokap_avatar_6/200/200"
-)
-
 data class SetupProfileUiState(
-    val selectedAvatarUrl: String? = PresetAvatars.first(),
-    val presetAvatars: List<String> = PresetAvatars,
+    val selectedAvatarUrl: String? = null,
+    val presetAvatars: List<String> = emptyList(),
     val displayName: String = "",
     val username: String = "",
-    val birthYear: Int = 2004,
-    val homeProvince: String = "Đà Nẵng",
+    val birthYear: Int? = null,
+    val homeProvince: String = "",
     val bio: String = "",
     val displayNameTouched: Boolean = false,
     val usernameTouched: Boolean = false,

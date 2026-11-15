@@ -9,8 +9,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.FakeAuthStore
-class OnboardingViewModel : ViewModel() {
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import vn.nhom2.lokap.domain.repository.AuthRepository
+@HiltViewModel
+class OnboardingViewModel @Inject constructor(
+    private val auth: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
@@ -29,23 +34,6 @@ class OnboardingViewModel : ViewModel() {
 
     fun onAction(action: OnboardingAction) {
         when (action) {
-            is OnboardingAction.PageChanged -> {
-                _uiState.update { it.copy(currentPage = action.page.coerceIn(0, it.totalPages - 1)) }
-            }
-
-            OnboardingAction.NextPageClicked -> {
-                _uiState.update { state ->
-                    val next = (state.currentPage + 1).coerceAtMost(state.totalPages - 1)
-                    state.copy(currentPage = next)
-                }
-            }
-
-            OnboardingAction.SkipToPermissionsClicked -> {
-                _uiState.update { state ->
-                    state.copy(currentPage = state.totalPages - 1)
-                }
-            }
-
             is OnboardingAction.SyncPermissionState -> {
                 _uiState.update { state ->
                     val hasAnyLocation = action.fineLocationGranted || action.coarseLocationGranted
@@ -94,7 +82,7 @@ class OnboardingViewModel : ViewModel() {
                 val current = _uiState.value
                 if (!current.canStart) return
                 _uiState.update { it.copy(isSubmitting = true) }
-                FakeAuthStore.markOnboardingDone()
+                auth.markOnboardingDone()
                 viewModelScope.launch {
                     _effect.send(OnboardingEffect.NavigateToLogin)
                 }

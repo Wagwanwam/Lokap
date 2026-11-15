@@ -6,8 +6,13 @@ sealed interface Route {
     @Serializable
     data object Camera : Route
 
+    /** [landmarkId] có giá trị khi đưa ảnh lên một địa danh: Composer khoá Công khai và vị trí = địa danh. */
     @Serializable
-    data class Composer(val imagePath: String) : Route
+    data class Composer(val imagePath: String, val landmarkId: String? = null) : Route
+
+    /** Camera mở từ màn Địa danh: chụp xong sang Composer đã chọn sẵn địa danh. */
+    @Serializable
+    data class LandmarkCamera(val landmarkId: String) : Route
 
     @Serializable
     data object Feed : Route
@@ -29,6 +34,13 @@ sealed interface Route {
 
     @Serializable
     data object Friends : Route
+
+    /** [username] có giá trị khi mở từ link mời `lokap://add/<username>`. */
+    @Serializable
+    data class AddFriend(val username: String? = null) : Route
+
+    @Serializable
+    data object ScanFriendCode : Route
 
     @Serializable
     data object Notifications : Route

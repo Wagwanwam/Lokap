@@ -1,7 +1,22 @@
 package vn.nhom2.lokap.feature.notifications
 
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.MarkEmailRead
+import androidx.compose.material.icons.rounded.MarkEmailUnread
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
@@ -29,7 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -39,7 +54,6 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.*
 private enum class NotificationFilter(val label: String) {
     ALL("Tất cả"),
@@ -76,7 +90,7 @@ fun NotificationsRoute(
     onNavigateToInbox: () -> Unit,
     onNavigateToChat: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    viewModel: NotificationsViewModel = viewModel()
+    viewModel: NotificationsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -196,7 +210,6 @@ fun NotificationsScreen(
                 uiState.isEmpty -> {
                     EmptyState(
                         title = "Chưa có thông báo nào",
-                        subtitle = "Khi bạn bè thả cảm xúc hoặc đăng ảnh mới, thông báo sẽ xuất hiện tại đây",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(spacing.lg)
@@ -238,7 +251,9 @@ fun NotificationsScreen(
                                 NotificationRowItem(
                                     notification = notification,
                                     now = uiState.now,
-                                    friendRequestDecision = uiState.handledFriendRequestIds[notification.id],
+                                    friendRequestDecision = uiState.friendRequestDecision(notification),
+                                    onToggleRead = { onAction(NotificationsAction.ToggleRead(notification)) },
+                                    onDelete = { onAction(NotificationsAction.DeleteNotification(notification.id)) },
                                     onClick = {
                                         onAction(NotificationsAction.ClickNotification(notification))
                                     },
@@ -263,7 +278,9 @@ fun NotificationsScreen(
                                 NotificationRowItem(
                                     notification = notification,
                                     now = uiState.now,
-                                    friendRequestDecision = uiState.handledFriendRequestIds[notification.id],
+                                    friendRequestDecision = uiState.friendRequestDecision(notification),
+                                    onToggleRead = { onAction(NotificationsAction.ToggleRead(notification)) },
+                                    onDelete = { onAction(NotificationsAction.DeleteNotification(notification.id)) },
                                     onClick = {
                                         onAction(NotificationsAction.ClickNotification(notification))
                                     },
@@ -308,7 +325,7 @@ private fun NotificationsTopBar(
                 color = colors.surfaceHigh,
                 border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.25f)),
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onBackClick)
             ) {
@@ -317,7 +334,7 @@ private fun NotificationsTopBar(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Quay lại",
                         tint = colors.textPrimary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
@@ -326,7 +343,7 @@ private fun NotificationsTopBar(
                 text = "Thông báo",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 22.sp
+                    fontSize = 24.5.sp
                 ),
                 color = colors.textPrimary
             )
@@ -350,7 +367,7 @@ private fun NotificationsTopBar(
                         imageVector = Icons.Filled.Done,
                         contentDescription = null,
                         tint = colors.primary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "Đọc tất cả",
@@ -386,10 +403,14 @@ private fun NotificationRowItem(
     friendRequestDecision: Boolean?,
     onClick: () -> Unit,
     onAcceptFriend: () -> Unit,
-    onDeclineFriend: () -> Unit
+    onDeclineFriend: () -> Unit,
+    onToggleRead: () -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
     val colors = LokapTheme.colors
     val isUnread = !notification.isRead
+    val isFriendRequest = notification.type == NotificationType.FRIEND_REQUEST
+    val isPendingRequest = isFriendRequest && friendRequestDecision == null
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -404,13 +425,13 @@ private fun NotificationRowItem(
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
     ) {
+        // Một hàng căn giữa theo chiều dọc: avatar · nội dung · nút bên phải (✕ ✓ hoặc ⋮)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.Top
+                .padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-
             Box(contentAlignment = Alignment.BottomEnd) {
                 if (notification.type == NotificationType.POST_HIDDEN) {
                     Box(
@@ -424,7 +445,7 @@ private fun NotificationRowItem(
                             imageVector = Icons.Default.Warning,
                             contentDescription = "Bài đăng bị ẩn",
                             tint = colors.accentYellow,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(30.dp)
                         )
                     }
                 } else {
@@ -449,7 +470,7 @@ private fun NotificationRowItem(
                             imageVector = badgeConfig.icon,
                             contentDescription = null,
                             tint = badgeConfig.iconTint,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     }
                 }
@@ -465,65 +486,157 @@ private fun NotificationRowItem(
                     text = notification.text,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 14.sp
+                        fontSize = 15.5.sp
                     ),
-                    color = colors.textPrimary
+                    color = colors.textPrimary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
                 )
 
-                Text(
-                    text = formatTimeAgo(notification.createdAt, now),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isUnread) colors.primary else colors.textTertiary
-                )
-
-                if (notification.type == NotificationType.FRIEND_REQUEST) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    if (friendRequestDecision == null) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            PinkButton(
-                                text = "Chấp nhận",
-                                onClick = onAcceptFriend,
-                                modifier = Modifier.weight(1f)
-                            )
-                            GhostButton(
-                                text = "Từ chối",
-                                onClick = onDeclineFriend,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    } else {
-                        val statusText = if (friendRequestDecision) {
-                            "✓ Đã đồng ý kết bạn"
-                        } else {
-                            "Đã từ chối lời mời"
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (friendRequestDecision) colors.success.copy(alpha = 0.12f) else colors.surfaceHigh
-                        ) {
-                            Text(
-                                text = statusText,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = if (friendRequestDecision) colors.success else colors.textSecondary,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (isUnread) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(colors.primary)
+                        )
+                    }
+                    Text(
+                        text = formatTimeAgo(notification.createdAt, now),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isUnread) colors.primary else colors.textTertiary,
+                        maxLines = 1
+                    )
+                    // Lời mời đã xử lý: chỉ còn dấu ✓ / ✕ nhỏ cạnh giờ
+                    if (isFriendRequest && friendRequestDecision != null) {
+                        Icon(
+                            imageVector = if (friendRequestDecision) Icons.Rounded.Check else Icons.Rounded.Close,
+                            contentDescription = if (friendRequestDecision) "Đã kết bạn" else "Đã từ chối",
+                            tint = if (friendRequestDecision) colors.success else colors.textTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
 
-            if (isUnread) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(colors.primary)
+            Spacer(modifier = Modifier.width(6.dp))
+
+            if (isPendingRequest) {
+                Row(
+                    modifier = Modifier.padding(end = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RequestDecisionButton(
+                        icon = Icons.Rounded.Close,
+                        description = "Từ chối lời mời kết bạn",
+                        highlighted = false,
+                        onClick = onDeclineFriend
+                    )
+                    RequestDecisionButton(
+                        icon = Icons.Rounded.Check,
+                        description = "Chấp nhận lời mời kết bạn",
+                        highlighted = true,
+                        onClick = onAcceptFriend
+                    )
+                }
+            } else {
+                NotificationMenu(
+                    notificationId = notification.id,
+                    isRead = notification.isRead,
+                    onToggleRead = onToggleRead,
+                    onDelete = onDelete
                 )
             }
+        }
+    }
+}
+
+/** Nút tròn ✕ / ✓ cho lời mời kết bạn: 44dp, vùng chạm 48dp nhờ khoảng cách quanh nút. */
+@Composable
+private fun RequestDecisionButton(
+    icon: ImageVector,
+    description: String,
+    highlighted: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = LokapTheme.colors
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(if (highlighted) colors.primary else colors.surface)
+            .border(1.5.dp, if (highlighted) colors.primary else colors.outline, CircleShape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (highlighted) colors.onPrimary else colors.textPrimary,
+            modifier = Modifier.size(26.dp)
+        )
+    }
+}
+
+/** ⋮ ở cuối hàng: đánh dấu đã đọc / chưa đọc, xoá thông báo (thay hai nút chữ làm lệch hàng). */
+@Composable
+private fun NotificationMenu(
+    notificationId: String,
+    isRead: Boolean,
+    onToggleRead: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val colors = LokapTheme.colors
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag("notification-menu-$notificationId")
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.MoreVert,
+                contentDescription = "Tuỳ chọn thông báo",
+                tint = colors.textSecondary,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = colors.surfaceHigh
+        ) {
+            DropdownMenuItem(
+                text = { Text(if (isRead) "Đánh dấu chưa đọc" else "Đánh dấu đã đọc", color = colors.textPrimary) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (isRead) Icons.Rounded.MarkEmailUnread else Icons.Rounded.MarkEmailRead,
+                        contentDescription = null,
+                        tint = colors.textSecondary
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onToggleRead()
+                },
+                modifier = Modifier.testTag("notification-read-$notificationId")
+            )
+            DropdownMenuItem(
+                text = { Text("Xoá thông báo", color = colors.error) },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Rounded.DeleteOutline, contentDescription = null, tint = colors.error)
+                },
+                onClick = {
+                    expanded = false
+                    onDelete()
+                },
+                modifier = Modifier.testTag("notification-delete-$notificationId")
+            )
         }
     }
 }
@@ -540,7 +653,7 @@ private fun getNotificationBadgeConfig(
     colors: vn.nhom2.lokap.core.designsystem.theme.LokapColors
 ): BadgeConfig? {
     return when (type) {
-        NotificationType.REACTION -> BadgeConfig(
+        NotificationType.COMMENT, NotificationType.REACTION -> BadgeConfig(
             icon = Icons.Filled.Favorite,
             containerColor = colors.primary,
             iconTint = colors.buttonText
@@ -587,20 +700,5 @@ private fun NotificationsLoadingSkeleton() {
                 shape = RoundedCornerShape(16.dp)
             )
         }
-    }
-}
-
-@Preview(name = "Notifications - Đầy đủ", showBackground = true)
-@Composable
-private fun NotificationsScreenPopulatedPreview() {
-    LokapTheme {
-        val all = SampleData.notifications
-        NotificationsScreen(
-            uiState = NotificationsUiState(
-                unreadNotifications = all.filter { !it.isRead },
-                earlierNotifications = all.filter { it.isRead }
-            ),
-            onAction = {}
-        )
     }
 }

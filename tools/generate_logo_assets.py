@@ -51,6 +51,10 @@ def main():
     res_dir = r"d:\Project_A\Lokap\app\src\main\res"
     drawable_dir = os.path.join(res_dir, "drawable")
     os.makedirs(drawable_dir, exist_ok=True)
+    # Logo theo giao diện (LokapLogo.kt) để ở drawable-nodpi: để ở drawable/ (= mdpi) thì máy phóng ảnh 512 px
+    # lên ~1.5k px và decode lại trên main thread mỗi lần vào Camera/Bản đồ/Feed (làm giật animation Back)
+    nodpi_dir = os.path.join(res_dir, "drawable-nodpi")
+    os.makedirs(nodpi_dir, exist_ok=True)
 
     # 1. Dark theme logo (White base card)
     # Base: Crisp pure white [255, 255, 255, 255] with border [228, 228, 231, 255]
@@ -62,7 +66,7 @@ def main():
         upright_color=[244, 114, 182, 255],
         upright_border=[251, 113, 133, 255]
     )
-    logo_dark_path = os.path.join(drawable_dir, "ic_lokap_logo_dark.png")
+    logo_dark_path = os.path.join(nodpi_dir, "ic_lokap_logo_dark.png")
     logo_dark.save(logo_dark_path, "PNG")
     print(f"Saved logo dark: {logo_dark_path}")
 
@@ -81,7 +85,7 @@ def main():
         upright_color=[244, 114, 182, 255],
         upright_border=[225, 29, 72, 255]
     )
-    logo_light_path = os.path.join(drawable_dir, "ic_lokap_logo_light.png")
+    logo_light_path = os.path.join(nodpi_dir, "ic_lokap_logo_light.png")
     logo_light.save(logo_light_path, "PNG")
     print(f"Saved logo light: {logo_light_path}")
 

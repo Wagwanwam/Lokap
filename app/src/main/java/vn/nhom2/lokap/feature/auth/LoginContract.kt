@@ -29,7 +29,8 @@ sealed interface LoginAction {
     data object TogglePasswordVisibility : LoginAction
     data object SubmitClicked : LoginAction
     data object GoogleSignInClicked : LoginAction
-    data object AutofillDemoAccount : LoginAction
+    /** Màn hình báo kết quả hộp chọn tài khoản Google (mở theo [LoginEffect.LaunchGoogleSignIn]). */
+    data class GoogleSignInFinished(val result: GoogleSignInResult) : LoginAction
     data object RetryClicked : LoginAction
     data object ForgotPasswordClicked : LoginAction
     data object RegisterClicked : LoginAction
@@ -40,4 +41,16 @@ sealed interface LoginEffect {
     data object NavigateToSetupProfile : LoginEffect
     data object NavigateToRegister : LoginEffect
     data object NavigateToForgotPassword : LoginEffect
+    /** Email chưa xác nhận: sang màn Xác nhận email (màn đó tự gửi lại link). */
+    data class NavigateToVerifyEmail(val email: String) : LoginEffect
+    /** Mở hộp chọn tài khoản Google: cần Activity nên màn hình làm, xong gửi lại [LoginAction.GoogleSignInFinished]. */
+    data object LaunchGoogleSignIn : LoginEffect
+}
+
+/** Kết quả hộp chọn tài khoản Google (Credential Manager). */
+sealed interface GoogleSignInResult {
+    data class Success(val idToken: String) : GoogleSignInResult
+    /** Người dùng đóng hộp chọn tài khoản: không báo lỗi. */
+    data object Cancelled : GoogleSignInResult
+    data class Failure(val message: String) : GoogleSignInResult
 }

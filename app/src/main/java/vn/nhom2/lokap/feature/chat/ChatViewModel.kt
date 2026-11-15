@@ -1,281 +1,101 @@
 package vn.nhom2.lokap.feature.chat
-
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import java.time.*
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.navigation.Route
-import vn.nhom2.lokap.data.fake.FakeChatStore
-import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.data.fake.SampleSocialData
 import vn.nhom2.lokap.domain.model.*
-class ChatViewModel(
-    savedStateHandle: SavedStateHandle
+import vn.nhom2.lokap.domain.repository.*
+
+@HiltViewModel
+class ChatViewModel @Inject constructor(savedStateHandle: SavedStateHandle,
+    private val messages: MessagingRepository, private val auth: AuthRepository,
+    private val social: SocialRepository
 ) : ViewModel() {
-
-    private val routeArgs: Route.Chat = runCatching {
-        savedStateHandle.toRoute<Route.Chat>()
-    }.getOrElse {
-        Route.Chat(conversationId = savedStateHandle["conversationId"] ?: "")
-    }
-
-    private val conversationId: String = routeArgs.conversationId
-    private val myUserId: String = SampleData.currentUser.id
-
-    private val _uiState = MutableStateFlow(
-        ChatUiState(
-            isLoading = true,
-            conversationId = conversationId
-        )
-    )
-    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
-
+    private val conversationId = runCatching { savedStateHandle.toRoute<Route.Chat>().conversationId }
+        .getOrElse { savedStateHandle.get<String>("conversationId").orEmpty() }
+    private val _uiState = MutableStateFlow(ChatUiState(isLoading = true, conversationId = conversationId))
+    val uiState = _uiState.asStateFlow()
     private val _effects = Channel<ChatEffect>(Channel.BUFFERED)
-    val effects: Flow<ChatEffect> = _effects.receiveAsFlow()
-
-    private val friendSeenUpTo = MutableStateFlow<Instant?>(null)
-
-    private var replySimulationJob: Job? = null
-    private var nextReplyIndex: Int = 0
-
+    val effects = _effects.receiveAsFlow()
+    private var observer: Job? = null
+    private var latestIncoming: String? = null
     init {
-        FakeChatStore.markConversationRead(conversationId)
-        observeConversationAndMessages()
-        observeChatTheme()
+        observe()
+        viewModelScope.launch { social.refresh() }
+        viewModelScope.launch { messages.observeTheme(conversationId).collect { theme -> _uiState.update { it.copy(themeConfig = theme) } } }
     }
-
-    private fun observeChatTheme() {
-        viewModelScope.launch {
-            FakeChatStore.conversationThemes.collect { themes ->
-                val theme = themes[conversationId] ?: ChatThemeConfig()
-                _uiState.update { it.copy(themeConfig = theme) }
-            }
-        }
-    }
-
-    private fun observeConversationAndMessages() {
-        viewModelScope.launch {
-            combine(
-                FakeChatStore.conversations,
-                FakeChatStore.messages,
-                SampleSocialData.friendStatuses,
-                friendSeenUpTo
-            ) { conversations, allMessages, statuses, seenUpTo ->
-                val conv = conversations.find { it.id == conversationId }
-                val convMessages = allMessages
-                    .filter { it.conversationId == conversationId }
-                    .sortedBy { it.createdAt }
-                    .map { msg ->
-                        if (msg.senderId == myUserId && seenUpTo != null && !msg.createdAt.isAfter(seenUpTo)) {
-                            msg.copy(seen = true)
-                        } else {
-                            msg
+    private fun observe() {
+        observer?.cancel()
+        observer = viewModelScope.launch {
+            combine(messages.observeChat(conversationId), social.graph) { result, graph -> result to graph }.collect { (result, graph) ->
+                result.fold(onSuccess = { chat ->
+                    val conv = chat.conversation
+                    val uid = auth.currentUser.value?.id.orEmpty()
+                    _uiState.update { it.copy(isLoading = false,
+                        errorMessage = if (conv == null) "Không tìm thấy cuộc trò chuyện" else null,
+                        friend = conv?.friend, isFriendStatusValid = conv != null && graph.statusOf(conv.friend.id) == FriendStatus.FRIENDS,
+                        timelineItems = buildReverseTimeline(chat.messages, uid, Instant.now()), now = Instant.now()) }
+                    val incoming = chat.messages.lastOrNull { it.senderId != uid }?.id
+                    if (incoming != null && incoming != latestIncoming) {
+                        latestIncoming = incoming
+                        // Chỉ ghi readAt khi thật sự có tin chưa đọc: ghi thừa làm document hội thoại đổi, Hộp thư tính lại
+                        if ((conv?.unreadCount ?: 0) > 0) {
+                            messages.markRead(conversationId).onFailure { error -> _uiState.update { it.copy(errorMessage = error.message) } }
                         }
                     }
-                val isStillFriend = conv != null && statuses[conv.friend.id] == FriendStatus.FRIENDS
-                Triple(conv, convMessages, isStillFriend)
-            }.collect { (conv, convMessages, isStillFriend) ->
-                if (conv == null) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = "Không tìm thấy cuộc trò chuyện này."
-                        )
-                    }
-                    return@collect
-                }
-
-                val now = FakeChatStore.clockNow()
-                val timeline = buildReverseTimeline(
-                    messagesAscending = convMessages,
-                    myUserId = myUserId,
-                    now = now
-                )
-
-                _uiState.update { state ->
-                    state.copy(
-                        isLoading = false,
-                        errorMessage = null,
-                        friend = conv.friend,
-                        isFriendStatusValid = isStillFriend,
-                        timelineItems = timeline,
-                        now = now
-                    )
-                }
+                }, onFailure = { error -> _uiState.update { it.copy(isLoading = false, errorMessage = error.message) } })
             }
         }
     }
-
+    private fun perform(block: suspend () -> Result<Unit>) { viewModelScope.launch {
+        _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+        val result = block()
+        _uiState.update { it.copy(isSaving = false, errorMessage = result.exceptionOrNull()?.message) }
+    } }
     fun onAction(action: ChatAction) {
-        when (action) {
-            is ChatAction.InputChanged -> {
-                val limited = action.text.take(1000)
-                _uiState.update { it.copy(inputText = limited) }
+        when(action) {
+            is ChatAction.InputChanged -> _uiState.update { it.copy(inputText = action.text.take(1000)) }
+            ChatAction.SendMessage -> if (_uiState.value.canSend) {
+                val text = _uiState.value.inputText
+                perform { messages.send(conversationId, text).onSuccess { _uiState.update { it.copy(inputText = "") } } }
             }
-
-            ChatAction.SendMessage -> {
-                handleSendMessage()
+            is ChatAction.EditMessage -> _uiState.update { it.copy(editingMessage = action.message, editText = action.message.body.orEmpty()) }
+            is ChatAction.EditTextChanged -> _uiState.update { it.copy(editText = action.text.take(1000)) }
+            ChatAction.DismissEdit -> if (!_uiState.value.isSaving) _uiState.update { it.copy(editingMessage = null) }
+            ChatAction.SaveEdit -> _uiState.value.editingMessage?.let { msg ->
+                val text = _uiState.value.editText
+                perform { messages.edit(conversationId, msg.id, text).onSuccess { _uiState.update { it.copy(editingMessage = null) } } }
             }
-
-            is ChatAction.RetryMessage -> {
-                handleRetryMessage(action.messageId)
+            is ChatAction.DeleteMessage -> _uiState.update { it.copy(deletingMessageId = action.id) }
+            ChatAction.DismissDelete -> _uiState.update { it.copy(deletingMessageId = null) }
+            ChatAction.ConfirmDelete -> _uiState.value.deletingMessageId?.let { id ->
+                perform { messages.delete(conversationId, id).onSuccess { _uiState.update { it.copy(deletingMessageId = null) } } }
             }
-
-            ChatAction.OpenCameraForDirectShot -> {
-
-                sendEffect(ChatEffect.NavigateToCamera)
-            }
-
-            is ChatAction.OpenPostDetail -> {
-                sendEffect(ChatEffect.NavigateToPostDetail(action.postId))
-            }
-
-            ChatAction.OpenFriendProfile -> {
-                val friendId = _uiState.value.friend?.id ?: return
-                sendEffect(ChatEffect.NavigateToProfile(friendId))
-            }
-
-            ChatAction.RetryLoad -> {
-                _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                observeConversationAndMessages()
-            }
-
-            ChatAction.NavigateBack -> {
-                sendEffect(ChatEffect.NavigateBack)
-            }
-
-            ChatAction.OpenThemeSheet -> {
-                _uiState.update { it.copy(isThemeSheetVisible = true) }
-            }
-
-            ChatAction.DismissThemeSheet -> {
-                _uiState.update { it.copy(isThemeSheetVisible = false) }
-            }
-
-            is ChatAction.SelectThemePreset -> {
-                val currentTheme = FakeChatStore.getChatTheme(conversationId)
-                FakeChatStore.setChatTheme(
-                    conversationId = conversationId,
-                    theme = currentTheme.copy(presetId = action.presetId)
-                )
-            }
-
-            is ChatAction.SetCustomWallpaper -> {
-                val currentTheme = FakeChatStore.getChatTheme(conversationId)
-                FakeChatStore.setChatTheme(
-                    conversationId = conversationId,
-                    theme = currentTheme.copy(
-                        customWallpaperUri = action.uri,
-                        wallpaperAlignment = action.alignment
-                    )
-                )
-            }
-
-            ChatAction.RemoveCustomWallpaper -> {
-                val currentTheme = FakeChatStore.getChatTheme(conversationId)
-                FakeChatStore.setChatTheme(
-                    conversationId = conversationId,
-                    theme = currentTheme.copy(customWallpaperUri = null)
-                )
-            }
+            is ChatAction.RetryMessage -> observe()
+            ChatAction.RetryLoad -> { observe(); viewModelScope.launch { social.refresh() } }
+            ChatAction.NavigateBack -> _effects.trySend(ChatEffect.NavigateBack)
+            ChatAction.OpenCameraForDirectShot -> _effects.trySend(ChatEffect.NavigateToCamera)
+            is ChatAction.OpenPostDetail -> _effects.trySend(ChatEffect.NavigateToPostDetail(action.postId))
+            ChatAction.OpenFriendProfile -> _uiState.value.friend?.let { _effects.trySend(ChatEffect.NavigateToProfile(it.id)) }
+            ChatAction.OpenThemeSheet -> _uiState.update { it.copy(isThemeSheetVisible = true) }
+            ChatAction.DismissThemeSheet -> _uiState.update { it.copy(isThemeSheetVisible = false) }
+            is ChatAction.SelectThemePreset -> perform { messages.saveTheme(conversationId, _uiState.value.themeConfig.copy(presetId = action.presetId)) }
+            is ChatAction.SetCustomWallpaper -> perform { messages.saveTheme(conversationId, _uiState.value.themeConfig.copy(customWallpaperUri = action.uri, wallpaperAlignment = action.alignment)) }
+            ChatAction.RemoveCustomWallpaper -> perform { messages.saveTheme(conversationId, _uiState.value.themeConfig.copy(customWallpaperUri = null)) }
         }
     }
-
-    private fun handleSendMessage() {
-        val currentState = _uiState.value
-        val rawBody = currentState.inputText.trim()
-        if (!currentState.isFriendStatusValid || rawBody.isEmpty()) return
-
-        val pendingMsg = FakeChatStore.addOutgoingMessage(
-            conversationId = conversationId,
-            senderId = myUserId,
-            body = rawBody
-        ) ?: return
-        _uiState.update { it.copy(inputText = "") }
-
-        viewModelScope.launch {
-            delay(800L)
-            FakeChatStore.updateMessageSendState(
-                messageId = pendingMsg.id,
-                newState = PostSendState.SENT,
-                seen = false
-            )
-        }
-
-        scheduleSimulatedFriendReply()
-    }
-
-    private fun handleRetryMessage(messageId: String) {
-        FakeChatStore.updateMessageSendState(
-            messageId = messageId,
-            newState = PostSendState.PENDING,
-            seen = false
-        )
-        viewModelScope.launch {
-            delay(800L)
-            FakeChatStore.updateMessageSendState(
-                messageId = messageId,
-                newState = PostSendState.SENT,
-                seen = false
-            )
-        }
-    }
-
-    private fun scheduleSimulatedFriendReply() {
-        val friend = _uiState.value.friend ?: return
-        replySimulationJob?.cancel()
-        replySimulationJob = viewModelScope.launch {
-            delay(2000L)
-            friendSeenUpTo.value = FakeChatStore.clockNow()
-            _uiState.update { it.copy(isFriendTyping = true) }
-
-            delay(1500L)
-            _uiState.update { it.copy(isFriendTyping = false) }
-
-            val replyBody = CANNED_REPLIES[nextReplyIndex % CANNED_REPLIES.size]
-            nextReplyIndex = (nextReplyIndex + 1) % CANNED_REPLIES.size
-
-            FakeChatStore.addIncomingReply(
-                conversationId = conversationId,
-                friendId = friend.id,
-                body = replyBody,
-                isChatOpen = true
-            )
-        }
-    }
-
-    private fun sendEffect(effect: ChatEffect) {
-        viewModelScope.launch {
-            _effects.send(effect)
-        }
-    }
-
     companion object {
         private val DAY_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM")
         private val ZONE_ID: ZoneId = ZoneId.of("Asia/Ho_Chi_Minh")
-
-        private val CANNED_REPLIES = listOf(
-            "Ảnh cháy quá trời ơi 🔥",
-            "Đang ở đâu đấy? Tí qua đón nha!",
-            "Haha nhìn mặt hài xỉu 😂",
-            "Chụp thêm tấm nữa gửi qua Lokap xem nào 📸",
-            "Uầy góc này đỉnh thực sự ✨"
-        )
 
         fun buildReverseTimeline(
             messagesAscending: List<Message>,

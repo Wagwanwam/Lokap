@@ -17,3 +17,6 @@ local.properties
 /.idea/deviceManager.xml
 /.idea/deploymentTargetSelector.xml
 .vscode/
+# Khoá Firebase/Cloudinary/VietMap của từng máy (mẫu: .env.example)
+.env
+app/google-services.json

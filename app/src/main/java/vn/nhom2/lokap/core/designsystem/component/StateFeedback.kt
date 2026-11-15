@@ -31,7 +31,6 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 fun EmptyState(
     title: String,
     modifier: Modifier = Modifier,
-    subtitle: String? = null,
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null
 ) {
@@ -47,7 +46,7 @@ fun EmptyState(
     ) {
         Box(
             modifier = Modifier
-                .size(56.dp)
+                .size(88.dp)
                 .clip(LokapTheme.shapes.pill)
                 .background(colors.surfaceHigh)
                 .border(1.dp, colors.outline, LokapTheme.shapes.pill),
@@ -56,23 +55,16 @@ fun EmptyState(
             Icon(
                 imageVector = Icons.Rounded.Info,
                 contentDescription = null,
-                tint = colors.primary
+                tint = colors.primary,
+                modifier = Modifier.size(48.dp)
             )
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.headlineSmall,
             color = colors.textPrimary,
             textAlign = TextAlign.Center
         )
-        if (!subtitle.isNullOrBlank()) {
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textSecondary,
-                textAlign = TextAlign.Center
-            )
-        }
         if (actionLabel != null && onActionClick != null) {
             PinkButton(
                 text = actionLabel,
@@ -125,7 +117,7 @@ fun ErrorState(
 @Composable
 fun OfflineBanner(
     modifier: Modifier = Modifier,
-    message: String = "Không có kết nối mạng · Ảnh sẽ tự động gửi khi có mạng lại"
+    message: String = "Mất mạng"
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -144,7 +136,7 @@ fun OfflineBanner(
             imageVector = Icons.Rounded.Warning,
             contentDescription = null,
             tint = colors.accentYellow,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(24.dp)
         )
         Text(
             text = message,
@@ -200,11 +192,10 @@ private fun StateFeedbackPreview() {
         ) {
             OfflineBanner()
             EmptyState(
-                title = "Chưa có khoảnh khắc nào",
-                subtitle = "Hãy chụp tấm ảnh đầu tiên cùng hội bạn thân ở Đà Nẵng"
+                title = "Chưa có ảnh"
             )
             ErrorState(
-                message = "Không thể khởi động máy ảnh. Vui lòng đóng các ứng dụng khác đang dùng camera.",
+                message = "Không mở được máy ảnh",
                 onRetry = {}
             )
             ShimmerBox(

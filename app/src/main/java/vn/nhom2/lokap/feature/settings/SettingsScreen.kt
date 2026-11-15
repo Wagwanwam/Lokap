@@ -81,7 +81,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -91,8 +91,8 @@ import vn.nhom2.lokap.core.designsystem.theme.ThemeMode
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.SampleSocialData
 import vn.nhom2.lokap.domain.model.*
+import vn.nhom2.lokap.feature.auth.AuthValidators
 import vn.nhom2.lokap.feature.auth.LoginRoute
 fun NavGraphBuilder.settingsScreen(navController: NavController) {
     composable<Route.Settings> {
@@ -107,7 +107,7 @@ fun NavGraphBuilder.settingsScreen(navController: NavController) {
 fun SettingsRoute(
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    viewModel: SettingsViewModel = viewModel()
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -223,7 +223,7 @@ fun SettingsScreen(
                     text = "Cài đặt và quyền riêng tư",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+                        fontSize = 20.sp
                     ),
                     color = colors.textPrimary
                 )
@@ -244,7 +244,8 @@ fun SettingsScreen(
         ) {
 
             item {
-                val user = uiState.currentUser ?: SampleSocialData.getCurrentUser()
+                // Chưa tải xong hồ sơ (mở app khi mất mạng): ô trống, không lấy dữ liệu mẫu
+                val user = uiState.currentUser ?: User(id = "", username = "", displayName = "…", avatarUrl = null)
                 SettingsGroup(title = "Tài khoản") {
 
                     Row(
@@ -266,7 +267,7 @@ fun SettingsScreen(
                                 text = user.displayName,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
+                                    fontSize = 16.5.sp
                                 ),
                                 color = colors.textPrimary,
                                 maxLines = 1,
@@ -274,7 +275,7 @@ fun SettingsScreen(
                             )
                             Text(
                                 text = "@${user.username}",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),
                                 color = colors.textTertiary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -296,13 +297,13 @@ fun SettingsScreen(
                                     imageVector = Icons.Rounded.Edit,
                                     contentDescription = null,
                                     tint = colors.primary,
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                                 Text(
                                     text = "Sửa",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp
+                                        fontSize = 13.5.sp
                                     ),
                                     color = colors.primary
                                 )
@@ -340,7 +341,7 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsGroup(title = "Cài đặt hiển thị") {
+                SettingsGroup(title = "Hiển thị") {
                     val themeLabel = when (uiState.themeMode) {
                         ThemeMode.SYSTEM -> "Theo hệ thống"
                         ThemeMode.DARK -> "Tối"
@@ -355,8 +356,7 @@ fun SettingsScreen(
 
                     SettingsItemRow(
                         icon = Icons.Rounded.DataSaverOn,
-                        title = "Tiết kiệm dữ liệu di động",
-                        subtitle = "Giảm dung lượng ảnh khi dùng 4G/5G",
+                        title = "Tiết kiệm dữ liệu",
                         trailingContent = {
                             Switch(
                                 checked = uiState.dataSaverEnabled,
@@ -373,8 +373,7 @@ fun SettingsScreen(
 
                     SettingsItemRow(
                         icon = Icons.Rounded.SaveAlt,
-                        title = "Tự động lưu ảnh vào máy",
-                        subtitle = "Lưu ảnh gốc chụp từ Lokap vào bộ nhớ máy",
+                        title = "Lưu ảnh vào máy",
                         trailingContent = {
                             Switch(
                                 checked = uiState.autoSaveToGallery,
@@ -393,10 +392,10 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsGroup(title = "Quyền riêng tư & Bản đồ") {
+                SettingsGroup(title = "Riêng tư") {
                     SettingsItemRow(
                         icon = Icons.Rounded.LocationOn,
-                        title = "Mức vị trí gắn trên ảnh",
+                        title = "Mức vị trí",
                         trailingText = uiState.defaultLocationLevel.labelVi,
                         onClick = { onAction(SettingsAction.OpenLocationLevelDialog) }
                     )
@@ -404,8 +403,7 @@ fun SettingsScreen(
                     SettingsItemRow(
                         icon = Icons.Rounded.Circle,
                         iconTint = Color(0xFF10B981),
-                        title = "Trạng thái hoạt động (Online)",
-                        subtitle = "Hiển thị chấm xanh khi bạn bè đang xem bản đồ",
+                        title = "Hiện Online",
                         trailingContent = {
                             Switch(
                                 checked = uiState.isOnlineStatusVisible,
@@ -431,11 +429,10 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsGroup(title = "Quyền ứng dụng") {
+                SettingsGroup(title = "Quyền") {
                     SettingsItemRow(
                         icon = Icons.Rounded.PhotoCamera,
                         title = "Camera",
-                        subtitle = "Chụp và chia sẻ khoảnh khắc",
                         trailingContent = {
                             PermissionStatusBadge(isGranted = uiState.hasCameraPermission)
                         },
@@ -444,8 +441,7 @@ fun SettingsScreen(
 
                     SettingsItemRow(
                         icon = Icons.Rounded.MyLocation,
-                        title = "Vị trí GPS",
-                        subtitle = "Ghim khoảnh khắc lên bản đồ Việt Nam",
+                        title = "Vị trí",
                         trailingContent = {
                             PermissionStatusBadge(isGranted = uiState.hasLocationPermission)
                         },
@@ -455,7 +451,6 @@ fun SettingsScreen(
                     SettingsItemRow(
                         icon = Icons.Rounded.Notifications,
                         title = "Thông báo",
-                        subtitle = "Nhận tin nhắn, reaction và ảnh mới từ bạn bè",
                         trailingContent = {
                             PermissionStatusBadge(isGranted = uiState.hasNotificationPermission)
                         },
@@ -470,7 +465,7 @@ fun SettingsScreen(
 
                     SettingsItemRow(
                         icon = Icons.Rounded.Settings,
-                        title = "Quản lý quyền trong Cài đặt hệ thống",
+                        title = "Cài đặt hệ thống",
                         onClick = { onAction(SettingsAction.ClickOpenAppSettings) },
                         showDivider = false
                     )
@@ -478,11 +473,10 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsGroup(title = "Dữ liệu & Bộ nhớ") {
+                SettingsGroup(title = "Dữ liệu") {
                     SettingsItemRow(
                         icon = Icons.Rounded.CleaningServices,
-                        title = "Bộ nhớ đệm (Cache)",
-                        subtitle = "Đang chiếm ${uiState.cacheSizeLabel}",
+                        title = "Bộ nhớ đệm",
                         trailingContent = {
                             Surface(
                                 shape = CircleShape,
@@ -496,7 +490,7 @@ fun SettingsScreen(
                                     text = "Xoá cache",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp
+                                        fontSize = 13.5.sp
                                     ),
                                     color = colors.textPrimary,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -552,7 +546,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Bản đồ khoảnh khắc Việt Nam",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp),
                         color = colors.textTertiary
                     )
                 }
@@ -580,12 +574,6 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = colors.textPrimary
                 )
-                Spacer(modifier = Modifier.height(spacing.xs))
-                Text(
-                    text = "Cập nhật thông tin nhận diện của bạn trên Lokap.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary
-                )
                 Spacer(modifier = Modifier.height(spacing.md))
 
                 OutlinedTextField(
@@ -611,11 +599,8 @@ fun SettingsScreen(
                     singleLine = true,
                     label = { Text("Username (@)") },
                     isError = uiState.editUsernameError != null,
-                    supportingText = {
-                        Text(
-                            text = uiState.editUsernameError ?: "Tối thiểu 3 ký tự chữ thường",
-                            color = if (uiState.editUsernameError != null) colors.error else colors.textTertiary
-                        )
+                    supportingText = uiState.editUsernameError?.let { err ->
+                        { Text(text = err, color = colors.error) }
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -821,11 +806,6 @@ fun SettingsScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Dùng số điện thoại để lấy lại tài khoản và nhận mã xác thực bảo mật.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary
-                    )
                     OutlinedTextField(
                         value = phoneInput,
                         onValueChange = { phoneInput = it },
@@ -884,7 +864,7 @@ fun SettingsScreen(
                                 imageVector = Icons.Rounded.AlternateEmail,
                                 contentDescription = null,
                                 tint = colors.primary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = email,
@@ -928,7 +908,8 @@ fun SettingsScreen(
         var oldPassword by remember { mutableStateOf("") }
         var newPassword by remember { mutableStateOf("") }
         var confirmPassword by remember { mutableStateOf("") }
-        val canSave = oldPassword.isNotBlank() && newPassword.length >= 6 && newPassword == confirmPassword
+        // Cùng luật với Đăng ký (AuthValidators): ≥ 8 ký tự, có cả chữ và số
+        val canSave = oldPassword.isNotBlank() && AuthValidators.validatePassword(newPassword) == null && newPassword == confirmPassword
 
         AlertDialog(
             onDismissRequest = { onAction(SettingsAction.DismissChangePasswordDialog) },
@@ -953,7 +934,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = newPassword,
                         onValueChange = { newPassword = it },
-                        label = { Text("Mật khẩu mới (tối thiểu 6 ký tự)") },
+                        label = { Text("Mật khẩu mới (≥ 8 ký tự, có chữ và số)") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
@@ -1018,13 +999,12 @@ private fun SettingsGroup(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                letterSpacing = 0.5.sp
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 19.sp
             ),
-            color = colors.textTertiary,
-            modifier = Modifier.padding(start = spacing.sm, bottom = 2.dp)
+            color = colors.textPrimary,
+            modifier = Modifier.padding(start = spacing.sm, bottom = 4.dp)
         )
 
         Surface(
@@ -1044,7 +1024,6 @@ private fun SettingsGroup(
 private fun SettingsItemRow(
     icon: ImageVector,
     title: String,
-    subtitle: String? = null,
     trailingText: String? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     iconTint: Color = LokapTheme.colors.textPrimary,
@@ -1070,7 +1049,7 @@ private fun SettingsItemRow(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
-                modifier = Modifier.size(21.dp)
+                modifier = Modifier.size(30.dp)
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -1078,21 +1057,12 @@ private fun SettingsItemRow(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
-                        fontSize = 14.5.sp
+                        fontSize = 16.sp
                     ),
                     color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (!subtitle.isNullOrBlank()) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = colors.textTertiary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
 
             if (trailingContent != null) {
@@ -1105,7 +1075,7 @@ private fun SettingsItemRow(
                     if (!trailingText.isNullOrBlank()) {
                         Text(
                             text = trailingText,
-                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
+                            style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.5.sp),
                             color = colors.textSecondary
                         )
                     }
@@ -1114,7 +1084,7 @@ private fun SettingsItemRow(
                             imageVector = Icons.Rounded.ChevronRight,
                             contentDescription = null,
                             tint = colors.textTertiary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -1145,7 +1115,7 @@ private fun PermissionStatusBadge(isGranted: Boolean) {
                     imageVector = Icons.Rounded.Check,
                     contentDescription = "Đã cấp",
                     tint = Color(0xFF10B981),
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -1160,7 +1130,7 @@ private fun PermissionStatusBadge(isGranted: Boolean) {
                     imageVector = Icons.Rounded.Close,
                     contentDescription = "Chưa cấp",
                     tint = colors.error,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -1194,13 +1164,13 @@ private fun BlockedUserItemRow(
                 text = user.displayName,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
+                    fontSize = 15.5.sp
                 ),
                 color = colors.textPrimary
             )
             Text(
                 text = "@${user.username}",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp),
                 color = colors.textSecondary
             )
         }
@@ -1226,12 +1196,6 @@ private fun LogoutConfirmDialog(
             Text(
                 text = "Đăng xuất khỏi Lokap?",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-            )
-        },
-        text = {
-            Text(
-                text = "Bạn vẫn có thể đăng nhập lại bất cứ lúc nào để xem lại hành trình của mình.",
-                style = MaterialTheme.typography.bodyMedium
             )
         },
         dismissButton = {
@@ -1277,7 +1241,7 @@ private fun DeleteAccountConfirmDialog(
         text = {
             Column {
                 Text(
-                    text = "Hành động này không thể hoàn tác. Toàn bộ ảnh đã chụp, dấu chân bản đồ và tin nhắn của bạn sẽ bị xoá vĩnh viễn khỏi máy chủ Lokap.",
+                    text = "Xoá vĩnh viễn, không khôi phục được.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary
                 )
@@ -1285,7 +1249,7 @@ private fun DeleteAccountConfirmDialog(
                 Spacer(modifier = Modifier.height(spacing.md))
 
                 Text(
-                    text = "Nhập chính xác chữ XOÁ (viết hoa) để xác nhận:",
+                    text = "Nhập XOÁ để xác nhận",
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.textPrimary
                 )

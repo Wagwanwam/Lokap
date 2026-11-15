@@ -58,4 +58,5 @@ sealed interface RegisterAction {
 sealed interface RegisterEffect {
     data object NavigateToSetupProfile : RegisterEffect
     data object NavigateBackToLogin : RegisterEffect
+    data class NavigateToVerifyEmail(val email: String) : RegisterEffect
 }
