@@ -135,7 +135,7 @@ fun OfflineBanner(
         Icon(
             imageVector = Icons.Rounded.Warning,
             contentDescription = null,
-            tint = colors.accentYellow,
+            tint = colors.accentYellowStrong,
             modifier = Modifier.size(24.dp)
         )
         Text(

@@ -14,7 +14,8 @@ interface MessagingRepository {
     fun observeInbox(): Flow<Result<List<Conversation>>>
     fun observeChat(id: String): Flow<Result<ChatData>>
     suspend fun openConversation(userId: String): Result<String>
-    suspend fun send(id: String, body: String): Result<Unit>
+    /** [replyTo] = ảnh đang được trả lời (thanh "Gửi tin nhắn…" dưới ảnh): tin nhắn lưu kèm ảnh để hiện trong Chat. */
+    suspend fun send(id: String, body: String, replyTo: Post? = null): Result<Unit>
     suspend fun edit(id: String, messageId: String, body: String): Result<Unit>
     suspend fun delete(id: String, messageId: String): Result<Unit>
     suspend fun markRead(id: String): Result<Unit>

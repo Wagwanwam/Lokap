@@ -12,6 +12,7 @@ import {
   Timestamp,
   arrayRemove,
   collection,
+  collectionGroup,
   deleteDoc,
   deleteField,
   doc,
@@ -352,6 +353,19 @@ describe('Live social content',()=>{
   await assertFails(setDoc(doc(as('alice',false),'conversations/alice_bob/messages/no'),msg()));await assertSucceeds(sendMessage(a));await assertSucceeds(getDocs(query(collection(b,'conversations/alice_bob/messages'),orderBy('createdAt'))));
   await assertFails(updateDoc(doc(b,'conversations/alice_bob/messages/m1'),{body:'forged',updatedAt:serverTimestamp()}));await assertSucceeds(updateDoc(doc(a,'conversations/alice_bob/messages/m1'),{body:'edited',updatedAt:serverTimestamp()}));await assertFails(updateDoc(doc(b,'conversations/alice_bob'),{'readAt.alice':serverTimestamp()}));await assertSucceeds(updateDoc(doc(b,'conversations/alice_bob'),{'readAt.bob':serverTimestamp()}));await assertFails(deleteDoc(doc(b,'conversations/alice_bob/messages/m1')));await assertSucceeds(deleteDoc(doc(a,'conversations/alice_bob/messages/m1')));
  });
+ test('tin nhắn trả lời ảnh: bản chụp phải khớp bài gốc người gửi xem được, ảnh của 1 trong 2 người',async()=>{
+  const a=as('alice'),b=as('bob');await setDoc(doc(a,'conversations/alice_bob'),chat());
+  const url=post().imageUrl;
+  const reply=(over={})=>({...msg(),senderId:'bob',replyTo:{postId:'friends',authorId:'alice',imageUrl:url,caption:null,takenAt:ago(60_000),...over}});
+  await assertSucceeds(setDoc(doc(b,'conversations/alice_bob/messages/r1'),reply()));
+  await assertSucceeds(setDoc(doc(b,'conversations/alice_bob/messages/r2'),reply({postId:'direct',caption:'chào'})));
+  await assertFails(setDoc(doc(b,'conversations/alice_bob/messages/r3'),reply({imageUrl:'https://evil.example/x.jpg'})));
+  await assertFails(setDoc(doc(b,'conversations/alice_bob/messages/r4'),reply({authorId:'carol'})));
+  await assertFails(setDoc(doc(b,'conversations/alice_bob/messages/r5'),reply({postId:'hidden'})));
+  await assertFails(setDoc(doc(b,'conversations/alice_bob/messages/r6'),reply({postId:'khong-co'})));
+  await assertFails(setDoc(doc(b,'conversations/alice_bob/messages/r7'),reply({extra:true})));
+  await assertFails(updateDoc(doc(b,'conversations/alice_bob/messages/r1'),{'replyTo.postId':'direct',updatedAt:serverTimestamp()}));
+ });
  test('blocked and unfriended accounts cannot send or edit',async()=>{
   const a=as('alice');await setDoc(doc(a,'conversations/alice_bob'),chat());await sendMessage(a);await setDoc(doc(as('bob'),'blocks/bob_alice'),{blockerId:'bob',blockedId:'alice',createdAt:serverTimestamp()});await assertFails(setDoc(doc(a,'conversations/alice_bob/messages/m2'),msg()));await assertFails(updateDoc(doc(a,'conversations/alice_bob/messages/m1'),{body:'bad',updatedAt:serverTimestamp()}));await deleteDoc(doc(as('bob'),'blocks/bob_alice'));await deleteDoc(doc(a,'friendships/alice_bob'));await assertFails(setDoc(doc(a,'conversations/alice_bob/messages/m2'),msg()));
  });
@@ -367,6 +381,58 @@ describe('Live social content',()=>{
  test('reaction notice requires a real change and respects blocks',async()=>{
   const b=as('bob'),batch=writeBatch(b);batch.update(doc(b,'posts/friends'),{'reactions.bob':'❤️'});batch.set(doc(b,'users/alice/notifications/reaction1'),notice('REACTION','bob','bob',{postId:'friends'}));await assertSucceeds(batch.commit());await assertFails(setDoc(doc(b,'users/alice/notifications/fake'),notice('REACTION','bob','bob',{postId:'friends'})));await setDoc(doc(as('alice'),'blocks/alice_bob'),{blockerId:'alice',blockedId:'bob',createdAt:serverTimestamp()});const blocked=writeBatch(b);blocked.update(doc(b,'posts/friends'),{'reactions.bob':'🔥'});blocked.set(doc(b,'users/alice/notifications/reaction2'),notice('REACTION','bob','bob',{postId:'friends'}));await assertFails(blocked.commit());
  });
+});
+
+describe('Đăng lại', () => {
+  const repost = (uid, over = {}) => ({ uid, createdAt: serverTimestamp(), ...over });
+
+  test('ai cũng đăng lại được ảnh public đã hiện của người khác, mỗi người 1 lần', async () => {
+    await assertSucceeds(setDoc(doc(as('bob'), 'posts/publicNow/reposts/bob'), repost('bob')));
+    await assertSucceeds(setDoc(doc(as('carol'), 'posts/publicNow/reposts/carol'), repost('carol')));
+    // Đã có thì không ghi lại (createdAt mới = update, rules không cho)
+    await assertFails(setDoc(doc(as('bob'), 'posts/publicNow/reposts/bob'), repost('bob')));
+  });
+
+  test('không đăng lại ảnh bạn bè, ảnh đang hẹn giờ, bài bị ẩn, bài của mình', async () => {
+    const b = as('bob');
+    await assertFails(setDoc(doc(b, 'posts/friends/reposts/bob'), repost('bob')));
+    await assertFails(setDoc(doc(b, 'posts/direct/reposts/bob'), repost('bob')));
+    await assertFails(setDoc(doc(b, 'posts/publicLater/reposts/bob'), repost('bob')));
+    await assertFails(setDoc(doc(b, 'posts/hidden/reposts/bob'), repost('bob')));
+    await assertFails(setDoc(doc(b, 'posts/khong-co/reposts/bob'), repost('bob')));
+    await assertFails(setDoc(doc(as('alice'), 'posts/publicNow/reposts/alice'), repost('alice')));
+  });
+
+  test('không đăng lại thay người khác, sai dữ liệu, chưa xác nhận email, bị chặn', async () => {
+    const b = as('bob');
+    await assertFails(setDoc(doc(b, 'posts/publicNow/reposts/carol'), repost('carol')));
+    await assertFails(setDoc(doc(b, 'posts/publicNow/reposts/bob'), repost('carol')));
+    await assertFails(setDoc(doc(b, 'posts/publicNow/reposts/bob'), repost('bob', { extra: 1 })));
+    await assertFails(setDoc(doc(b, 'posts/publicNow/reposts/bob'), repost('bob', { createdAt: ago(DAY) })));
+    await assertFails(setDoc(doc(as('bob', false), 'posts/publicNow/reposts/bob'), repost('bob')));
+    await setDoc(doc(as('alice'), 'blocks/alice_carol'), { blockerId: 'alice', blockedId: 'carol', createdAt: serverTimestamp() });
+    await assertFails(setDoc(doc(as('carol'), 'posts/publicNow/reposts/carol'), repost('carol')));
+  });
+
+  test('đếm lượt và truy vấn nhóm theo người đăng lại; chưa đăng nhập thì không', async () => {
+    await setDoc(doc(as('bob'), 'posts/publicNow/reposts/bob'), repost('bob'));
+    const counted = await assertSucceeds(getDocs(collection(as('carol'), 'posts/publicNow/reposts')));
+    assert.equal(counted.size, 1);
+    const feed = await assertSucceeds(getDocs(query(
+      collectionGroup(as('alice'), 'reposts'), where('uid', 'in', ['bob', 'carol']), orderBy('createdAt', 'desc')
+    )));
+    assert.deepEqual(feed.docs.map((d) => d.ref.parent.parent.id), ['publicNow']);
+    await assertSucceeds(getDocs(query(collectionGroup(as('carol'), 'reposts'), where('uid', '==', 'bob'), orderBy('createdAt', 'desc'))));
+    await assertFails(getDocs(collection(env.unauthenticatedContext().firestore(), 'posts/publicNow/reposts')));
+  });
+
+  test('bỏ đăng lại: chính mình hoặc tác giả bài (khi xoá bài); người khác thì không', async () => {
+    await setDoc(doc(as('bob'), 'posts/publicNow/reposts/bob'), repost('bob'));
+    await setDoc(doc(as('carol'), 'posts/publicNow/reposts/carol'), repost('carol'));
+    await assertFails(deleteDoc(doc(as('carol'), 'posts/publicNow/reposts/bob')));
+    await assertSucceeds(deleteDoc(doc(as('bob'), 'posts/publicNow/reposts/bob')));
+    await assertSucceeds(deleteDoc(doc(as('alice'), 'posts/publicNow/reposts/carol')));
+  });
 });
 
 test('new post notice uses one-time receipt; deletion cannot cause replay, blocks are retained',async()=>{

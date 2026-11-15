@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -48,12 +49,21 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.designsystem.component.*
+import vn.nhom2.lokap.core.designsystem.theme.LokapColors
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import vn.nhom2.lokap.feature.auth.verify.VerifyEmailRoute
+
+/**
+ * Màu chữ link "Quên mật khẩu?": cùng màu với link "Đăng ký ngay" trên cùng màn hình.
+ * Lỗi L12: trước đây dùng primarySoft – màu nền hồng nhạt – nên ở giao diện sáng chữ gần như
+ * vô hình (tương phản 1,04:1). primary đạt 2,51:1 ở giao diện sáng và 7,06:1 ở giao diện tối.
+ */
+internal fun forgotPasswordLinkColor(colors: LokapColors): Color = colors.primary
+
 fun NavGraphBuilder.loginScreen(navController: NavController) {
     composable<LoginRoute> {
         LoginRoute(
@@ -261,7 +271,7 @@ fun LoginScreen(
                 Text(
                     text = "Quên mật khẩu?",
                     style = MaterialTheme.typography.labelLarge,
-                    color = LokapTheme.colors.primarySoft
+                    color = forgotPasswordLinkColor(LokapTheme.colors)
                 )
             }
         }

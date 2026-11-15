@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -117,7 +118,8 @@ class ProfileViewModel @Inject constructor(
                 social.graph,
                 userFlow,
                 posts.savedPosts,
-                posts.repostedPosts
+                // Ảnh đăng lại đến từ listener server: phát rỗng trước để hồ sơ hiện ngay, không chờ lần trả lời đầu
+                posts.observeRepostedPosts(targetId).onStart { emit(emptyList()) }
             ) { userPosts, graph, user, saved, reposted ->
                 Snapshot(userPosts, graph, user, saved, reposted)
             }.collect { snap ->

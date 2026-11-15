@@ -163,6 +163,21 @@ service cloud.firestore {
         && !blockedEitherWay(uid(), p.authorId);
     }
     function textBody(text) { return text is string && text.size() > 0 && text.size() <= 1000; }
+    // Tin nhắn trả lời ảnh (thanh "Gửi tin nhắn…" dưới ảnh): bản chụp phải khớp bài gốc mà người gửi xem được,
+    // và ảnh là của 1 trong 2 người trong cuộc trò chuyện.
+    function validPhotoReply(d, members) {
+      return !('replyTo' in d) || (
+        d.replyTo is map
+        && d.replyTo.keys().hasOnly(['postId', 'authorId', 'imageUrl', 'caption', 'takenAt'])
+        && d.replyTo.postId is string && readablePost(d.replyTo.postId)
+        && d.replyTo.authorId in members
+        && d.replyTo.authorId == get(docPath('posts', d.replyTo.postId)).data.authorId
+        && d.replyTo.imageUrl == get(docPath('posts', d.replyTo.postId)).data.imageUrl
+        && (d.replyTo.get('caption', null) == null
+            || (d.replyTo.caption is string && d.replyTo.caption.size() <= 60))
+        && d.replyTo.takenAt is timestamp
+      );
+    }
 
     match /conversations/{id} {
       allow get: if signedIn() && (resource == null || uid() in resource.data.members);
@@ -184,8 +199,9 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if chatMember(id);
         allow create: if chatWritable(id)
-          && request.resource.data.keys().hasOnly(['senderId', 'body', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['senderId', 'body', 'createdAt', 'updatedAt', 'replyTo'])
           && request.resource.data.senderId == uid() && textBody(request.resource.data.body)
+          && validPhotoReply(request.resource.data, get(docPath('conversations', id)).data.members)
           && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
         allow update: if chatWritable(id) && resource.data.senderId == uid()
           && changedKeys().hasOnly(['body', 'updatedAt']) && textBody(request.resource.data.body)
@@ -209,6 +225,27 @@ service cloud.firestore {
           && request.resource.data.votes.diff(resource.data.votes).affectedKeys().hasOnly([uid()])
           && (!(uid() in request.resource.data.votes) || request.resource.data.votes[uid()] in [-1, 1])));
       allow delete: if verified() && (resource.data.authorId == uid() || get(docPath('posts', postId)).data.authorId == uid());
+    }
+    // Đăng lại: id = uid người đăng lại (mỗi người 1 lần). Chỉ ảnh công khai đã tới giờ hiện của người khác,
+    // không bị chặn hai phía. Ai đăng nhập cũng đọc được (như ô reactions của bài public) để đếm số lượt,
+    // hiện ở feed bạn bè và tab "Đăng lại" trong Hồ sơ. Tác giả xoá được khi xoá bài.
+    function repostablePost(id) {
+      let p = get(docPath('posts', id)).data;
+      return p.audience == 'public' && p.status == 'active' && p.publicVisibleAt <= request.time
+        && p.authorId != uid() && !blockedEitherWay(uid(), p.authorId);
+    }
+    match /posts/{postId}/reposts/{reposterId} {
+      allow read: if signedIn();
+      allow create: if verified() && hasProfile() && reposterId == uid()
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == uid()
+        && request.resource.data.createdAt == request.time
+        && repostablePost(postId);
+      allow delete: if signedIn() && (reposterId == uid() || get(docPath('posts', postId)).data.authorId == uid());
+    }
+    // Truy vấn nhóm "reposts" (feed bạn bè, Hồ sơ): where uid in [...] / == uid, sắp theo createdAt
+    match /{path=**}/reposts/{reposterId} {
+      allow read: if signedIn();
     }
     // One immutable delivery receipt prevents replay after a recipient deletes their notice.
     match /posts/{postId}/notificationReceipts/{recipientId} {

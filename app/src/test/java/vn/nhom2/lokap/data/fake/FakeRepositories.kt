@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -21,6 +23,7 @@ import vn.nhom2.lokap.domain.model.FriendStatus
 import vn.nhom2.lokap.domain.model.Landmark
 import vn.nhom2.lokap.domain.model.Post
 import vn.nhom2.lokap.domain.model.PostSendState
+import vn.nhom2.lokap.domain.model.RepostState
 import vn.nhom2.lokap.domain.model.User
 import vn.nhom2.lokap.domain.repository.AppException
 import vn.nhom2.lokap.domain.repository.AuthRepository
@@ -134,8 +137,32 @@ class FakePostRepository @Inject constructor() : PostRepository {
         all.filter { it.imageUrl.isNotBlank() && it.id.hashCode() % 3 == 0 }.take(6)
     }
 
-    override val repostedPosts: Flow<List<Post>> = FakePostStore.posts.map { all ->
-        all.filter { it.imageUrl.isNotBlank() && it.id.hashCode() % 2 != 0 }.take(4)
+    /** Ảnh "tôi" đã đăng lại: postId → lúc đăng lại (dữ liệu giả chỉ có lượt của mình). */
+    private val myReposts = MutableStateFlow<Map<String, Instant>>(emptyMap())
+
+    override val friendReposts: Flow<List<Post>> = combine(FakePostStore.posts, myReposts) { all, mine ->
+        val me = SampleSocialData.getCurrentUser()
+        mine.entries.sortedByDescending { it.value }.mapNotNull { (id, at) ->
+            all.firstOrNull { it.id == id }?.copy(repostedBy = me, repostedAt = at)
+        }
+    }
+
+    override fun observeRepostedPosts(userId: String): Flow<List<Post>> = combine(FakePostStore.posts, myReposts) { all, mine ->
+        if (userId != SampleSocialData.getCurrentUser().id) return@combine emptyList()
+        mine.entries.sortedByDescending { it.value }.mapNotNull { (id, _) -> all.firstOrNull { it.id == id } }
+    }
+
+    override fun observeRepostState(postId: String): Flow<RepostState> =
+        myReposts.map { mine -> if (postId in mine) RepostState(count = 1, isMine = true) else RepostState() }
+
+    override suspend fun setReposted(postId: String, reposted: Boolean): Result<Unit> {
+        val post = FakePostStore.posts.value.firstOrNull { it.id == postId }
+            ?: return Result.failure(AppException("Bài đã bị xoá hoặc ẩn", AppException.Reason.NOT_FOUND))
+        if (reposted && (post.audience != Audience.PUBLIC || post.author.id == SampleSocialData.getCurrentUser().id)) {
+            return Result.failure(AppException("Chỉ đăng lại được ảnh công khai của người khác"))
+        }
+        myReposts.update { if (reposted) it + (postId to SampleData.NOW) else it - postId }
+        return Result.success(Unit)
     }
 
     override fun observePost(postId: String): Flow<Post?> =

@@ -6,6 +6,7 @@ import vn.nhom2.lokap.domain.model.Audience
 import vn.nhom2.lokap.domain.model.Landmark
 import vn.nhom2.lokap.domain.model.Post
 import vn.nhom2.lokap.domain.model.PostLocation
+import vn.nhom2.lokap.domain.model.RepostState
 import vn.nhom2.lokap.domain.model.PublishDelay
 
 /** Bài vừa soạn ở Composer, chưa gửi lên server. */
@@ -29,9 +30,23 @@ interface PostRepository {
     /** Bài public đã tới giờ hiện (tab Khám phá). */
     val publicPosts: Flow<List<Post>>
 
-    /** Tab "Đã lưu" và "Đăng lại" ở Hồ sơ (bản Firestore chưa có collection nên trả rỗng). */
+    /**
+     * Ảnh công khai mà mình / bạn bè đã đăng lại (Post.repostedBy, repostedAt ≠ null), mới nhất trước.
+     * Tải cùng [refreshFeeds]; tab Bạn bè trộn với [friendFeed] (Bản đồ, Album chỉ dùng [friendFeed]).
+     */
+    val friendReposts: Flow<List<Post>>
+
+    /** Tab "Đã lưu" ở Hồ sơ (bản Firestore chưa có collection nên trả rỗng). */
     val savedPosts: Flow<List<Post>>
-    val repostedPosts: Flow<List<Post>>
+
+    /** Tab "Đăng lại" ở Hồ sơ của [userId], mới đăng lại trước. */
+    fun observeRepostedPosts(userId: String): Flow<List<Post>>
+
+    /** Số lượt đăng lại + mình đã đăng lại chưa (nút ↻ dưới ảnh công khai). */
+    fun observeRepostState(postId: String): Flow<RepostState>
+
+    /** Đăng lại / bỏ đăng lại ảnh công khai đã hiện của người khác. */
+    suspend fun setReposted(postId: String, reposted: Boolean): Result<Unit>
 
     fun observePost(postId: String): Flow<Post?>
 

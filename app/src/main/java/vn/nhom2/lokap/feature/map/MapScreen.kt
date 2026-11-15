@@ -669,7 +669,7 @@ fun MapScreen(
                         Icon(
                             imageVector = Icons.Rounded.AddLocationAlt,
                             contentDescription = "Thêm địa danh",
-                            tint = colors.accentYellow,
+                            tint = colors.accentYellowStrong,
                             modifier = Modifier.size(26.dp)
                         )
                     }

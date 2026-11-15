@@ -197,7 +197,7 @@ fun LandmarkBubble(
                     Icon(
                         imageVector = Icons.Rounded.Star,
                         contentDescription = null,
-                        tint = colors.accentYellow,
+                        tint = colors.accentYellowStrong,
                         modifier = Modifier
                             .align(Alignment.Center)
                             .size(28.dp)

@@ -307,7 +307,7 @@ private fun AddFriendTopBar(
                 text = "$friendCount/$maxFriends",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (isFull) colors.accentYellow else colors.primary
+                color = if (isFull) colors.accentYellowStrong else colors.onPrimarySoft
             )
         }
     }
@@ -490,13 +490,13 @@ private fun FriendLimitNote(maxFriends: Int) {
         Icon(
             imageVector = Icons.Filled.WarningAmber,
             contentDescription = null,
-            tint = colors.accentYellow,
+            tint = colors.accentYellowStrong,
             modifier = Modifier.size(30.dp)
         )
         Text(
             text = "Đã đủ $maxFriends bạn",
             style = MaterialTheme.typography.labelLarge,
-            color = colors.accentYellow
+            color = colors.accentYellowStrong
         )
     }
 }

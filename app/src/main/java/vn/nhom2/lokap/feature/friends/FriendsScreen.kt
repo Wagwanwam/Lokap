@@ -369,9 +369,9 @@ private fun FriendsTopBar(
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (friendCount >= maxFriends) {
-                    LokapTheme.colors.accentYellow
+                    LokapTheme.colors.accentYellowStrong
                 } else {
-                    LokapTheme.colors.primary
+                    LokapTheme.colors.onPrimarySoft
                 }
             )
         }
@@ -455,7 +455,7 @@ private fun FriendLimitWarningBanner(
         Text(
             text = "Đã đủ $maxFriends bạn",
             style = MaterialTheme.typography.bodySmall,
-            color = LokapTheme.colors.accentYellow
+            color = LokapTheme.colors.accentYellowStrong
         )
     }
 }

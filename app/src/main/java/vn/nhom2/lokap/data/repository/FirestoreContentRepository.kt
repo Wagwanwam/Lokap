@@ -55,13 +55,19 @@ class FirestoreContentRepository @Inject constructor(
         val readAt = conv.get("readAt") as? Map<*, *> ?: emptyMap<Any, Any>()
         val myRead = (readAt[uid] as? Timestamp)?.toDate()?.toInstant() ?: Instant.EPOCH
         val theirRead = (readAt[otherId] as? Timestamp)?.toDate()?.toInstant() ?: Instant.EPOCH
+        val friend = user(otherId)
+        val me = auth.currentUser.value?.takeIf { it.id == uid }
         val list = docs.map { d ->
             val created = d.getTimestamp("createdAt")?.toDate()?.toInstant() ?: Instant.now()
-            Message(d.id, id, d.getString("senderId").orEmpty(), d.getString("body"), null, null,
+            val replyTo = (d.get("replyTo") as? Map<*, *>)?.let { r ->
+                // Ảnh được trả lời luôn là của 1 trong 2 người (rules ép): lấy tên/ảnh đại diện mới nhất của người đó
+                photoReply(r, if (r["authorId"] == otherId) friend else me)
+            }
+            Message(d.id, id, d.getString("senderId").orEmpty(), d.getString("body"), replyTo, null,
                 created, if (d.metadata.hasPendingWrites()) PostSendState.PENDING else PostSendState.SENT,
                 !created.isAfter(theirRead))
         }
-        ChatData(Conversation(id, user(otherId), list.lastOrNull()?.body.orEmpty(),
+        ChatData(Conversation(id, friend, list.lastOrNull()?.body.orEmpty(),
             list.lastOrNull()?.createdAt ?: conv.getTimestamp("createdAt")?.toDate()?.toInstant() ?: Instant.EPOCH,
             list.count { it.senderId != uid && it.createdAt.isAfter(myRead) }), list)
     }
@@ -76,15 +82,43 @@ class FirestoreContentRepository @Inject constructor(
         }.await()
         id
     }
-    override suspend fun send(id: String, body: String): Result<Unit> = call {
+    override suspend fun send(id: String, body: String, replyTo: Post?): Result<Unit> = call {
         val uid = me(); val text = validText(body)
         val conv = conversations().document(id).get(Source.SERVER).await()
         val other = (conv.get("members") as List<*>).filterIsInstance<String>().single { it != uid }
+        val reply = replyTo?.let { photoReplyData(it.id) }
         val ref = messages(id).document()
+        val data = mutableMapOf<String, Any?>("senderId" to uid, "body" to text,
+            "createdAt" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp())
+        if (reply != null) data["replyTo"] = reply
         db.batch().apply {
-            set(ref, mapOf("senderId" to uid, "body" to text, "createdAt" to FieldValue.serverTimestamp(), "updatedAt" to FieldValue.serverTimestamp()))
+            set(ref, data)
             set(notices(other).document("message_" + ref.id), notificationData("NEW_MESSAGE", uid, conversationId = id, sourceId = ref.id))
         }.commit().await()
+    }
+    /**
+     * Ảnh kèm tin nhắn: chép đúng các trường của bài trên server (rules so authorId, imageUrl với bài gốc),
+     * không lấy từ cache Room có thể cũ.
+     */
+    private suspend fun photoReplyData(postId: String): Map<String, Any?> {
+        val post = db.collection(Fs.POSTS).document(postId).get(Source.SERVER).await()
+        val authorId = post.getString(Fs.AUTHOR_ID)
+        val imageUrl = post.getString(Fs.IMAGE_URL)
+        require(post.exists() && authorId != null && imageUrl != null) { "Ảnh không còn tồn tại" }
+        return mapOf("postId" to postId, "authorId" to authorId, "imageUrl" to imageUrl,
+            "caption" to post.getString(Fs.CAPTION), "takenAt" to (post.getTimestamp(Fs.TAKEN_AT) ?: Timestamp.now()))
+    }
+    /** Bản chụp ảnh trong tin nhắn → Post tối giản để Chat vẽ (chỉ dùng id, ảnh, chú thích, tác giả, giờ chụp). */
+    private fun photoReply(r: Map<*, *>, author: User?): Post? {
+        val postId = r["postId"] as? String ?: return null
+        val imageUrl = r["imageUrl"] as? String ?: return null
+        val authorId = r["authorId"] as? String ?: return null
+        return Post(id = postId,
+            author = author ?: User(id = authorId, username = "", displayName = "", avatarUrl = null, bio = ""),
+            imageUrl = imageUrl, caption = r["caption"] as? String, audience = Audience.FRIENDS,
+            location = PostLocation(LocationLevel.COUNTRY, null, null, null, null, null, null, null, null),
+            takenAt = (r["takenAt"] as? Timestamp)?.toDate()?.toInstant() ?: Instant.EPOCH, publicVisibleAt = null,
+            reactions = emptyList(), myReaction = null, sendState = PostSendState.SENT)
     }
     override suspend fun edit(id: String, messageId: String, body: String): Result<Unit> = call {
         messages(id).document(messageId).update(mapOf("body" to validText(body), "updatedAt" to FieldValue.serverTimestamp())).await(); Unit

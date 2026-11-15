@@ -27,8 +27,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.common.formatTimeAgo
 import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
+import vn.nhom2.lokap.core.designsystem.theme.readableOn
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
@@ -442,7 +443,7 @@ private fun ChatTopBar(
                 Icon(
                     imageVector = Icons.Rounded.Palette,
                     contentDescription = "Đổi chủ đề",
-                    tint = if (hasCustomWallpaper) Color.White else activePreset.primaryColor,
+                    tint = if (hasCustomWallpaper) Color.White else activePreset.primaryColor.readableOn(colors.surface, colors.textSecondary),
                     modifier = Modifier.size(26.dp)
                 )
             }
@@ -540,19 +541,19 @@ private fun ChatMessageBubbleItem(
             .alpha(if (isPending) 0.58f else 1f),
         horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
     ) {
-        if (message.replyToPost != null) {
-            ReplyToPostHeader(
-                post = message.replyToPost,
-                isMine = isMine,
-                hasCustomWallpaper = hasCustomWallpaper,
-                onClick = { onPostClick(message.replyToPost.id) }
-            )
-            Spacer(modifier = Modifier.height(spacing.xs))
-        }
-
         // Box làm mốc cho popup: menu hiện ngay dưới ảnh/bong bóng được nhấn giữ
         Box {
             Column(horizontalAlignment = if (isMine) Alignment.End else Alignment.Start) {
+                if (message.replyToPost != null) {
+                    // Tin nhắn gửi từ thanh dưới ảnh: ảnh lớn, nội dung tin nằm trên ảnh (kiểu Locket)
+                    PhotoReplyCard(
+                        post = message.replyToPost,
+                        body = message.body,
+                        now = now,
+                        onClick = { onPostClick(message.replyToPost.id) },
+                        onLongClick = openMenu
+                    )
+                } else {
                 if (message.attachedPost != null) {
                     AttachedLocketPostCard(
                         post = message.attachedPost,
@@ -599,6 +600,7 @@ private fun ChatMessageBubbleItem(
                             color = textColor
                         )
                     }
+                }
                 }
             }
 
@@ -693,54 +695,93 @@ private fun MessageMenuItem(
     )
 }
 
+/**
+ * Ảnh được trả lời trong Chat (giống Locket): ảnh vuông bo góc, chip tác giả + thời gian ở góc trên,
+ * nội dung tin nhắn căn giữa phía dưới trên nền tối mờ. Bấm mở trang ảnh, nhấn giữ mở menu tin nhắn.
+ */
 @Composable
-private fun ReplyToPostHeader(
+private fun PhotoReplyCard(
     post: Post,
-    isMine: Boolean,
-    hasCustomWallpaper: Boolean,
-    onClick: () -> Unit
+    body: String?,
+    now: java.time.Instant,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)?
 ) {
     val colors = LokapTheme.colors
-    val spacing = LokapTheme.spacing
-    val shapes = LokapTheme.shapes
+    val shape = RoundedCornerShape(28.dp)
+    val timeLabel = remember(post.takenAt, now) { formatTimeAgo(post.takenAt, now) }
 
-    Row(
+    Box(
         modifier = Modifier
-            .clip(shapes.card)
-            .background(if (hasCustomWallpaper) Color.Black.copy(alpha = 0.6f) else colors.surface.copy(alpha = 0.92f))
-            .clickable(onClick = onClick)
-            .padding(spacing.xs),
-        verticalAlignment = Alignment.CenterVertically
+            .fillMaxWidth(0.86f)
+            .widthIn(max = 360.dp)
+            .aspectRatio(1f)
+            .clip(shape)
+            .background(colors.surfaceHigh)
+            .combinedClickable(
+                onClick = onClick,
+                onClickLabel = "Mở ảnh",
+                onLongClick = onLongClick,
+                onLongClickLabel = if (onLongClick != null) "Tuỳ chọn tin nhắn" else null
+            )
     ) {
         AsyncImage(
             model = post.imageUrl,
-            contentDescription = "Ảnh được trả lời",
+            contentDescription = post.caption ?: "Ảnh của ${post.author.displayName}",
             contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(colors.surfaceHigh)
+            modifier = Modifier.fillMaxSize()
         )
-        Spacer(modifier = Modifier.width(spacing.sm))
-        Column(modifier = Modifier.padding(end = spacing.sm)) {
-            Text(
-                text = "Trả lời ảnh",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                ),
-                color = if (isMine) colors.primary else colors.accentLilac
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(12.dp)
+                .clip(LokapTheme.shapes.pill)
+                .background(Color.Black.copy(alpha = 0.55f))
+                .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AvatarRing(
+                avatarUrl = post.author.avatarUrl,
+                displayName = post.author.displayName,
+                size = 30.dp
             )
-            if (!post.caption.isNullOrBlank()) {
-                Text(
-                    text = post.caption,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                    color = if (hasCustomWallpaper) Color.White.copy(alpha = 0.85f) else colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 180.dp)
-                )
-            }
+            Text(
+                text = post.author.displayName,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 150.dp)
+            )
+            Text(
+                text = timeLabel,
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp),
+                color = Color.White.copy(alpha = 0.8f),
+                maxLines = 1
+            )
+        }
+
+        if (!body.isNullOrBlank()) {
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    lineHeight = 24.sp
+                ),
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 18.dp)
+                    .clip(LokapTheme.shapes.pill)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .padding(horizontal = 18.dp, vertical = 10.dp)
+            )
         }
     }
 }
@@ -817,11 +858,15 @@ private fun MessageDeliveryFooter(
 
     when {
         isMine && isPending -> {
+            // Cả tin đang gửi đã bị làm mờ 58% (alpha của Column cha), nên chữ phải đậm:
+            // textTertiary chỉ còn 1,6:1 ở giao diện sáng, textPrimary còn khoảng 4,3:1
             Text(
                 text = "Đang gửi…",
                 style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                color = if (hasCustomWallpaper) Color.White.copy(alpha = 0.7f) else colors.textTertiary,
-                modifier = Modifier.padding(top = 2.dp)
+                color = if (hasCustomWallpaper) Color.White else colors.textPrimary,
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .wallpaperPill(hasCustomWallpaper)
             )
         }
 
@@ -863,19 +908,33 @@ private fun MessageDeliveryFooter(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
-                modifier = Modifier.padding(top = 2.dp)
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .wallpaperPill(hasCustomWallpaper)
             ) {
+                // Màu chủ đề chat có thể gần như vô hình trên nền (chủ đề tối ở giao diện tối, chủ đề sáng ở giao diện sáng).
+                // Icon "đã xem" giữ màu chủ đề khi đạt 3:1, chữ cần 4,5:1; ở chế độ hình nền dùng màu trắng trên viên nền tối.
+                val iconColor = when {
+                    hasCustomWallpaper -> Color.White
+                    message.seen -> activePreset.primaryColor.readableOn(colors.background, colors.textSecondary)
+                    else -> colors.textSecondary
+                }
+                val textColor = when {
+                    hasCustomWallpaper -> Color.White
+                    message.seen -> activePreset.primaryColor.readableOn(colors.background, colors.textSecondary, minRatio = 4.5f)
+                    else -> colors.textSecondary
+                }
                 Icon(
                     imageVector = if (message.seen) Icons.Rounded.DoneAll else Icons.Rounded.Done,
                     contentDescription = null,
-                    tint = if (message.seen) activePreset.primaryColor else if (hasCustomWallpaper) Color.White.copy(alpha = 0.75f) else colors.textTertiary,
+                    tint = iconColor,
                     modifier = Modifier.size(18.dp)
                 )
                 val statusLabel = if (message.seen) "Đã xem" else "Đã gửi"
                 Text(
                     text = "$statusLabel • ${formatTimeAgo(message.createdAt, now)}",
                     style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
-                    color = if (message.seen) activePreset.primaryColor else if (hasCustomWallpaper) Color.White.copy(alpha = 0.75f) else colors.textTertiary
+                    color = textColor
                 )
             }
         }
@@ -883,6 +942,19 @@ private fun MessageDeliveryFooter(
         else -> Unit
     }
 }
+
+/**
+ * Ở chế độ hình nền, đặt dòng trạng thái lên viên nền tối (như nhãn ngày), để chữ trắng đọc được trên mọi ảnh.
+ * Đậm 60% để cả dòng "Đang gửi…" (bị làm mờ 58% cùng tin nhắn) vẫn đạt 3:1 trên ảnh trắng.
+ */
+private fun Modifier.wallpaperPill(enabled: Boolean): Modifier =
+    if (enabled) {
+        clip(RoundedCornerShape(percent = 50))
+            .background(Color.Black.copy(alpha = 0.6f))
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    } else {
+        this
+    }
 
 @Composable
 private fun ChatBottomInputBar(
@@ -943,6 +1015,8 @@ private fun ChatBottomInputBar(
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Dấu + nằm trên vòng tròn tô 12% màu chủ đề, nên đo tương phản với đúng màu vòng tròn đó
+            val plusCircle = activePreset.primaryColor.copy(alpha = 0.12f).compositeOver(colors.surface)
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -954,7 +1028,7 @@ private fun ChatBottomInputBar(
                 Icon(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = "Chụp ảnh gửi riêng",
-                    tint = if (hasCustomWallpaper) Color.White else activePreset.primaryColor,
+                    tint = if (hasCustomWallpaper) Color.White else activePreset.primaryColor.readableOn(plusCircle, colors.textPrimary),
                     modifier = Modifier.size(26.dp)
                 )
             }

@@ -58,10 +58,14 @@ data class FeedUiState(
     val now: Instant = Instant.now(),
     val currentUserId: String = "",
     val pendingBlock: BlockTarget? = null,
-    val repostedPostIds: Set<String> = emptySet(),
+    /** Số lượt đăng lại + mình đã đăng lại chưa, cho mọi ảnh công khai đang hiện (Khám phá + tab Bạn bè). */
+    val repostStates: Map<String, RepostState> = emptyMap(),
     val commentsCountMap: Map<String, Int> = emptyMap(),
+    /** Bài đang mở popup bình luận (null = đóng). */
     val activeCommentPostId: String? = null,
-    val activeReactionPickerPostId: String? = null,
+    /** Tin nhắn đang gõ dưới từng ảnh (postId → nội dung); gửi lỗi thì giữ lại để gửi lại. */
+    val messageDrafts: Map<String, String> = emptyMap(),
+    val sendingMessagePostIds: Set<String> = emptySet(),
     val searchQuery: String = "",
     val searchResults: List<User> = emptyList(),
     val friendStatuses: Map<String, FriendStatus> = emptyMap(),
@@ -70,8 +74,15 @@ data class FeedUiState(
     /** null = xem tất cả. */
     val selectedFriendId: String? = null
 ) {
+    /** Chọn 1 người: ảnh của người đó + ảnh người đó đã đăng lại. */
     val visibleFriendPosts: List<Post>
-        get() = selectedFriendId?.let { id -> friendPosts.filter { it.author.id == id } } ?: friendPosts
+        get() = selectedFriendId?.let { id -> friendPosts.filter { it.author.id == id || it.repostedBy?.id == id } } ?: friendPosts
+
+    fun canRepost(post: Post): Boolean = vn.nhom2.lokap.feature.post.canRepost(post, currentUserId, now)
+
+    fun canMessage(post: Post): Boolean = vn.nhom2.lokap.feature.post.canMessageAbout(
+        post, currentUserId, friendStatuses[post.author.id] ?: FriendStatus.NONE
+    )
 }
 
 @Immutable
@@ -86,10 +97,11 @@ sealed interface FeedAction {
     data object OnSwipeDownToCamera : FeedAction
     data object OnNotificationsClick : FeedAction
     data object OnSearchClick : FeedAction
-    data class OnPostClick(val postId: String) : FeedAction
     data class OnLocationChipClick(val post: Post) : FeedAction
     data class OnAuthorClick(val userId: String) : FeedAction
-    data class OnReplyClick(val post: Post) : FeedAction
+    data class OnMessageDraftChange(val postId: String, val text: String) : FeedAction
+    /** Gửi tin nhắn đang gõ dưới ảnh vào Chat với tác giả, kèm ảnh. */
+    data class OnSendPhotoMessage(val post: Post) : FeedAction
     data class OnReact(val postId: String, val emoji: String) : FeedAction
     data class OnRetrySendPost(val postId: String) : FeedAction
     data class OnReportPost(val postId: String) : FeedAction
@@ -100,10 +112,7 @@ sealed interface FeedAction {
     data class OnToggleRepost(val postId: String) : FeedAction
     data class OnOpenComments(val postId: String) : FeedAction
     data object OnDismissComments : FeedAction
-    data class OnAddComment(val postId: String, val text: String) : FeedAction
     data class OnShareLink(val post: Post) : FeedAction
-    data class OnShowReactionPicker(val postId: String) : FeedAction
-    data object OnDismissReactionPicker : FeedAction
 
     data class OnSearchQueryChange(val query: String) : FeedAction
     data class OnToggleFriendRequest(val userId: String) : FeedAction
@@ -120,9 +129,7 @@ sealed interface FeedEffect {
     data object NavigateBackToCamera : FeedEffect
     data object NavigateToNotifications : FeedEffect
     data object NavigateToSearch : FeedEffect
-    data class NavigateToPostDetail(val postId: String) : FeedEffect
     data class NavigateToRegionAlbum(val level: String, val code: String) : FeedEffect
     data class NavigateToProfile(val userId: String) : FeedEffect
-    data class NavigateToChat(val conversationId: String) : FeedEffect
     data class ShowMessage(val message: String) : FeedEffect
 }

@@ -703,7 +703,7 @@ private fun OtherUserRelationshipBar(
                     Text(
                         text = "Bạn đã đạt giới hạn tối đa 20 bạn bè",
                         style = MaterialTheme.typography.labelSmall,
-                        color = LokapTheme.colors.accentYellow
+                        color = LokapTheme.colors.accentYellowStrong
                     )
                 }
             }
@@ -743,7 +743,7 @@ private fun OtherUserRelationshipBar(
                     Text(
                         text = "Đã đủ 20 bạn",
                         style = MaterialTheme.typography.labelSmall,
-                        color = LokapTheme.colors.accentYellow
+                        color = LokapTheme.colors.accentYellowStrong
                     )
                 }
             }
