@@ -6,7 +6,8 @@
   "scripts": {
     "emulators": "firebase emulators:start --project demo-lokap",
     "test": "firebase emulators:exec --only firestore --project demo-lokap \"node --test tests/rules.test.js\"",
-    "deploy": "firebase deploy --only firestore:rules,firestore:indexes"
+    "deploy": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:pages": "firebase deploy --only hosting"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

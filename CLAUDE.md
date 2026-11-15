@@ -96,6 +96,7 @@ Báo cáo: mỗi người 1 phiếu, tài khoản ≥ 24 giờ, đủ 3 phiếu 
 6. Chạy thử không cần project thật: `cd firebase && npm run emulators`, đặt `FIREBASE_EMULATOR_HOST` (xem `.env.example`).
 7. Build lỗi `jlink ... does not exist`: Gradle đang lấy JRE của extension VS Code → chạy với `JAVA_HOME` trỏ JDK đầy đủ.
 8. Firebase BoM giữ **34.12.0**: bản 35.x (auth 25) build bằng Kotlin 2.4, auth 24.1+ bằng 2.3 → Kotlin 2.2.10 không đọc được. Tương tự `googleid` giữ **1.2.0** (1.2.1 là Kotlin 2.4 dù POM ghi stdlib 1.8): kiểm tra `mv=` bằng `javap -v`, đừng tin POM.
+9. Bản release (chốt 15/11): ký bằng khoá riêng `~/keystores/lokap-release.jks` (alias `lokap`, để ngoài repo, mất file/mật khẩu là không cập nhật được app). Điền 4 dòng `RELEASE_*` trong `.env`; thiếu thì APK release chưa ký, không cài được. SHA-1 khoá release đã thêm vào Firebase (`./gradlew :app:signingReport` để xem). Cài: `./gradlew :app:installRelease`. Chữ ký khác bản debug nên chuyển qua lại phải gỡ app (mất dữ liệu máy, đăng nhập lại).
 
 ## Thiết bị chạy thử (chốt 05/11)
 - Dùng **điện thoại Android thật** qua USB (`adb devices` phải thấy máy). **Không bật emulator**: laptop 16 GB RAM không gánh nổi emulator + Gradle (build từng mất 27 phút).

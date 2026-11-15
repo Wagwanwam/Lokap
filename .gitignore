@@ -20,3 +20,9 @@ local.properties
 # Khoá Firebase/Cloudinary/VietMap của từng máy (mẫu: .env.example)
 .env
 app/google-services.json
+# Khoá ký release (để ngoài repo, dòng này chỉ phòng chép nhầm vào)
+*.jks
+*.keystore
+# File cài đặt build ra, không commit
+*.apk
+*.aab

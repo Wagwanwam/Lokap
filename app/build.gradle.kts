@@ -61,10 +61,28 @@ check(firebaseApiKey.isNotBlank() && firebaseAppId.isNotBlank() && firebaseProje
     "Thiếu cấu hình Firebase. Điền FIREBASE_API_KEY, FIREBASE_APP_ID, FIREBASE_PROJECT_ID trong .env hoặc thêm app/google-services.json."
 }
 
+// Khoá ký bản release: file .jks nằm NGOÀI repo, đường dẫn + mật khẩu điền trong .env (mẫu ở .env.example).
+// Thiếu một trong 4 giá trị → bản release ra APK chưa ký (không cài được), bản debug không ảnh hưởng.
+val releaseStoreFile = envValue("RELEASE_STORE_FILE").replaceFirst(Regex("^~"), System.getProperty("user.home"))
+val releaseSigningReady = listOf(
+    releaseStoreFile, envValue("RELEASE_STORE_PASSWORD"), envValue("RELEASE_KEY_ALIAS"), envValue("RELEASE_KEY_PASSWORD")
+).all { it.isNotBlank() }
+
 android {
     namespace = "vn.nhom2.lokap"
     compileSdk {
         version = release(37)
+    }
+
+    signingConfigs {
+        if (releaseSigningReady) {
+            create("release") {
+                storeFile = file(releaseStoreFile)
+                storePassword = envValue("RELEASE_STORE_PASSWORD")
+                keyAlias = envValue("RELEASE_KEY_ALIAS")
+                keyPassword = envValue("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     defaultConfig {
@@ -97,6 +115,7 @@ android {
 
     buildTypes {
         release {
+            if (releaseSigningReady) signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = false
             }
