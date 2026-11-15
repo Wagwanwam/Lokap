@@ -6,12 +6,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import vn.nhom2.lokap.feature.postdetail.RedditCommentUi
+import vn.nhom2.lokap.feature.post.CommentUi
 object FakeCommentStore {
 
-    private val initialSampleComments: Map<String, List<RedditCommentUi>> = mapOf(
+    private val initialSampleComments: Map<String, List<CommentUi>> = mapOf(
         "p_01" to listOf(
-            RedditCommentUi(
+            CommentUi(
                 id = "c1_p_01",
                 authorId = "user_khôi",
                 authorName = "Nguyễn Minh Khôi",
@@ -21,7 +21,7 @@ object FakeCommentStore {
                 score = 14,
                 userVote = 0,
                 replies = listOf(
-                    RedditCommentUi(
+                    CommentUi(
                         id = "c1_1_p_01",
                         authorId = "user_linh",
                         authorName = "Trần Khánh Linh",
@@ -32,7 +32,7 @@ object FakeCommentStore {
                         userVote = 0,
                         replyToAuthorName = "Nguyễn Minh Khôi",
                         replies = listOf(
-                            RedditCommentUi(
+                            CommentUi(
                                 id = "c1_1_1_p_01",
                                 authorId = "user_khôi",
                                 authorName = "Nguyễn Minh Khôi",
@@ -45,7 +45,7 @@ object FakeCommentStore {
                             )
                         )
                     ),
-                    RedditCommentUi(
+                    CommentUi(
                         id = "c1_2_p_01",
                         authorId = "user_nam",
                         authorName = "Lê Hoàng Nam",
@@ -58,7 +58,7 @@ object FakeCommentStore {
                     )
                 )
             ),
-            RedditCommentUi(
+            CommentUi(
                 id = "c2_p_01",
                 authorId = "user_thảo",
                 authorName = "Phương Thảo",
@@ -68,7 +68,7 @@ object FakeCommentStore {
                 score = 9,
                 userVote = 0,
                 replies = listOf(
-                    RedditCommentUi(
+                    CommentUi(
                         id = "c2_1_p_01",
                         authorId = "current_user",
                         authorName = "Bạn",
@@ -83,7 +83,7 @@ object FakeCommentStore {
             )
         ),
         "p_02" to listOf(
-            RedditCommentUi(
+            CommentUi(
                 id = "c1_p_02",
                 authorId = "user_nam",
                 authorName = "Lê Hoàng Nam",
@@ -93,7 +93,7 @@ object FakeCommentStore {
                 score = 4,
                 userVote = 0
             ),
-            RedditCommentUi(
+            CommentUi(
                 id = "c2_p_02",
                 authorId = "user_linh",
                 authorName = "Trần Khánh Linh",
@@ -105,7 +105,7 @@ object FakeCommentStore {
             )
         ),
         "p_03" to listOf(
-            RedditCommentUi(
+            CommentUi(
                 id = "c1_p_03",
                 authorId = "user_thảo",
                 authorName = "Phương Thảo",
@@ -115,7 +115,7 @@ object FakeCommentStore {
                 score = 8,
                 userVote = 0
             ),
-            RedditCommentUi(
+            CommentUi(
                 id = "c2_p_03",
                 authorId = "user_khôi",
                 authorName = "Nguyễn Minh Khôi",
@@ -127,7 +127,7 @@ object FakeCommentStore {
             )
         ),
         "p_04" to listOf(
-            RedditCommentUi(
+            CommentUi(
                 id = "c1_p_04",
                 authorId = "user_ngọc",
                 authorName = "Đỗ Bảo Ngọc",
@@ -141,9 +141,9 @@ object FakeCommentStore {
     )
 
     private val _comments = MutableStateFlow(initialSampleComments)
-    val comments: StateFlow<Map<String, List<RedditCommentUi>>> = _comments.asStateFlow()
+    val comments: StateFlow<Map<String, List<CommentUi>>> = _comments.asStateFlow()
 
-    fun getComments(postId: String): List<RedditCommentUi> {
+    fun getComments(postId: String): List<CommentUi> {
         return _comments.value[postId] ?: emptyList()
     }
 
@@ -174,7 +174,7 @@ object FakeCommentStore {
         val trimmed = content.trim()
         if (trimmed.isEmpty()) return
 
-        val newComment = RedditCommentUi(
+        val newComment = CommentUi(
             id = "c_${System.currentTimeMillis()}_$postId",
             authorId = SampleData.currentUser.id,
             authorName = "Bạn",
@@ -205,7 +205,7 @@ object FakeCommentStore {
         }
     }
 
-    private fun countRecursive(list: List<RedditCommentUi>): Int {
+    private fun countRecursive(list: List<CommentUi>): Int {
         var count = 0
         for (item in list) {
             count += 1 + countRecursive(item.replies)
@@ -214,10 +214,10 @@ object FakeCommentStore {
     }
 
     private fun addReplyRecursive(
-        list: List<RedditCommentUi>,
+        list: List<CommentUi>,
         targetId: String,
-        newReply: RedditCommentUi
-    ): List<RedditCommentUi> {
+        newReply: CommentUi
+    ): List<CommentUi> {
         return list.map { comment ->
             if (comment.id == targetId) {
                 comment.copy(replies = comment.replies + newReply)
@@ -228,10 +228,10 @@ object FakeCommentStore {
     }
 
     private fun updateVoteRecursive(
-        list: List<RedditCommentUi>,
+        list: List<CommentUi>,
         commentId: String,
         isUpvote: Boolean
-    ): List<RedditCommentUi> {
+    ): List<CommentUi> {
         return list.map { comment ->
             if (comment.id == commentId) {
                 val currentVote = comment.userVote

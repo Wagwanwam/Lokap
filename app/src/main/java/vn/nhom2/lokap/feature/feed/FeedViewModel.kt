@@ -21,6 +21,7 @@ import vn.nhom2.lokap.domain.repository.MessagingRepository
 import vn.nhom2.lokap.domain.repository.NotificationRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import vn.nhom2.lokap.domain.model.Audience
 import vn.nhom2.lokap.domain.model.FriendStatus
 import vn.nhom2.lokap.domain.model.Post
 import vn.nhom2.lokap.domain.model.User
@@ -29,6 +30,9 @@ import vn.nhom2.lokap.domain.repository.AuthRepository
 import vn.nhom2.lokap.domain.repository.PostRepository
 import vn.nhom2.lokap.domain.repository.SocialRepository
 import vn.nhom2.lokap.domain.repository.isOffline
+import vn.nhom2.lokap.domain.model.RepostState
+import vn.nhom2.lokap.feature.post.mergeFriendTimeline
+import vn.nhom2.lokap.feature.post.sendPhotoReply
 
 /**
  * Feed đọc bài qua PostRepository (bản Firestore: cache Room hiện ngay, làm mới từ server),
@@ -54,9 +58,15 @@ class FeedViewModel @Inject constructor(
     val effects: Flow<FeedEffect> = _effects.receiveAsFlow()
 
     private var cachedPublicPosts: List<Post> = emptyList()
-    /** Id bài public (tab Khám phá, nơi duy nhất hiện số bình luận). Set nên đổi thứ tự không dựng lại listener. */
+    /**
+     * Id bài public: chỉ bài public có bình luận (Khám phá + bài public của bạn bè ở tab Bạn bè, kể cả đang hẹn giờ).
+     * Set nên đổi thứ tự không dựng lại listener.
+     */
     private val publicPostIds = MutableStateFlow<Set<String>>(emptySet())
+    private val friendPublicPostIds = MutableStateFlow<Set<String>>(emptySet())
     private var searchJob: Job? = null
+    /** Đang đăng lại / bỏ (postId → trạng thái muốn tới): bấm liên tục thì bỏ qua tới khi xong. */
+    private val pendingReposts = mutableMapOf<String, Boolean>()
     private var graphFriends: List<User> = emptyList()
     private val nameCollator: Collator = Collator.getInstance(Locale.forLanguageTag("vi"))
 
@@ -68,10 +78,12 @@ class FeedViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            posts.friendFeed.collect { list ->
+            // Tab Bạn bè = bài bạn bè + ảnh công khai mình / bạn bè đã đăng lại
+            combine(posts.friendFeed, posts.friendReposts, ::mergeFriendTimeline).collect { list ->
                 // Có bài trong máy (Room) thì hiện ngay, không đợi server
                 _uiState.update { it.copy(friendPosts = list, isLoading = it.isLoading && list.isEmpty() && it.allPublicPosts.isEmpty()) }
                 updateFriendFilterOptions()
+                friendPublicPostIds.value = list.filter { it.audience == Audience.PUBLIC }.map { it.id }.toSet()
             }
         }
         viewModelScope.launch {
@@ -95,9 +107,18 @@ class FeedViewModel @Inject constructor(
         }
         viewModelScope.launch {
             // Mỗi bài public một listener chỉ đếm số bình luận; chỉ dựng lại khi tập bài đổi
-            publicPostIds.flatMapLatest { ids ->
+            combine(publicPostIds, friendPublicPostIds) { a, b -> a + b }.distinctUntilChanged().flatMapLatest { ids ->
                 if (ids.isEmpty()) flowOf(emptyMap()) else combine(ids.map { id -> comments.observeCommentCount(id).map { id to it } }) { it.toMap() }
             }.collect { counts -> _uiState.update { it.copy(commentsCountMap = counts) } }
+        }
+        viewModelScope.launch {
+            // Mỗi ảnh công khai một listener đếm lượt đăng lại (cùng tập bài với số bình luận)
+            combine(publicPostIds, friendPublicPostIds) { a, b -> a + b }.distinctUntilChanged().flatMapLatest { ids ->
+                if (ids.isEmpty()) flowOf(emptyMap()) else combine(ids.map { id -> posts.observeRepostState(id).map { id to it } }) { it.toMap() }
+            }.collect { states ->
+                states.forEach { (id, s) -> if (pendingReposts[id] == s.isMine) pendingReposts.remove(id) }
+                _uiState.update { it.copy(repostStates = states) }
+            }
         }
         searchUsers("")
         // Mở màn: dùng cache có hạn (vừa tải ở Bản đồ / Album thì không tải lại)
@@ -112,7 +133,7 @@ class FeedViewModel @Inject constructor(
     private fun updateFriendFilterOptions() {
         _uiState.update { state ->
             val me = state.currentUserId
-            val options = (graphFriends + state.friendPosts.map { it.author })
+            val options = (graphFriends + state.friendPosts.map { it.repostedBy ?: it.author })
                 .distinctBy { it.id }
                 .sortedWith(compareBy<User> { it.id != me }.thenComparator { a, b -> nameCollator.compare(a.displayName, b.displayName) })
             val selected = state.selectedFriendId?.takeIf { id -> options.any { it.id == id } }
@@ -203,10 +224,6 @@ class FeedViewModel @Inject constructor(
                 sendEffect(FeedEffect.NavigateToSearch)
             }
 
-            is FeedAction.OnPostClick -> {
-                sendEffect(FeedEffect.NavigateToPostDetail(action.postId))
-            }
-
             is FeedAction.OnLocationChipClick -> {
                 val (level, code) = action.post.location.toRegionAlbumTarget() ?: return
                 sendEffect(FeedEffect.NavigateToRegionAlbum(level = level, code = code))
@@ -216,11 +233,13 @@ class FeedViewModel @Inject constructor(
                 sendEffect(FeedEffect.NavigateToProfile(action.userId))
             }
 
-            is FeedAction.OnReplyClick -> {
-                viewModelScope.launch { messages.openConversation(action.post.author.id).fold(
-                    onSuccess = { sendEffect(FeedEffect.NavigateToChat(it)) },
-                    onFailure = { sendEffect(FeedEffect.ShowMessage(it.message ?: "Không mở được cuộc trò chuyện")) }) }
+            is FeedAction.OnMessageDraftChange -> _uiState.update { state ->
+                val drafts = if (action.text.isEmpty()) state.messageDrafts - action.postId
+                else state.messageDrafts + (action.postId to action.text.take(1000))
+                state.copy(messageDrafts = drafts)
             }
+
+            is FeedAction.OnSendPhotoMessage -> sendPhotoMessage(action.post)
 
             is FeedAction.OnReact -> viewModelScope.launch {
                 posts.toggleReaction(action.postId, action.emoji)
@@ -262,40 +281,28 @@ class FeedViewModel @Inject constructor(
 
             is FeedAction.OnToggleRepost -> {
                 val postId = action.postId
-                val wasReposted = _uiState.value.repostedPostIds.contains(postId)
-                _uiState.update { state ->
-                    val next = if (wasReposted) state.repostedPostIds - postId else state.repostedPostIds + postId
-                    state.copy(repostedPostIds = next)
+                if (postId in pendingReposts) return
+                val target = !(_uiState.value.repostStates[postId] ?: RepostState()).isMine
+                pendingReposts[postId] = target
+                viewModelScope.launch {
+                    // Listener đổi ngay (Firestore ghi trên máy trước); lỗi thì báo, số lượt tự trả lại
+                    posts.setReposted(postId, target)
+                        .onFailure { sendEffect(FeedEffect.ShowMessage(it.message ?: "Không đăng lại được")) }
+                    pendingReposts.remove(postId)
                 }
             }
 
             is FeedAction.OnOpenComments -> {
-                sendEffect(FeedEffect.NavigateToPostDetail(action.postId))
+                _uiState.update { it.copy(activeCommentPostId = action.postId) }
             }
 
             FeedAction.OnDismissComments -> {
                 _uiState.update { it.copy(activeCommentPostId = null) }
             }
 
-            is FeedAction.OnAddComment -> {
-                if (action.text.isNotBlank()) {
-                    viewModelScope.launch { comments.add(action.postId, action.text).fold(
-                        onSuccess = { },
-                        onFailure = { sendEffect(FeedEffect.ShowMessage(it.message ?: "Không lưu được bình luận")) }) }
-                }
-            }
-
             is FeedAction.OnShareLink -> {
                 val shareUrl = "https://lokap.vn/p/${action.post.id}"
                 sendEffect(FeedEffect.ShowMessage("Đã sao chép"))
-            }
-
-            is FeedAction.OnShowReactionPicker -> {
-                _uiState.update { it.copy(activeReactionPickerPostId = action.postId) }
-            }
-
-            FeedAction.OnDismissReactionPicker -> {
-                _uiState.update { it.copy(activeReactionPickerPostId = null) }
             }
 
             is FeedAction.OnSearchQueryChange -> {
@@ -329,6 +336,24 @@ class FeedViewModel @Inject constructor(
             is FeedAction.OnProvinceFilterSearchChange -> {
                 _uiState.update { it.copy(provinceFilterSearch = action.query) }
             }
+        }
+    }
+
+    /** Gửi tin dưới ảnh (kiểu Locket): ở lại Feed, xong thì báo "Đã gửi"; lỗi thì giữ nội dung đang gõ. */
+    private fun sendPhotoMessage(post: Post) {
+        val state = _uiState.value
+        val text = state.messageDrafts[post.id]?.trim().orEmpty()
+        if (text.isEmpty() || post.id in state.sendingMessagePostIds || !state.canMessage(post)) return
+        _uiState.update { it.copy(sendingMessagePostIds = it.sendingMessagePostIds + post.id) }
+        viewModelScope.launch {
+            val result = messages.sendPhotoReply(post, text)
+            _uiState.update {
+                it.copy(
+                    sendingMessagePostIds = it.sendingMessagePostIds - post.id,
+                    messageDrafts = if (result.isSuccess) it.messageDrafts - post.id else it.messageDrafts
+                )
+            }
+            sendEffect(FeedEffect.ShowMessage(result.fold({ "Đã gửi cho ${post.author.displayName}" }, { it.message ?: "Không gửi được tin nhắn" })))
         }
     }
 

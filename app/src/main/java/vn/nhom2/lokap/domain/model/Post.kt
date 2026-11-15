@@ -43,5 +43,15 @@ data class Post(
     val publicVisibleAt: Instant?,
     val reactions: List<Reaction>,
     val myReaction: String?,
-    val sendState: PostSendState
+    val sendState: PostSendState,
+    /** Tab Bạn bè: ảnh công khai mà người này (mình hoặc bạn bè) đã đăng lại; null = bài gốc. */
+    val repostedBy: User? = null,
+    val repostedAt: Instant? = null
+)
+
+/** Số lượt đăng lại của 1 bài và mình đã đăng lại chưa. */
+@Immutable
+data class RepostState(
+    val count: Int = 0,
+    val isMine: Boolean = false
 )

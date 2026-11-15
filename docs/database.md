@@ -38,6 +38,8 @@ posts/{postId}/private/location    lat, lng, accuracyM — toạ độ GPS gốc
 posts/{postId}/reports/{uid}       reason, createdAt — mỗi người 1 phiếu
 posts/{postId}/comments/{id}       authorId, content (1–1000), parentId, createdAt, updatedAt, votes {uid: -1|1}
 posts/{postId}/notificationReceipts/{uid}  createdAt — chống gửi lặp thông báo bài mới
+posts/{postId}/reposts/{uid}       uid, createdAt — đăng lại: chỉ ảnh public đã hiện của người khác; ai đăng nhập cũng đọc
+                                   (đếm lượt; truy vấn nhóm "reposts" theo uid cho feed bạn bè + tab Đăng lại ở Hồ sơ)
 landmarks/{landmarkId}             id = "vm_" + 20 ký tự đầu SHA-256 của mã địa điểm VietMap (cùng địa điểm → cùng document)
   name (2–60), searchName, address, description (≤ 150, có thể null)
   provinceCode/Name, wardCode/Name, lat, lng (điểm CÔNG KHAI của địa điểm, trong khung 8–24°B, 102–118°Đ)
@@ -45,6 +47,8 @@ landmarks/{landmarkId}             id = "vm_" + 20 ký tự đầu SHA-256 của
 landmarks/{landmarkId}/reports/{uid}  reason, createdAt — mỗi người 1 phiếu, đủ 3 phiếu thì ẩn địa danh
 conversations/{uidNhỏ_uidLớn}      members [2 uid], createdAt, readAt {uid: thời điểm đọc từ server}
 conversations/{id}/messages/{id}   senderId, body (1–1000), createdAt, updatedAt
+  replyTo (tuỳ chọn, 15/11) {postId, authorId, imageUrl, caption, takenAt}: tin gửi từ thanh "Gửi tin nhắn…" dưới ảnh;
+  rules ép bài đọc được, authorId + imageUrl khớp bài gốc, tác giả là 1 trong 2 thành viên; không sửa được sau khi gửi
 users/{uid}/notifications/{id}    type, actorId, postId, conversationId, sourceId, createdAt, isRead
 users/{uid}/chatPreferences/{id}  presetId, customWallpaperUri, wallpaperAlignment — chỉ chủ tài khoản
 ```

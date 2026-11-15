@@ -11,12 +11,13 @@ class ContentTestRepository : MessagingRepository, CommentRepository, Notificati
     val theme = MutableStateFlow(ChatThemeConfig())
     var failure: Throwable? = null
     var sendCount = 0
+    var lastReplyTo: Post? = null
     var readCount = 0
     private fun result() = failure?.let { Result.failure<Unit>(it) } ?: Result.success(Unit)
     override fun observeInbox() = chat.map { it.map { data -> listOfNotNull(data.conversation) } }
     override fun observeChat(id: String) = chat
     override suspend fun openConversation(userId: String) = Result.success("chat_$userId")
-    override suspend fun send(id: String, body: String): Result<Unit> { sendCount++; return result() }
+    override suspend fun send(id: String, body: String, replyTo: Post?): Result<Unit> { sendCount++; lastReplyTo = replyTo; return result() }
     override suspend fun edit(id: String, messageId: String, body: String) = result()
     override suspend fun delete(id: String, messageId: String) = result()
     override suspend fun markRead(id: String): Result<Unit> { readCount++; return result() }

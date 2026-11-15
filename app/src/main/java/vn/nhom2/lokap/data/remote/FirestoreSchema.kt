@@ -28,6 +28,8 @@ internal object Fs {
     const val POSTS = "posts"
     const val LOCATION = "location"
     const val REPORTS = "reports"
+    /** posts/{postId}/reposts/{uid}: lượt đăng lại (truy vấn nhóm theo uid). */
+    const val REPOSTS = "reposts"
 
     // users
     const val USERNAME = "username"

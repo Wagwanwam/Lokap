@@ -30,12 +30,22 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -53,6 +63,7 @@ import vn.nhom2.lokap.data.remote.isPermissionDenied
 import vn.nhom2.lokap.data.remote.isRetryable
 import vn.nhom2.lokap.data.remote.toAppException
 import vn.nhom2.lokap.data.remote.toAuthorMap
+import vn.nhom2.lokap.data.remote.toUser
 import vn.nhom2.lokap.data.worker.UploadPostWorker
 import vn.nhom2.lokap.domain.model.Audience
 import vn.nhom2.lokap.domain.model.Landmark
@@ -61,6 +72,7 @@ import vn.nhom2.lokap.domain.model.Post
 import vn.nhom2.lokap.domain.model.PostLocation
 import vn.nhom2.lokap.domain.model.PostSendState
 import vn.nhom2.lokap.domain.model.Reaction
+import vn.nhom2.lokap.domain.model.RepostState
 import vn.nhom2.lokap.domain.model.User
 import vn.nhom2.lokap.domain.repository.AppException
 import vn.nhom2.lokap.domain.repository.AuthRepository
@@ -77,7 +89,9 @@ internal data class ReactionCount(val emoji: String, val count: Int)
  * - feed Bạn bè: `viewerIds array-contains uid` + `status == active`;
  * - Khám phá: `audience == public` + `status == active` + `publicVisibleAt <= giờ hiện tại`.
  * Ghi: tạo bài ở UploadPostWorker (upload Cloudinary → ghi Firestore), sửa/xoá/cảm xúc/báo cáo ghi thẳng.
+ * Đăng lại: `posts/{id}/reposts/{uid}`; feed bạn bè hỏi nhóm "reposts" theo uid của mình + bạn bè.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class FirestorePostRepository @Inject constructor(
     private val dbLazy: dagger.Lazy<FirebaseFirestore>,
@@ -103,9 +117,90 @@ class FirestorePostRepository @Inject constructor(
     override val publicPosts: Flow<List<Post>> = dao.observePublicFeed().distinctUntilChanged()
         .map { list -> list.map { it.toDomain() } }.flowOn(Dispatchers.Default)
 
-    // Chưa có collection "đã lưu" / "đăng lại"
+    // Chưa có collection "đã lưu"
     override val savedPosts: Flow<List<Post>> = flowOf(emptyList())
-    override val repostedPosts: Flow<List<Post>> = flowOf(emptyList())
+
+    /** 1 lượt đăng lại trong feed bạn bè: giữ trong bộ nhớ, tải lại cùng refreshFeeds (bài thì nằm trong Room). */
+    private data class RepostRef(val postId: String, val by: User, val at: Long)
+
+    /** Chủ tài khoản + danh sách: đăng nhập tài khoản khác thì không hiện danh sách cũ. */
+    private val repostRefs = MutableStateFlow<Pair<String?, List<RepostRef>>>(null to emptyList())
+
+    private val currentUid: Flow<String?> = auth.currentUser.map { it?.id }.distinctUntilChanged()
+
+    override val friendReposts: Flow<List<Post>> =
+        combine(repostRefs, currentUid) { (owner, refs), me -> if (me != null && owner == me) refs else emptyList() }
+            .distinctUntilChanged()
+            .flatMapLatest { refs ->
+                if (refs.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    dao.observeByIds(refs.map { it.postId }.distinct()).distinctUntilChanged().map { entities ->
+                        val byId = entities.associateBy { it.id }
+                        refs.mapNotNull { ref ->
+                            byId[ref.postId]?.toDomain()?.copy(repostedBy = ref.by, repostedAt = Instant.ofEpochMilli(ref.at))
+                        }
+                    }
+                }
+            }.flowOn(Dispatchers.Default)
+
+    override fun observeRepostedPosts(userId: String): Flow<List<Post>> =
+        currentUid.flatMapLatest { me ->
+            if (me == null) {
+                flowOf(emptyList())
+            } else {
+                repostsBy(listOf(userId)).limit(USER_POSTS_LIMIT).watch()
+                    .map { docs -> docs.mapNotNull { it.repostedPostId() }.distinct() }
+                    // Index nhóm "reposts" đang build / lỗi tạm: hiện rỗng rồi tự nghe lại, không đứng im tới khi mở lại app
+                    .retryListen(fallback = emptyList())
+                    .distinctUntilChanged()
+                    .flatMapLatest { ids ->
+                        flow {
+                            // Bài chưa có trong máy: đọc từ server (đã xoá / bị ẩn thì bỏ); lỗi mạng thì hiện bài đã có
+                            try {
+                                cacheMissingPosts(ids, me)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                            }
+                            emitAll(observeInOrder(ids))
+                        }
+                    }
+                    .catch { emit(emptyList()) }
+            }
+        }.flowOn(Dispatchers.Default)
+
+    override fun observeRepostState(postId: String): Flow<RepostState> =
+        currentUid.flatMapLatest { me ->
+            if (me == null) {
+                flowOf(RepostState())
+            } else {
+                posts.document(postId).collection(Fs.REPOSTS).watch()
+                    .map { docs -> RepostState(count = docs.size, isMine = docs.any { it.id == me }) }
+                    .retryListen(fallback = RepostState())
+            }
+        }.distinctUntilChanged()
+
+    override suspend fun setReposted(postId: String, reposted: Boolean): Result<Unit> = appCall {
+        val me = requireMe()
+        val ref = posts.document(postId).collection(Fs.REPOSTS).document(me.id)
+        val before = repostRefs.value
+        // Tab Bạn bè đổi ngay (ảnh mình vừa đăng lại lên đầu); lỗi thì trả lại
+        repostRefs.update { (owner, refs) ->
+            val rest = (if (owner == me.id) refs else emptyList()).filterNot { it.postId == postId && it.by.id == me.id }
+            me.id to if (reposted) listOf(RepostRef(postId, me, System.currentTimeMillis())) + rest else rest
+        }
+        try {
+            if (reposted) {
+                ref.set(mapOf(Fs.UID to me.id, Fs.CREATED_AT to FieldValue.serverTimestamp())).await()
+            } else {
+                ref.delete().await()
+            }
+        } catch (e: Exception) {
+            repostRefs.value = before
+            throw e
+        }
+    }
 
     override fun observePost(postId: String): Flow<Post?> =
         dao.observeById(postId).distinctUntilChanged().map { it?.toDomain() }.flowOn(Dispatchers.Default)
@@ -151,7 +246,98 @@ class FirestorePostRepository @Inject constructor(
         storeServerPosts(public, me.id, inPublicFeed = true)
         dao.clearFriendFlagExcept(friend.map { it.id })
         dao.clearPublicFlagExcept(public.map { it.id })
+
+        // Ảnh mình / bạn bè đăng lại: lỗi (chưa có index, rules cũ…) thì giữ danh sách cũ, feed vẫn tải xong
+        try {
+            refreshFriendReposts(me, friendIds, blocked, loaded = (friend + public).associateBy { it.id })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+        }
     }
+
+    /** Lượt đăng lại mới nhất của mình + bạn bè (mỗi ảnh giữ lượt mới nhất), kèm bài và người đăng lại. */
+    private suspend fun refreshFriendReposts(
+        me: User,
+        friendIds: List<String>,
+        blocked: Set<String>,
+        loaded: Map<String, DocumentSnapshot>
+    ) {
+        val reposterIds = (listOf(me.id) + friendIds).distinct().filterNot { it in blocked }
+        val latest = reposterIds.chunked(IN_QUERY_LIMIT).flatMap { chunk ->
+            repostsBy(chunk).limit(FEED_LIMIT).get().await().documents
+        }.mapNotNull { doc ->
+            val postId = doc.repostedPostId() ?: return@mapNotNull null
+            val by = doc.getString(Fs.UID) ?: return@mapNotNull null
+            val at = doc.getTimestamp(Fs.CREATED_AT, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)?.toDate()?.time
+                ?: return@mapNotNull null
+            RepostHit(postId, by, at)
+        }.sortedByDescending { it.at }.distinctBy { it.postId }.take(FEED_LIMIT.toInt())
+
+        // Bài chưa có trong lần tải này thì đọc riêng; chỉ giữ ảnh công khai còn hoạt động, tác giả không bị chặn
+        val fetched = fetchPosts(latest.map { it.postId }.filterNot { it in loaded })
+        val visible = (loaded.values + fetched)
+            .filter {
+                it.getString(Fs.AUDIENCE) == AUDIENCE_PUBLIC && it.getString(Fs.STATUS) == Fs.ACTIVE &&
+                    it.getString(Fs.AUTHOR_ID) !in blocked
+            }
+            .mapTo(HashSet()) { it.id }
+        storeServerPosts(fetched.filter { it.id in visible }, me.id)
+
+        val users = coroutineScope {
+            latest.map { it.by }.distinct().map { uid ->
+                async {
+                    uid to if (uid == me.id) me else runCatching { db.collection(Fs.USERS).document(uid).get().await().toUser() }.getOrNull()
+                }
+            }.awaitAll().toMap()
+        }
+        repostRefs.value = me.id to latest.mapNotNull { hit ->
+            val by = users[hit.by] ?: return@mapNotNull null
+            if (hit.postId in visible) RepostRef(hit.postId, by, hit.at) else null
+        }
+    }
+
+    private data class RepostHit(val postId: String, val by: String, val at: Long)
+
+    /** Nhóm "reposts" của những người này, mới nhất trước (index: uid + createdAt, phạm vi nhóm). */
+    private fun repostsBy(uids: List<String>): Query {
+        val group = db.collectionGroup(Fs.REPOSTS)
+        val filtered = if (uids.size == 1) group.whereEqualTo(Fs.UID, uids.single()) else group.whereIn(Fs.UID, uids)
+        return filtered.orderBy(Fs.CREATED_AT, Query.Direction.DESCENDING)
+    }
+
+    private fun DocumentSnapshot.repostedPostId(): String? = reference.parent.parent?.id
+
+    /** Đọc từng bài song song; bài không còn, bị ẩn hoặc không còn quyền xem thì bỏ qua. */
+    private suspend fun fetchPosts(ids: List<String>): List<DocumentSnapshot> = coroutineScope {
+        ids.map { id ->
+            async {
+                try {
+                    posts.document(id).get().await()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }.awaitAll().filterNotNull().filter { it.exists() && it.getString(Fs.STATUS) == Fs.ACTIVE }
+    }
+
+    private suspend fun cacheMissingPosts(ids: List<String>, me: String) {
+        if (ids.isEmpty()) return
+        val have = dao.getByIds(ids).mapTo(HashSet()) { it.id }
+        storeServerPosts(fetchPosts(ids.filterNot { it in have }), me)
+    }
+
+    private fun observeInOrder(ids: List<String>): Flow<List<Post>> =
+        if (ids.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            dao.observeByIds(ids).distinctUntilChanged().map { entities ->
+                val byId = entities.associateBy { it.id }
+                ids.mapNotNull { byId[it]?.toDomain() }
+            }
+        }
 
     override suspend fun refreshPost(postId: String): Result<Unit> = appCall {
         val me = requireMe()
@@ -548,6 +734,14 @@ class FirestorePostRepository @Inject constructor(
         postRef.collection("comments").get(Source.SERVER).await().documents.chunked(400).forEach { docs ->
             db.batch().apply { docs.forEach { delete(it.reference) } }.commit().await()
         }
+        // Lượt đăng lại (tác giả được xoá); server còn rules cũ thì bỏ qua, không chặn việc xoá bài
+        try {
+            postRef.collection(Fs.REPOSTS).get(Source.SERVER).await().documents.chunked(400).forEach { docs ->
+                db.batch().apply { docs.forEach { delete(it.reference) } }.commit().await()
+            }
+        } catch (e: Exception) {
+            if (!e.isPermissionDenied) throw e
+        }
         val receipts = postRef.collection("notificationReceipts").get(Source.SERVER).await().documents
         db.batch().apply {
             receipts.forEach { delete(it.reference) }
@@ -682,6 +876,8 @@ class FirestorePostRepository @Inject constructor(
         const val USER_POSTS_LIMIT = 100L
         const val LANDMARK_POSTS_LIMIT = 100L
         const val REPORTS_TO_HIDE = 3L
+        /** Firestore giới hạn `in` 30 giá trị. */
+        const val IN_QUERY_LIMIT = 30
         val COMMIT_TIMEOUT = 30.seconds
     }
 }

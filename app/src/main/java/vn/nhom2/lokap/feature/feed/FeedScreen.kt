@@ -1,21 +1,10 @@
 package vn.nhom2.lokap.feature.feed
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,27 +12,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.*
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.filled.Brightness4
-import androidx.compose.material.icons.filled.Brightness7
-import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -52,6 +28,7 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -79,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -92,17 +70,23 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import coil3.compose.AsyncImage
 import java.io.File
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.common.formatTimeAgo
 import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-import vn.nhom2.lokap.core.designsystem.theme.ThemeManager
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.navigateToTab
 import vn.nhom2.lokap.domain.model.*
+import vn.nhom2.lokap.feature.post.CommentCountButton
+import vn.nhom2.lokap.feature.post.PhotoMessageBar
+import vn.nhom2.lokap.feature.post.PostCard
+import vn.nhom2.lokap.feature.post.PostCommentsSheet
+import vn.nhom2.lokap.feature.post.ReactionCountButton
+import vn.nhom2.lokap.feature.post.RepostButton
+import vn.nhom2.lokap.feature.post.RepostToggle
+import vn.nhom2.lokap.feature.post.showsRepostButton
 private const val FEED_TRANSITION_MS = 320
 
 fun NavGraphBuilder.feedScreen(navController: NavController) {
@@ -112,12 +96,10 @@ fun NavGraphBuilder.feedScreen(navController: NavController) {
             onNavigateBackToCamera = { navController.navigateToTab(Route.Camera) },
             onNavigateToNotifications = { navController.navigateSingleTop(Route.Notifications) },
             onNavigateToSearch = { navController.navigateSingleTop(Route.Search) },
-            onNavigateToPostDetail = { id -> navController.navigateSingleTop(Route.PostDetail(id)) },
             onNavigateToRegionAlbum = { level, code ->
                 navController.navigateSingleTop(Route.RegionAlbum(level, code))
             },
             onNavigateToProfile = { userId -> navController.navigateSingleTop(Route.Profile(userId)) },
-            onNavigateToChat = { convId -> navController.navigateSingleTop(Route.Chat(convId)) },
             onNavigateToTab = { tab ->
                 when (tab) {
                     MainTab.FEED -> Unit
@@ -136,10 +118,8 @@ fun FeedRoute(
     onNavigateBackToCamera: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToSearch: () -> Unit = {},
-    onNavigateToPostDetail: (String) -> Unit,
     onNavigateToRegionAlbum: (String, String) -> Unit,
     onNavigateToProfile: (String) -> Unit,
-    onNavigateToChat: (String) -> Unit,
     onNavigateToTab: (MainTab) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: FeedViewModel = hiltViewModel()
@@ -154,11 +134,8 @@ fun FeedRoute(
                 FeedEffect.NavigateBackToCamera -> onNavigateBackToCamera()
                 FeedEffect.NavigateToNotifications -> onNavigateToNotifications()
                 FeedEffect.NavigateToSearch -> onNavigateToSearch()
-                is FeedEffect.NavigateToPostDetail -> onNavigateToPostDetail(effect.postId)
                 is FeedEffect.NavigateToRegionAlbum -> onNavigateToRegionAlbum(effect.level, effect.code)
                 is FeedEffect.NavigateToProfile -> onNavigateToProfile(effect.userId)
-                is FeedEffect.NavigateToChat -> onNavigateToChat(effect.conversationId)
-
                 is FeedEffect.ShowMessage -> scope.launch { snackbarHostState.showSnackbar(effect.message) }
             }
         }
@@ -283,8 +260,7 @@ fun FeedScreen(
                                 key(state.selectedFriendId) {
                                     FriendsVerticalPager(
                                         posts = visiblePosts,
-                                        now = state.now,
-                                        currentUserId = state.currentUserId,
+                                        state = state,
                                         onAction = onAction
                                     )
                                 }
@@ -305,14 +281,18 @@ fun FeedScreen(
                         posts = postsToShow,
                         currentProvinceName = state.currentProvinceName,
                         locationSearchQuery = state.locationSearchQuery,
-                        repostedPostIds = state.repostedPostIds,
+                        repostStates = state.repostStates,
+                        canRepost = state::canRepost,
                         commentsCountMap = state.commentsCountMap,
-                        activeReactionPickerPostId = state.activeReactionPickerPostId,
                         now = state.now,
                         onAction = onAction
                     )
                 }
             }
+        }
+
+        state.activeCommentPostId?.let { postId ->
+            PostCommentsSheet(postId = postId, onDismiss = { onAction(FeedAction.OnDismissComments) })
         }
 
         if (state.isProvincePickerOpen) {
@@ -581,8 +561,7 @@ private fun FriendFilterMenuItem(
 @Composable
 private fun FriendsVerticalPager(
     posts: List<Post>,
-    now: java.time.Instant,
-    currentUserId: String,
+    state: FeedUiState,
     onAction: (FeedAction) -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { posts.size })
@@ -614,29 +593,40 @@ private fun FriendsVerticalPager(
         val post = posts[page]
         LocketFriendPageItem(
             post = post,
-            now = now,
-            onPostClick = { onAction(FeedAction.OnPostClick(post.id)) },
-            onAuthorClick = { onAction(FeedAction.OnAuthorClick(post.author.id)) },
-            onLocationClick = { onAction(FeedAction.OnLocationChipClick(post)) },
-            onReact = { emoji -> onAction(FeedAction.OnReact(post.id, emoji)) },
-            onRetrySend = { onAction(FeedAction.OnRetrySendPost(post.id)) },
-            onReplyClick = { onAction(FeedAction.OnReplyClick(post)) },
-            showReply = post.author.id != currentUserId
+            now = state.now,
+            canMessage = state.canMessage(post),
+            messageDraft = state.messageDrafts[post.id].orEmpty(),
+            isSendingMessage = post.id in state.sendingMessagePostIds,
+            commentsCount = if (post.audience == Audience.PUBLIC) state.commentsCountMap[post.id] ?: 0 else null,
+            repostState = if (showsRepostButton(post)) state.repostStates[post.id] ?: RepostState() else null,
+            canRepost = state.canRepost(post),
+            isMine = post.repostedBy?.id == state.currentUserId,
+            onAction = onAction
         )
     }
 }
 
+/** Chiều cao thanh điều hướng dưới (nổi trên Feed); Scaffold chừa sẵn khoảng này. */
+private val FEED_BOTTOM_NAV_HEIGHT = 64.dp
+
+/**
+ * 1 ảnh ở tab Bạn bè (kiểu Locket): không mở màn nào khác.
+ * Ảnh bạn bè (không công khai): thanh "Gửi tin nhắn…" + thả emoji. Ảnh của mình / ảnh công khai: số cảm xúc (+ bình luận).
+ */
 @Composable
 private fun LocketFriendPageItem(
     post: Post,
     now: java.time.Instant,
-    onPostClick: () -> Unit,
-    onAuthorClick: () -> Unit,
-    onLocationClick: () -> Unit,
-    onReact: (String) -> Unit,
-    onRetrySend: () -> Unit,
-    onReplyClick: () -> Unit,
-    showReply: Boolean = true
+    canMessage: Boolean,
+    messageDraft: String,
+    isSendingMessage: Boolean,
+    commentsCount: Int?,
+    /** null = không phải ảnh công khai (không có nút đăng lại). */
+    repostState: RepostState?,
+    canRepost: Boolean,
+    /** Ảnh này do chính mình đăng lại. */
+    isMine: Boolean,
+    onAction: (FeedAction) -> Unit
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -663,23 +653,40 @@ private fun LocketFriendPageItem(
         if (post.imageUrl.startsWith("/")) File(post.imageUrl) else post.imageUrl
     }
 
+    // Bàn phím mở: đẩy thanh nhắn tin lên sát bàn phím, ảnh tự thu nhỏ cho vừa (khu nội dung đã chừa thanh điều hướng)
+    val density = LocalDensity.current
+    val imeLift = with(density) {
+        (WindowInsets.ime.getBottom(density) - WindowInsets.navigationBars.getBottom(density)).coerceAtLeast(0).toDp()
+    }
+    val keyboardLift = (imeLift - FEED_BOTTOM_NAV_HEIGHT).coerceAtLeast(0.dp)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .padding(bottom = keyboardLift)
             .padding(horizontal = spacing.lg, vertical = spacing.sm),
-        verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(spacing.xs))
-
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+        post.repostedBy?.let { reposter ->
+            RepostedByLabel(
+                name = if (isMine) "Bạn" else reposter.displayName,
+                onClick = { onAction(FeedAction.OnAuthorClick(reposter.id)) }
+            )
+        }
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
+                .weight(1f, fill = false)
+                .aspectRatio(1f, matchHeightConstraintsFirst = true)
                 .clip(shapes.card)
                 .background(regionGradient(post.location.provinceCode ?: post.id))
                 .border(1.5.dp, colors.outline, shapes.card)
-                .clickable(onClick = onPostClick)
         ) {
             if (!isPreview) {
                 AsyncImage(
@@ -703,7 +710,7 @@ private fun LocketFriendPageItem(
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.People,
+                        imageVector = if (post.audience == Audience.PUBLIC) Icons.Rounded.Public else Icons.Filled.People,
                         contentDescription = null,
                         tint = colors.buttonText,
                         modifier = Modifier.size(15.dp)
@@ -729,7 +736,7 @@ private fun LocketFriendPageItem(
                         indication = null,
                         onClickLabel = "Mở album $locationLabel",
                         role = Role.Button,
-                        onClick = onLocationClick
+                        onClick = { onAction(FeedAction.OnLocationChipClick(post)) }
                     )
                     .padding(spacing.sm)
                     .widthIn(max = 190.dp)
@@ -828,7 +835,7 @@ private fun LocketFriendPageItem(
                             PinkButton(
                                 text = "Thử lại",
                                 leadingIcon = Icons.Rounded.Refresh,
-                                onClick = onRetrySend
+                                onClick = { onAction(FeedAction.OnRetrySendPost(post.id)) }
                             )
                         }
                     }
@@ -838,11 +845,8 @@ private fun LocketFriendPageItem(
             }
         }
 
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.sm)
-        ) {
+            Spacer(modifier = Modifier.height(spacing.md))
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm)
@@ -851,7 +855,7 @@ private fun LocketFriendPageItem(
                     avatarUrl = post.author.avatarUrl,
                     displayName = post.author.displayName,
                     size = 36.dp,
-                    onClick = onAuthorClick
+                    onClick = { onAction(FeedAction.OnAuthorClick(post.author.id)) }
                 )
                 Text(
                     text = post.author.displayName,
@@ -866,43 +870,83 @@ private fun LocketFriendPageItem(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.md)
-        ) {
-            EmojiBar(
+        Spacer(modifier = Modifier.height(spacing.md))
+
+        when {
+            canMessage -> PhotoMessageBar(
+                text = messageDraft,
+                onTextChange = { onAction(FeedAction.OnMessageDraftChange(post.id, it)) },
+                isSending = isSendingMessage,
+                onSend = { onAction(FeedAction.OnSendPhotoMessage(post)) },
                 reactions = post.reactions,
-                selectedEmoji = post.myReaction,
-                onSelectEmoji = onReact
+                myReaction = post.myReaction,
+                onReact = { emoji -> onAction(FeedAction.OnReact(post.id, emoji)) },
+                modifier = Modifier.padding(bottom = spacing.sm)
             )
 
-            if (showReply) Row(
+            post.sendState == PostSendState.SENT -> Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .padding(bottom = spacing.sm)
                     .clip(shapes.pill)
                     .background(colors.surfaceHigh)
                     .border(1.dp, colors.outline, shapes.pill)
-                    .clickable(onClick = onReplyClick)
-                    .padding(horizontal = spacing.lg, vertical = spacing.md),
+                    .padding(horizontal = spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs)
             ) {
-                Text(
-                    text = "Trả lời ${post.author.displayName}…",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textSecondary
+                ReactionCountButton(
+                    reactions = post.reactions,
+                    myReaction = post.myReaction,
+                    onReact = { emoji -> onAction(FeedAction.OnReact(post.id, emoji)) }
                 )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.Send,
-                    contentDescription = "Trả lời",
-                    tint = colors.primary,
-                    modifier = Modifier.size(22.dp)
-                )
+                if (commentsCount != null) {
+                    CommentCountButton(
+                        count = commentsCount,
+                        onClick = { onAction(FeedAction.OnOpenComments(post.id)) }
+                    )
+                }
+                if (repostState != null) {
+                    RepostButton(
+                        count = repostState.count,
+                        isReposted = repostState.isMine,
+                        enabled = canRepost,
+                        onClick = { onAction(FeedAction.OnToggleRepost(post.id)) }
+                    )
+                }
             }
+
+            // Ảnh đang gửi / gửi lỗi: giữ chỗ để ảnh không nhảy khi gửi xong
+            else -> Spacer(modifier = Modifier.height(56.dp))
         }
+    }
+}
+
+/** "↻ Lan đã đăng lại" phía trên ảnh đăng lại ở tab Bạn bè; bấm mở hồ sơ người đăng lại. */
+@Composable
+private fun RepostedByLabel(name: String, onClick: () -> Unit) {
+    val colors = LokapTheme.colors
+    Row(
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .clip(LokapTheme.shapes.pill)
+            .clickable(role = Role.Button, onClickLabel = "Xem hồ sơ", onClick = onClick)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Repeat,
+            contentDescription = null,
+            tint = colors.textSecondary,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = "$name đã đăng lại",
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = colors.textSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -911,9 +955,9 @@ private fun TwitterExploreFeed(
     posts: List<Post>,
     currentProvinceName: String,
     locationSearchQuery: String,
-    repostedPostIds: Set<String>,
+    repostStates: Map<String, RepostState>,
+    canRepost: (Post) -> Boolean,
     commentsCountMap: Map<String, Int>,
-    activeReactionPickerPostId: String?,
     now: java.time.Instant,
     onAction: (FeedAction) -> Unit
 ) {
@@ -1054,524 +1098,23 @@ private fun TwitterExploreFeed(
                 items = posts,
                 key = { "twitter_post_${it.id}" }
             ) { post ->
-                val isReposted = repostedPostIds.contains(post.id)
-                val commentsCount = commentsCountMap[post.id] ?: 0
-                val showReactionPicker = activeReactionPickerPostId == post.id
-
-                TwitterPostItem(
+                val repostState = repostStates[post.id] ?: RepostState()
+                // Bài công khai: không có thanh nhắn tin (kể cả của bạn bè)
+                PostCard(
                     post = post,
-                    isReposted = isReposted,
-                    commentsCount = commentsCount,
-                    showReactionPicker = showReactionPicker,
                     now = now,
-                    onAction = onAction
+                    onReact = { emoji -> onAction(FeedAction.OnReact(post.id, emoji)) },
+                    onAuthorClick = { onAction(FeedAction.OnAuthorClick(post.author.id)) },
+                    commentsCount = commentsCountMap[post.id] ?: 0,
+                    onOpenComments = { onAction(FeedAction.OnOpenComments(post.id)) },
+                    onLocationClick = { onAction(FeedAction.OnLocationChipClick(post)) },
+                    repost = RepostToggle(
+                        isReposted = repostState.isMine,
+                        count = repostState.count,
+                        enabled = canRepost(post)
+                    ) { onAction(FeedAction.OnToggleRepost(post.id)) },
+                    onShare = { onAction(FeedAction.OnShareLink(post)) }
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TwitterPostItem(
-    post: Post,
-    isReposted: Boolean,
-    commentsCount: Int,
-    showReactionPicker: Boolean,
-    now: java.time.Instant,
-    onAction: (FeedAction) -> Unit
-) {
-    val colors = LokapTheme.colors
-    val spacing = LokapTheme.spacing
-    val isPreview = LocalInspectionMode.current
-    val coroutineScope = rememberCoroutineScope()
-    var showHeartAnim by remember { mutableStateOf(false) }
-    val photoHeartScale by animateFloatAsState(
-        targetValue = if (showHeartAnim) 1.25f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(LokapTheme.shapes.card)
-            .background(colors.surface)
-            .border(1.dp, colors.outline, LokapTheme.shapes.card)
-            .clickable { onAction(FeedAction.OnPostClick(post.id)) }
-            .padding(spacing.md),
-        verticalArrangement = Arrangement.spacedBy(spacing.sm)
-    ) {
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-        ) {
-            AvatarRing(
-                avatarUrl = post.author.avatarUrl,
-                displayName = post.author.displayName,
-                size = 38.dp,
-                onClick = { onAction(FeedAction.OnAuthorClick(post.author.id)) }
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = post.author.displayName,
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontSize = 15.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "·",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),
-                        color = colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = formatTimeAgo(post.takenAt, now),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-
-                val locText = listOfNotNull(post.location.wardName, post.location.provinceName)
-                    .filter { it.isNotBlank() }
-                    .joinToString(" · ")
-                if (locText.isNotBlank()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        modifier = Modifier.padding(top = 1.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.LocationOn,
-                            contentDescription = null,
-                            tint = colors.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = locText,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = colors.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
-
-        val captionText = post.caption.orEmpty()
-        if (captionText.isNotBlank()) {
-            Text(
-                text = captionText,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 14.5.sp,
-                    lineHeight = 21.sp
-                ),
-                color = colors.textPrimary
-            )
-        }
-
-        if (post.imageUrl.isNotBlank()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1.25f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.surfaceHigh)
-                    .border(1.dp, colors.outline, RoundedCornerShape(12.dp))
-                    .pointerInput(post.id) {
-                        detectTapGestures(
-                            onTap = { onAction(FeedAction.OnPostClick(post.id)) },
-                            onDoubleTap = {
-                                showHeartAnim = true
-                                onAction(FeedAction.OnReact(post.id, "❤️"))
-                                coroutineScope.launch {
-                                    delay(650)
-                                    showHeartAnim = false
-                                }
-                            }
-                        )
-                    }
-            ) {
-                if (!isPreview) {
-                    AsyncImage(
-                        model = post.imageUrl,
-                        contentDescription = "Ảnh bài viết",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(colors.primary.copy(alpha = 0.92f))
-                        .padding(horizontal = 7.dp, vertical = 2.5.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.People,
-                            contentDescription = null,
-                            tint = colors.buttonText,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = if (post.audience == Audience.PUBLIC) "Công khai" else "Bạn bè",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = colors.buttonText,
-                            fontSize = 11.5.sp
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.65f))
-                        .padding(horizontal = 7.dp, vertical = 2.5.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Schedule,
-                            contentDescription = null,
-                            tint = androidx.compose.ui.graphics.Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = formatTimeAgo(post.takenAt, now),
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                            color = androidx.compose.ui.graphics.Color.White,
-                            fontSize = 11.5.sp
-                        )
-                    }
-                }
-
-                if (photoHeartScale > 0.05f) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Favorite,
-                            contentDescription = null,
-                            tint = colors.primary,
-                            modifier = Modifier
-                                .size(72.dp)
-                                .scale(photoHeartScale)
-                        )
-                    }
-                }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = showReactionPicker,
-            enter = fadeIn() + scaleIn(initialScale = 0.8f) + slideInVertically { it / 2 },
-            exit = fadeOut() + scaleOut()
-        ) {
-            Row(
-                modifier = Modifier
-                    .clip(LokapTheme.shapes.pill)
-                    .background(colors.surfaceHigh)
-                    .border(1.dp, colors.primary, LokapTheme.shapes.pill)
-                    .padding(horizontal = spacing.md, vertical = spacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                listOf("❤️", "🔥", "😂", "😮", "😢", "👍").forEach { emoji ->
-                    Text(
-                        text = emoji,
-                        fontSize = 22.sp,
-                        modifier = Modifier
-                            .clickable {
-                                onAction(FeedAction.OnReact(post.id, emoji))
-                                onAction(FeedAction.OnDismissReactionPicker)
-                            }
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    )
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = spacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-
-            val isLiked = post.myReaction != null
-            val totalReactions = post.reactions.sumOf { it.count }
-            val likeScale by animateFloatAsState(
-                targetValue = if (isLiked) 1.25f else 1.0f,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .clip(LokapTheme.shapes.pill)
-                    .pointerInput(post.id) {
-                        detectTapGestures(
-                            onTap = { onAction(FeedAction.OnReact(post.id, "❤️")) },
-                            onLongPress = { onAction(FeedAction.OnShowReactionPicker(post.id)) }
-                        )
-                    }
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Thích",
-                    tint = if (isLiked) colors.primary else colors.textSecondary,
-                    modifier = Modifier
-                        .size(22.dp)
-                        .scale(likeScale)
-                )
-                Text(
-                    text = totalReactions.toString(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isLiked) colors.primary else colors.textSecondary
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .clip(LokapTheme.shapes.pill)
-                    .clickable { onAction(FeedAction.OnOpenComments(post.id)) }
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ChatBubbleOutline,
-                    contentDescription = "Bình luận",
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Text(
-                    text = commentsCount.toString(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = colors.textSecondary
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .clip(LokapTheme.shapes.pill)
-                    .clickable { onAction(FeedAction.OnToggleRepost(post.id)) }
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Repeat,
-                    contentDescription = "Đăng lại",
-                    tint = if (isReposted) colors.primary else colors.textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Text(
-                    text = if (isReposted) "1" else "0",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isReposted) colors.primary else colors.textSecondary
-                )
-            }
-
-            IconButton(
-                onClick = { onAction(FeedAction.OnShareLink(post)) },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = "Chia sẻ liên kết",
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CommentBottomSheet(
-    comments: List<vn.nhom2.lokap.feature.postdetail.RedditCommentUi>,
-    onDismiss: () -> Unit,
-    onSendComment: (String) -> Unit
-) {
-    val colors = LokapTheme.colors
-    val spacing = LokapTheme.spacing
-    var input by remember { androidx.compose.runtime.mutableStateOf("") }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    val allFlattenedComments = remember(comments) {
-        val result = mutableListOf<vn.nhom2.lokap.feature.postdetail.RedditCommentUi>()
-        fun collect(list: List<vn.nhom2.lokap.feature.postdetail.RedditCommentUi>) {
-            for (c in list) {
-                result.add(c)
-                collect(c.replies)
-            }
-        }
-        collect(comments)
-        result
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = LokapTheme.shapes.sheet,
-        containerColor = colors.surface,
-        contentColor = colors.textPrimary
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = spacing.md, vertical = spacing.sm)
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(spacing.md)
-        ) {
-            Text(
-                text = "Bình luận · ${allFlattenedComments.size}",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 16.5.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                color = colors.textPrimary
-            )
-
-            if (allFlattenedComments.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Chưa có bình luận",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.5.sp),
-                        color = colors.textSecondary
-                    )
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 280.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    allFlattenedComments.forEach { comment ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(colors.surfaceHigh)
-                                .padding(10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            AvatarRing(
-                                avatarUrl = comment.authorAvatarUrl,
-                                displayName = comment.authorName,
-                                size = 28.dp
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = comment.authorName,
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontSize = 14.5.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        ),
-                                        color = colors.textPrimary
-                                    )
-                                    Text(
-                                        text = comment.timeAgo,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                        color = colors.textSecondary
-                                    )
-                                }
-                                Text(
-                                    text = comment.content,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontSize = 14.5.sp,
-                                        lineHeight = 20.sp
-                                    ),
-                                    color = colors.textPrimary,
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm)
-            ) {
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    placeholder = { Text("Viết bình luận…") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colors.primary,
-                        unfocusedBorderColor = colors.outline,
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-
-                IconButton(
-                    onClick = {
-                        if (input.isNotBlank()) {
-                            onSendComment(input)
-                            input = ""
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Gửi",
-                        tint = colors.primary
-                    )
-                }
             }
         }
     }

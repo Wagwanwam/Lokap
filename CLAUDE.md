@@ -72,6 +72,7 @@ Lokap/
 | posts/{postId} | authorId, author{…}, imageUrl, imagePublicId, caption (≤ 60), audience (friends, direct, public), viewerIds, recipientId, locationLevel (place, ward, province, country), provinceCode/Name, wardCode/Name, placeId/Name, landmarkId, displayLat/Lng, delayDays (0/1/3/7), publicVisibleAt, takenAt, createdAt, status (active, hidden), reactions {uid: emoji}, reportCount |
 | posts/{postId}/private/location | lat, lng, accuracyM |
 | posts/{postId}/reports/{uid} | reason, createdAt |
+| posts/{postId}/reposts/{uid} | uid, createdAt (đăng lại ảnh public đã hiện của người khác; index nhóm uid + createdAt) |
 | landmarks/{landmarkId} | name, searchName, address, description, provinceCode/Name, wardCode/Name, lat, lng (điểm công khai), vietmapRef, createdBy, createdAt, status (active, hidden), reportCount |
 | landmarks/{landmarkId}/reports/{uid} | reason, createdAt |
 

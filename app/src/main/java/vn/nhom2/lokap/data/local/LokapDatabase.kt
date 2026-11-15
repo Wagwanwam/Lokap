@@ -80,6 +80,10 @@ interface PostDao {
     @Query("SELECT * FROM posts WHERE id IN (:ids)")
     suspend fun getByIds(ids: List<String>): List<PostEntity>
 
+    /** Ảnh đăng lại (tab Bạn bè, tab Đăng lại ở Hồ sơ): thứ tự do bên gọi sắp. */
+    @Query("SELECT * FROM posts WHERE id IN (:ids)")
+    fun observeByIds(ids: List<String>): Flow<List<PostEntity>>
+
     @Query("SELECT * FROM posts WHERE sendState = 'PENDING'")
     suspend fun getPending(): List<PostEntity>
 

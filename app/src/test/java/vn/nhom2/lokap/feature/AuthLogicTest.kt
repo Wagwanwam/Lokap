@@ -19,6 +19,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import vn.nhom2.lokap.core.designsystem.theme.DarkLokapColors
+import vn.nhom2.lokap.core.designsystem.theme.LightLokapColors
+import vn.nhom2.lokap.core.designsystem.theme.contrastRatio
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.domain.repository.AuthSession
 import vn.nhom2.lokap.domain.repository.AuthStoreException
@@ -34,6 +37,7 @@ import vn.nhom2.lokap.feature.auth.LoginRoute
 import vn.nhom2.lokap.feature.auth.LoginViewModel
 import vn.nhom2.lokap.feature.auth.RegisterAction
 import vn.nhom2.lokap.feature.auth.RegisterViewModel
+import vn.nhom2.lokap.feature.auth.forgotPasswordLinkColor
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileAction
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileViewModel
@@ -470,5 +474,23 @@ class AuthLogicTest {
         assertEquals(SetupProfileRoute, vm.startDestination.value)
         FakeAuthStore.currentUser.value = SampleData.currentUser
         assertEquals(Route.Feed, vm.startDestination.value)
+    }
+
+    // ---------- Màu chữ link (lỗi L12) ----------
+
+    @Test
+    fun `link Quen mat khau doc duoc o giao dien sang va toi`() {
+        // Trước khi sửa, link dùng primarySoft (màu nền): ở giao diện sáng chỉ còn 1,04:1, gần như vô hình.
+        // Ngưỡng sáng 2,4 là mức sàn chống tái phát: hồng thương hiệu hiện đạt 2,51:1, chưa tới chuẩn AA 4,5:1.
+        // Ngưỡng tối 4,5 là chuẩn AA cho chữ thường.
+        val light = LightLokapColors()
+        val dark = DarkLokapColors()
+        val sang = contrastRatio(forgotPasswordLinkColor(light), light.background)
+        val toi = contrastRatio(forgotPasswordLinkColor(dark), dark.background)
+        assertTrue("tương phản giao diện sáng = $sang", sang >= 2.4f)
+        assertTrue("tương phản giao diện tối = $toi", toi >= 4.5f)
+        // Cùng màu với link "Đăng ký ngay" trên cùng màn hình
+        assertEquals(light.primary, forgotPasswordLinkColor(light))
+        assertEquals(dark.primary, forgotPasswordLinkColor(dark))
     }
 }

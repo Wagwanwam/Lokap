@@ -27,6 +27,13 @@ val LightTextTertiary = Color(0xFF9CA3AF)
 val LightSuccess = Color(0xFF10B981)
 val LightError = Color(0xFFEF4444)
 
+// Màu cho CHỮ và ICON (rà soát tương phản 15/11/2026). accentYellow/primarySoft chỉ hợp làm nền, viền:
+// vàng FACC15 làm chữ trên nền sáng chỉ đạt 1,3–1,5:1, hồng primary trên nền primarySoft tối chỉ 1,92:1.
+val LightAccentYellowStrong = Color(0xFF854D0E) // 6,0–6,9:1 trên nền sáng
+val DarkAccentYellowStrong = Color(0xFFFDE047)  // 11–14:1 trên nền tối
+val LightOnPrimarySoft = Color(0xFFBE185D)      // 5,5:1 trên LightPrimarySoft
+val DarkOnPrimarySoft = Color(0xFF9D174D)       // 5,7:1 trên SoftPinkPrimarySoft
+
 val BackgroundToken = DarkBackground
 val SurfaceToken = DarkSurface
 val SurfaceHighToken = DarkSurfaceHigh
@@ -52,6 +59,8 @@ data class LokapColors(
     val outline: Color = DarkOutline,
     val primary: Color = SoftPinkPrimary,
     val primarySoft: Color = SoftPinkPrimarySoft,
+    /** Chữ, icon đặt trên nền primarySoft (vd. chip đếm bạn bè). */
+    val onPrimarySoft: Color = DarkOnPrimarySoft,
     val onPrimary: Color = DarkOnPrimary,
     val isDark: Boolean = true,
     val textPrimary: Color = DarkTextPrimary,
@@ -61,6 +70,8 @@ data class LokapColors(
     val accentLime: Color = AccentLimeToken,
     val accentCyan: Color = AccentCyanToken,
     val accentYellow: Color = AccentYellowToken,
+    /** Vàng đậm cho chữ, icon (cảnh báo, ngôi sao địa danh); accentYellow chỉ dùng làm nền, viền. */
+    val accentYellowStrong: Color = DarkAccentYellowStrong,
     val error: Color = DarkError,
     val success: Color = DarkSuccess
 ) {
@@ -74,6 +85,7 @@ fun DarkLokapColors(): LokapColors = LokapColors(
     outline = DarkOutline,
     primary = SoftPinkPrimary,
     primarySoft = SoftPinkPrimarySoft,
+    onPrimarySoft = DarkOnPrimarySoft,
     onPrimary = DarkOnPrimary,
     textPrimary = DarkTextPrimary,
     textSecondary = DarkTextSecondary,
@@ -82,6 +94,7 @@ fun DarkLokapColors(): LokapColors = LokapColors(
     accentLime = Color(0xFF86EFAC),
     accentCyan = Color(0xFF7DD3FC),
     accentYellow = Color(0xFFFDE047),
+    accentYellowStrong = DarkAccentYellowStrong,
     error = DarkError,
     success = DarkSuccess
 )
@@ -93,6 +106,7 @@ fun LightLokapColors(): LokapColors = LokapColors(
     outline = LightOutline,
     primary = SoftPinkPrimary,
     primarySoft = LightPrimarySoft,
+    onPrimarySoft = LightOnPrimarySoft,
     onPrimary = Color(0xFF18181B),
     isDark = false,
     textPrimary = LightTextPrimary,
@@ -102,6 +116,7 @@ fun LightLokapColors(): LokapColors = LokapColors(
     accentLime = Color(0xFF4ADE80),
     accentCyan = Color(0xFF38BDF8),
     accentYellow = Color(0xFFFACC15),
+    accentYellowStrong = LightAccentYellowStrong,
     error = LightError,
     success = LightSuccess
 )

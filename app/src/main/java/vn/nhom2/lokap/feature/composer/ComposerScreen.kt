@@ -409,7 +409,7 @@ private fun ComposerTopBar(
             Icon(
                 imageVector = if (isLandmark) Icons.Rounded.Star else Icons.Rounded.LocationOn,
                 contentDescription = if (isLandmark) "Địa danh" else "Vị trí",
-                tint = if (isLandmark) colors.accentYellow else colors.primary,
+                tint = if (isLandmark) colors.accentYellowStrong else colors.primary,
                 modifier = Modifier.size(18.dp)
             )
             Text(

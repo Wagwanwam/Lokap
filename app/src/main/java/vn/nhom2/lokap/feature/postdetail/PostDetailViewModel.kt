@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -22,10 +25,12 @@ import vn.nhom2.lokap.domain.repository.AuthRepository
 import vn.nhom2.lokap.domain.repository.PostRepository
 import vn.nhom2.lokap.domain.repository.SocialRepository
 import vn.nhom2.lokap.domain.repository.isOffline
+import vn.nhom2.lokap.domain.model.FriendStatus
+import vn.nhom2.lokap.feature.post.sendPhotoReply
 
 /**
- * Chi tiết bài: theo dõi bài trong PostRepository (bản Firestore: Room + làm mới 1 lần từ server).
- * Bài của mình có thêm Sửa lời nhắn / Xoá bài. Bình luận theo dõi trực tiếp từ Firestore.
+ * Trang 1 ảnh: theo dõi bài trong PostRepository (bản Firestore: Room + làm mới 1 lần từ server).
+ * Bài của mình có thêm Sửa lời nhắn / Xoá bài. Số bình luận theo dõi từ Firestore; danh sách nằm ở popup (CommentsViewModel).
  */
 @HiltViewModel
 class PostDetailViewModel @Inject constructor(
@@ -58,6 +63,9 @@ class PostDetailViewModel @Inject constructor(
     /** Đang tự rời màn (xoá / báo cáo / chặn): bài biến khỏi máy không phải là "đã bị xoá hoặc ẩn". */
     private var leaving = false
 
+    /** Đang đăng lại / bỏ (trạng thái muốn tới): bấm liên tục thì bỏ qua tới khi xong. */
+    private var repostTarget: Boolean? = null
+
     init {
         viewModelScope.launch {
             auth.currentUser.collect { me -> _uiState.update { it.copy(currentUserId = me?.id.orEmpty()) } }
@@ -74,9 +82,19 @@ class PostDetailViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            comments.observeComments(postId).collect { result ->
-                _uiState.update { it.copy(comments = result.getOrDefault(emptyList()).toCommentUi(), commentsError = result.exceptionOrNull()?.message) }
+            comments.observeCommentCount(postId).collect { count -> _uiState.update { it.copy(commentsCount = count) } }
+        }
+        viewModelScope.launch {
+            posts.observeRepostState(postId).collect { repost ->
+                if (repostTarget == repost.isMine) repostTarget = null
+                _uiState.update { it.copy(repostState = repost) }
             }
+        }
+        viewModelScope.launch {
+            // Trạng thái bạn bè với tác giả: quyết định có thanh "Gửi tin nhắn…" hay không
+            combine(social.graph, _uiState.map { it.post?.author?.id }.distinctUntilChanged()) { graph, authorId ->
+                authorId?.let(graph::statusOf) ?: FriendStatus.NONE
+            }.distinctUntilChanged().collect { status -> _uiState.update { it.copy(authorStatus = status) } }
         }
         refresh()
     }
@@ -120,11 +138,36 @@ class PostDetailViewModel @Inject constructor(
                 }
             }
 
-            PostDetailAction.OnReplyClick -> {
-                val authorId = currentPost?.author?.id ?: return
-                viewModelScope.launch { messages.openConversation(authorId).fold(
-                    onSuccess = { sendEffect(PostDetailEffect.NavigateToChat(it)) },
-                    onFailure = { sendEffect(PostDetailEffect.ShowSnackbar(it.message ?: "Không mở được cuộc trò chuyện")) }) }
+            PostDetailAction.OnOpenComments -> _uiState.update { it.copy(isCommentsOpen = true) }
+
+            PostDetailAction.OnDismissComments -> _uiState.update { it.copy(isCommentsOpen = false) }
+
+            PostDetailAction.OnToggleRepost -> {
+                val id = currentPost?.id ?: return
+                if (repostTarget != null || !state.canRepost) return
+                val target = !state.repostState.isMine
+                repostTarget = target
+                viewModelScope.launch {
+                    posts.setReposted(id, target)
+                        .onFailure { sendEffect(PostDetailEffect.ShowSnackbar(it.message ?: "Không đăng lại được")) }
+                    repostTarget = null
+                }
+            }
+
+            is PostDetailAction.OnMessageDraftChange -> _uiState.update { it.copy(messageDraft = action.text.take(1000)) }
+
+            PostDetailAction.OnSendMessage -> {
+                val post = currentPost ?: return
+                val text = state.messageDraft.trim()
+                if (text.isEmpty() || state.isSendingMessage || !state.canMessage) return
+                _uiState.update { it.copy(isSendingMessage = true) }
+                viewModelScope.launch {
+                    val result = messages.sendPhotoReply(post, text)
+                    _uiState.update {
+                        it.copy(isSendingMessage = false, messageDraft = if (result.isSuccess) "" else it.messageDraft)
+                    }
+                    sendEffect(PostDetailEffect.ShowSnackbar(result.fold({ "Đã gửi cho ${post.author.displayName}" }, { it.message ?: "Không gửi được tin nhắn" })))
+                }
             }
 
             PostDetailAction.OnAuthorClick -> {
@@ -244,36 +287,6 @@ class PostDetailViewModel @Inject constructor(
                     )
                 }
             }
-
-            is PostDetailAction.OnVoteComment -> commentCall { comments.vote(postId, action.commentId, action.isUpvote) }
-            is PostDetailAction.OnReplyToComment -> _uiState.update { it.copy(replyingToComment = action.comment) }
-            is PostDetailAction.OnChangeCommentInput -> _uiState.update { it.copy(commentInput = action.text.take(1000)) }
-            PostDetailAction.OnSendComment -> if (state.commentInput.isNotBlank() && !state.isSavingComment) commentCall {
-                comments.add(postId, state.commentInput, state.replyingToComment?.id).onSuccess {
-                    _uiState.update { it.copy(commentInput = "", replyingToComment = null) }
-                }
-            }
-            is PostDetailAction.OnEditComment -> if (action.comment.authorId == state.currentUserId) _uiState.update { it.copy(editingComment = action.comment, editCommentText = action.comment.content) }
-            is PostDetailAction.OnEditCommentText -> _uiState.update { it.copy(editCommentText = action.text.take(1000)) }
-            PostDetailAction.OnDismissCommentEdit -> _uiState.update { it.copy(editingComment = null) }
-            PostDetailAction.OnSaveComment -> state.editingComment?.let { comment -> commentCall {
-                comments.editComment(postId, comment.id, state.editCommentText).onSuccess { _uiState.update { it.copy(editingComment = null) } }
-            } }
-            is PostDetailAction.OnDeleteComment -> _uiState.update { it.copy(deletingCommentId = action.id) }
-            PostDetailAction.OnDismissCommentDelete -> _uiState.update { it.copy(deletingCommentId = null) }
-            PostDetailAction.OnConfirmCommentDelete -> state.deletingCommentId?.let { id -> commentCall {
-                comments.deleteComment(postId, id).onSuccess { _uiState.update { it.copy(deletingCommentId = null) } }
-            } }
-        }
-    }
-
-    private fun commentCall(block: suspend () -> Result<Unit>) {
-        if (_uiState.value.isSavingComment) return
-        _uiState.update { it.copy(isSavingComment = true) }
-        viewModelScope.launch {
-            val result = block()
-            _uiState.update { it.copy(isSavingComment = false) }
-            result.onFailure { sendEffect(PostDetailEffect.ShowSnackbar(it.message ?: "Không lưu được bình luận")) }
         }
     }
 
