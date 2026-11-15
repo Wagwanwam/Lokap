@@ -4,24 +4,49 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.navigation.Route
-import vn.nhom2.lokap.data.fake.FakePostStore
-import vn.nhom2.lokap.data.fake.ProvinceCatalog
-import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.data.fake.SampleSocialData
+import vn.nhom2.lokap.data.location.ProvinceCatalog
+import vn.nhom2.lokap.domain.model.landmarksFromPosts
+import vn.nhom2.lokap.domain.repository.MessagingRepository
 import vn.nhom2.lokap.domain.model.FriendStatus
+import vn.nhom2.lokap.domain.model.MapBubble
+import vn.nhom2.lokap.domain.model.MapBubbleType
+import vn.nhom2.lokap.domain.model.Post
+import vn.nhom2.lokap.domain.model.Province
+import vn.nhom2.lokap.domain.model.User
+import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.AuthStoreException
+import vn.nhom2.lokap.domain.repository.PostRepository
+import vn.nhom2.lokap.domain.repository.SocialGraph
+import vn.nhom2.lokap.domain.repository.SocialRepository
+import vn.nhom2.lokap.domain.repository.isOffline
+import vn.nhom2.lokap.feature.auth.AuthValidators
 import vn.nhom2.lokap.feature.map.MapCameraState
-class ProfileViewModel(
-    savedStateHandle: SavedStateHandle
+
+/**
+ * Hồ sơ: người dùng từ AuthRepository (mình) hoặc SocialRepository (người khác), bài qua PostRepository
+ * (server đã lọc theo luật hiển thị), quan hệ bạn bè qua SocialRepository.graph.
+ */
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val auth: AuthRepository,
+    private val messages: MessagingRepository,
+    private val social: SocialRepository,
+    private val posts: PostRepository
 ) : ViewModel() {
 
     private val routeUserId: String? = runCatching {
@@ -36,76 +61,75 @@ class ProfileViewModel(
     private val _effects = Channel<ProfileEffect>(Channel.BUFFERED)
     val effects: Flow<ProfileEffect> = _effects.receiveAsFlow()
 
+    private var loadJob: Job? = null
+
+    private data class Snapshot(
+        val userPosts: List<Post>,
+        val graph: SocialGraph,
+        val user: User?,
+        val saved: List<Post>,
+        val reposted: List<Post>
+    )
+
     init {
-        observeProfileData()
+        load()
     }
 
-    private fun observeProfileData() {
-        viewModelScope.launch {
-            combine(
-                FakePostStore.posts,
-                SampleSocialData.friendStatuses,
-                SampleSocialData.currentUserOverride
-            ) { allPosts, statuses, _ ->
-                Triple(allPosts, statuses, SampleSocialData.getCurrentUser())
-            }.collect { (allPosts, statuses, currentUser) ->
-                val targetUser = SampleSocialData.findUser(routeUserId)
-                val allProvinces = ProvinceCatalog.allProvinces
-                val totalProvinces = if (allProvinces.isNotEmpty()) allProvinces.size else 34
+    private fun load() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            val me = auth.currentUser.value
+            val targetId = routeUserId ?: me?.id
+            if (targetId == null) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Bạn cần đăng nhập lại") }
+                return@launch
+            }
+            val isMe = targetId == me?.id
 
-                if (targetUser == null) {
+            // Người khác: tải hồ sơ + số bạn một lần; lỗi mạng thì báo và cho Thử lại
+            var otherUser: User? = null
+            var otherFriendCount = 0
+            if (!isMe) {
+                val loaded = social.getUser(targetId)
+                val error = loaded.exceptionOrNull()
+                if (error != null) {
                     _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = null,
-                            isUserNotFound = true,
-                            user = null,
-                            totalProvincesCount = totalProvinces
-                        )
+                        it.copy(isLoading = false, isOffline = error.isOffline, errorMessage = error.message)
                     }
-                    return@collect
+                    return@launch
                 }
-
-                val isMe = targetUser.id == currentUser.id
-                val friendStatus = if (isMe) {
-                    FriendStatus.NONE
-                } else {
-                    statuses[targetUser.id] ?: FriendStatus.NONE
+                otherUser = loaded.getOrNull()
+                if (otherUser == null) {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = null, isUserNotFound = true, user = null) }
+                    return@launch
                 }
+                otherFriendCount = social.getFriendCount(targetId).getOrDefault(0)
+            }
 
-                val myFriendsCount = statuses.values.count { it == FriendStatus.FRIENDS }
-                val isFriendLimitReached = myFriendsCount >= SampleSocialData.MAX_FRIENDS
+            // Bài trên server: làm mới nền; lỗi mạng chỉ bật cờ offline, vẫn hiện bài đã có trong máy
+            launch {
+                posts.refreshUserPosts(targetId).onFailure { e -> _uiState.update { it.copy(isOffline = e.isOffline) } }
+            }
 
-                val baseUserPosts = allPosts
-                    .filter { post ->
-                        post.author.id == targetUser.id &&
-                            SampleSocialData.isPostVisibleToViewer(
-                                post = post,
-                                isMe = isMe,
-                                friendStatus = friendStatus,
-                                now = SampleData.NOW
-                            )
-                    }
-                    .sortedByDescending { it.takenAt }
+            val userFlow: Flow<User?> = if (isMe) auth.currentUser else flowOf(otherUser)
+            combine(
+                posts.observeUserPosts(targetId),
+                social.graph,
+                userFlow,
+                posts.savedPosts,
+                posts.repostedPosts
+            ) { userPosts, graph, user, saved, reposted ->
+                Snapshot(userPosts, graph, user, saved, reposted)
+            }.collect { snap ->
+                val user = snap.user ?: return@collect // đã đăng xuất
+                val provinces = ProvinceCatalog.allProvinces
+                val provinceByCode = provinces.associateBy { it.code }
 
-                val visibleUserPosts = if (isMe && baseUserPosts.size < 6) {
-                    val extra = SampleData.posts.filter { it.author.id != targetUser.id }
-                        .take(9 - baseUserPosts.size)
-                        .mapIndexed { idx, p ->
-                            p.copy(id = "my_profile_photo_$idx", author = targetUser)
-                        }
-                    baseUserPosts + extra
-                } else {
-                    baseUserPosts
-                }
+                val postsByProvince = snap.userPosts
+                    .mapNotNull { post -> post.location.provinceCode?.let(provinceByCode::get)?.let { it to post } }
+                    .groupBy({ it.first }, { it.second })
 
-                val provinceByCode = allProvinces.associateBy { it.code }
-                val postsByProvince = visibleUserPosts
-                    .filter { provinceByCode.containsKey(it.location.provinceCode) }
-                    .groupBy { it.location.provinceCode }
-
-                val visitedProvinces = postsByProvince.entries.mapNotNull { (code, postsInProvince) ->
-                    val province = provinceByCode[code] ?: return@mapNotNull null
+                val visitedProvinces = postsByProvince.map { (province, postsInProvince) ->
                     VisitedProvinceUi(
                         code = province.code,
                         name = province.name,
@@ -116,31 +140,9 @@ class ProfileViewModel(
                     )
                 }.sortedByDescending { it.postCount }
 
-                val mapBubbles = SampleSocialData.buildProvinceMapBubbles(
-                    posts = visibleUserPosts,
-                    provinces = allProvinces
-                )
-
-                val visitedProvinceCodes = visitedProvinces.map { it.code }.toSet()
                 val initialCamera = visitedProvinces.firstOrNull()?.let { first ->
-                    MapCameraState(
-                        centerLat = first.lat,
-                        centerLng = first.lng,
-                        zoom = 6.2f
-                    )
-                } ?: MapCameraState(
-                    centerLat = 16.047079,
-                    centerLng = 108.206230,
-                    zoom = 5.3f
-                )
-
-                val savedPosts = allPosts.filter { post ->
-                    post.imageUrl.isNotBlank() && (post.id.hashCode() % 3 == 0)
-                }.take(6)
-
-                val repostedPosts = allPosts.filter { post ->
-                    post.imageUrl.isNotBlank() && (post.id.hashCode() % 2 != 0)
-                }.take(4)
+                    MapCameraState(centerLat = first.lat, centerLng = first.lng, zoom = 6.2f)
+                } ?: MapCameraState(centerLat = 16.047079, centerLng = 108.206230, zoom = 5.3f)
 
                 _uiState.update { prev ->
                     prev.copy(
@@ -148,19 +150,20 @@ class ProfileViewModel(
                         errorMessage = null,
                         isUserNotFound = false,
                         isMe = isMe,
-                        user = targetUser,
-                        friendStatus = friendStatus,
-                        visitedProvincesCount = visitedProvinceCodes.size,
-                        totalProvincesCount = totalProvinces,
-                        postCount = visibleUserPosts.size,
-                        friendCount = SampleSocialData.getFriendsCount(targetUser.id),
-                        isFriendLimitReached = isFriendLimitReached,
-                        visiblePosts = visibleUserPosts,
-                        savedPosts = savedPosts,
-                        repostedPosts = repostedPosts,
+                        user = user,
+                        friendStatus = if (isMe) FriendStatus.NONE else snap.graph.statusOf(user.id),
+                        visitedProvincesCount = visitedProvinces.size,
+                        totalProvincesCount = provinces.size,
+                        postCount = snap.userPosts.size,
+                        friendCount = if (isMe) snap.graph.friendCount else otherFriendCount,
+                        isFriendLimitReached = snap.graph.friendCount >= social.maxFriends,
+                        bio = user.bio,
+                        visiblePosts = snap.userPosts,
+                        savedPosts = snap.saved,
+                        repostedPosts = snap.reposted,
                         visitedProvinces = visitedProvinces,
-                        mapBubbles = mapBubbles,
-                        landmarks = SampleData.landmarks,
+                        mapBubbles = provinceBubbles(snap.userPosts, provinces),
+                        landmarks = landmarksFromPosts(snap.userPosts),
                         mapCamera = if (prev.isLoading) initialCamera else prev.mapCamera
                     )
                 }
@@ -168,11 +171,31 @@ class ProfileViewModel(
         }
     }
 
+    /** Bong bóng tỉnh trên bản đồ "Dấu chân": mỗi tỉnh có bài một bong bóng, ảnh bìa là bài mới nhất. */
+    private fun provinceBubbles(userPosts: List<Post>, provinces: List<Province>): List<MapBubble> {
+        val postsByProvince = userPosts.groupBy { it.location.provinceCode }
+        return provinces.mapNotNull { province ->
+            val provincePosts = postsByProvince[province.code].orEmpty()
+            if (provincePosts.isEmpty()) return@mapNotNull null
+            MapBubble(
+                id = "profile_prov_${province.code}",
+                type = MapBubbleType.PROVINCE,
+                code = province.code,
+                label = province.name,
+                lat = province.lat,
+                lng = province.lng,
+                postCount = provincePosts.size,
+                coverImageUrl = provincePosts.maxByOrNull { it.takenAt }?.imageUrl,
+                hasFriendPosts = true
+            )
+        }
+    }
+
     fun onAction(action: ProfileAction) {
         when (action) {
             ProfileAction.Retry -> {
-                _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                observeProfileData()
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, isOffline = false) }
+                load()
             }
 
             ProfileAction.NavigateBack -> {
@@ -181,6 +204,14 @@ class ProfileViewModel(
 
             ProfileAction.OpenSettings -> {
                 _effects.trySend(ProfileEffect.NavigateToSettings)
+            }
+
+            ProfileAction.OpenFriends -> {
+                _effects.trySend(ProfileEffect.NavigateToFriends)
+            }
+
+            ProfileAction.OpenAddFriend -> {
+                _effects.trySend(ProfileEffect.NavigateToAddFriend)
             }
 
             is ProfileAction.SelectTab -> {
@@ -225,7 +256,7 @@ class ProfileViewModel(
                         isEditSheetOpen = true,
                         editDisplayNameInput = user?.displayName.orEmpty(),
                         editUsernameInput = user?.username.orEmpty(),
-                        editBioInput = user?.bio?.ifBlank { it.bio }.orEmpty(),
+                        editBioInput = user?.bio.orEmpty(),
                         editDisplayNameError = null,
                         editUsernameError = null
                     )
@@ -255,124 +286,115 @@ class ProfileViewModel(
             }
 
             is ProfileAction.ChangeEditUsername -> {
-                val clean = action.value.trim().removePrefix("@")
-                val error = if (clean.length < 3) "Username tối thiểu 3 ký tự" else null
+                // Cùng luật với màn Thiết lập hồ sơ: chữ thường, 3–20 ký tự a–z 0–9 . _
+                val clean = action.value.trim().removePrefix("@").lowercase()
                 _uiState.update {
                     it.copy(
                         editUsernameInput = clean,
-                        editUsernameError = error
+                        editUsernameError = AuthValidators.validateUsernameFormat(clean)
                     )
                 }
             }
 
             is ProfileAction.ChangeEditBio -> {
+                // Cùng giới hạn với màn Thiết lập hồ sơ và ràng buộc profiles_bio_length (≤ 60)
                 _uiState.update {
-                    it.copy(editBioInput = action.value)
+                    it.copy(editBioInput = action.value.take(60))
                 }
             }
 
-            ProfileAction.SaveEditProfile -> {
-                val state = _uiState.value
-                val trimmedName = state.editDisplayNameInput.trim()
-                val nameError = validateDisplayName(trimmedName)
-                if (nameError != null) {
-                    _uiState.update { it.copy(editDisplayNameError = nameError) }
-                    return
-                }
-                val cleanUsername = state.editUsernameInput.trim().removePrefix("@")
-                if (cleanUsername.length < 3) {
-                    _uiState.update { it.copy(editUsernameError = "Username tối thiểu 3 ký tự") }
-                    return
-                }
-                SampleSocialData.updateMyProfile(
-                    displayName = trimmedName,
-                    username = cleanUsername,
-                    bio = state.editBioInput
-                )
-                _uiState.update {
-                    it.copy(
-                        isEditSheetOpen = false,
-                        bio = state.editBioInput,
-                        editDisplayNameError = null,
-                        editUsernameError = null,
-                        isSavingProfile = false
-                    )
-                }
-                _effects.trySend(ProfileEffect.ShowMessage("Đã lưu thông tin hồ sơ"))
-            }
+            ProfileAction.SaveEditProfile -> saveProfile()
 
-            ProfileAction.ToggleFollow -> {
-                _uiState.update { current ->
-                    val nowFollowing = !current.isFollowing
-                    val delta = if (nowFollowing) 1 else -1
-                    current.copy(
-                        isFollowing = nowFollowing,
-                        followersCount = (current.followersCount + delta).coerceAtLeast(0)
-                    )
-                }
-                val msg = if (_uiState.value.isFollowing) "Đã theo dõi" else "Đã huỷ theo dõi"
-                _effects.trySend(ProfileEffect.ShowMessage(msg))
-            }
-
-            ProfileAction.SendFriendRequest -> {
-                val targetUser = _uiState.value.user ?: return
-                val ok = SampleSocialData.sendFriendRequest(targetUser.id)
-                if (!ok) {
-                    _effects.trySend(
-                        ProfileEffect.ShowMessage("Bạn đã đạt giới hạn 20 người bạn trên Lokap")
-                    )
-                } else {
-                    _effects.trySend(ProfileEffect.ShowMessage("Đã gửi lời mời kết bạn"))
+            ProfileAction.SendFriendRequest -> withTarget { user ->
+                social.sendFriendRequest(user.id).map { status ->
+                    if (status == FriendStatus.FRIENDS) "Hai bạn đã trở thành bạn bè!" else "Đã gửi lời mời kết bạn"
                 }
             }
 
-            ProfileAction.CancelFriendRequest -> {
-                val targetUser = _uiState.value.user ?: return
-                SampleSocialData.cancelFriendRequest(targetUser.id)
-                _effects.trySend(ProfileEffect.ShowMessage("Đã huỷ lời mời kết bạn"))
+            ProfileAction.CancelFriendRequest -> withTarget { user ->
+                social.cancelFriendRequest(user.id).map { "Đã huỷ lời mời kết bạn" }
             }
 
-            ProfileAction.AcceptFriendRequest -> {
-                val targetUser = _uiState.value.user ?: return
-                val ok = SampleSocialData.acceptFriendRequest(targetUser.id)
-                if (!ok) {
-                    _effects.trySend(
-                        ProfileEffect.ShowMessage("Đã đủ 20 bạn bè, không thể nhận thêm")
-                    )
-                } else {
-                    _effects.trySend(
-                        ProfileEffect.ShowMessage("Hai bạn đã trở thành bạn bè!")
-                    )
-                }
+            ProfileAction.AcceptFriendRequest -> withTarget { user ->
+                social.acceptFriendRequest(user.id).map { "Hai bạn đã trở thành bạn bè!" }
             }
 
-            ProfileAction.DeclineFriendRequest -> {
-                val targetUser = _uiState.value.user ?: return
-                SampleSocialData.declineFriendRequest(targetUser.id)
-                _effects.trySend(ProfileEffect.ShowMessage("Đã từ chối lời mời"))
+            ProfileAction.DeclineFriendRequest -> withTarget { user ->
+                social.declineFriendRequest(user.id).map { "Đã từ chối lời mời" }
             }
 
-            ProfileAction.Unfriend -> {
-                val targetUser = _uiState.value.user ?: return
-                SampleSocialData.unfriend(targetUser.id)
-                _effects.trySend(
-                    ProfileEffect.ShowMessage("Đã huỷ kết bạn với ${targetUser.displayName}")
-                )
+            ProfileAction.Unfriend -> withTarget { user ->
+                social.unfriend(user.id).map { "Đã huỷ kết bạn với ${user.displayName}" }
             }
 
-            ProfileAction.Unblock -> {
-                val targetUser = _uiState.value.user ?: return
-                SampleSocialData.unblockUser(targetUser.id)
-                _effects.trySend(
-                    ProfileEffect.ShowMessage("Đã bỏ chặn ${targetUser.displayName}")
-                )
+            ProfileAction.Unblock -> withTarget { user ->
+                social.unblock(user.id).map { "Đã bỏ chặn ${user.displayName}" }
             }
 
             ProfileAction.MessageUser -> {
                 val targetUser = _uiState.value.user ?: return
-                val convId = SampleSocialData.conversationIdFor(targetUser.id)
-                _effects.trySend(ProfileEffect.NavigateToChat(convId))
+                viewModelScope.launch { messages.openConversation(targetUser.id).fold(
+                    onSuccess = { _effects.send(ProfileEffect.NavigateToChat(it)) },
+                    onFailure = { _effects.send(ProfileEffect.ShowMessage(it.message ?: "Không mở được cuộc trò chuyện")) }) }
             }
+        }
+    }
+
+    /** Thao tác bạn bè với người đang xem: thành công hay lỗi đều báo một câu; trạng thái mới tự về qua graph. */
+    private fun withTarget(block: suspend (User) -> Result<String>) {
+        val targetUser = _uiState.value.user ?: return
+        viewModelScope.launch {
+            block(targetUser).onFailure { _effects.trySend(ProfileEffect.ShowMessage(it.message ?: "Không thực hiện được")) }
+        }
+    }
+
+    private fun saveProfile() {
+        val state = _uiState.value
+        if (state.isSavingProfile) return
+        val trimmedName = state.editDisplayNameInput.trim()
+        val nameError = validateDisplayName(trimmedName)
+        if (nameError != null) {
+            _uiState.update { it.copy(editDisplayNameError = nameError) }
+            return
+        }
+        val cleanUsername = state.editUsernameInput.trim().removePrefix("@").lowercase()
+        val usernameError = AuthValidators.validateUsernameFormat(cleanUsername)
+        if (usernameError != null) {
+            _uiState.update { it.copy(editUsernameError = usernameError) }
+            return
+        }
+        val bioError = AuthValidators.validateBio(state.editBioInput)
+        if (bioError != null) {
+            _effects.trySend(ProfileEffect.ShowMessage(bioError))
+            return
+        }
+        _uiState.update { it.copy(isSavingProfile = true) }
+        viewModelScope.launch {
+            auth.updateProfile(displayName = trimmedName, username = cleanUsername, bio = state.editBioInput).fold(
+                onSuccess = { updated ->
+                    _uiState.update {
+                        it.copy(
+                            isEditSheetOpen = false,
+                            isSavingProfile = false,
+                            user = if (it.isMe) updated else it.user,
+                            bio = updated.bio,
+                            editDisplayNameError = null,
+                            editUsernameError = null
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSavingProfile = false,
+                            editUsernameError = if (error is AuthStoreException.UsernameAlreadyTaken) error.message else it.editUsernameError
+                        )
+                    }
+                    if (error !is AuthStoreException.UsernameAlreadyTaken) {
+                        _effects.trySend(ProfileEffect.ShowMessage(error.message ?: "Không lưu được, thử lại sau"))
+                    }
+                }
+            )
         }
     }
 

@@ -9,9 +9,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.AuthStoreException
-import vn.nhom2.lokap.data.fake.FakeAuthStore
-class ForgotPasswordViewModel : ViewModel() {
+import vn.nhom2.lokap.domain.repository.AuthStoreException
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import vn.nhom2.lokap.domain.repository.AuthRepository
+@HiltViewModel
+class ForgotPasswordViewModel @Inject constructor(
+    private val auth: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ForgotPasswordUiState())
     val uiState: StateFlow<ForgotPasswordUiState> = _uiState.asStateFlow()
@@ -76,7 +81,7 @@ class ForgotPasswordViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            val result = FakeAuthStore.resetPassword(targetEmail)
+            val result = auth.resetPassword(targetEmail)
             result.fold(
                 onSuccess = {
                     _uiState.update {

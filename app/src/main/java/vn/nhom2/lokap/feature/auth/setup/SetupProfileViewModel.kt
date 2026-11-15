@@ -11,10 +11,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.AuthStoreException
-import vn.nhom2.lokap.data.fake.FakeAuthStore
+import vn.nhom2.lokap.domain.repository.AuthStoreException
 import vn.nhom2.lokap.feature.auth.AuthValidators
-class SetupProfileViewModel : ViewModel() {
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.ProfileDraft
+import vn.nhom2.lokap.data.location.ProvinceCatalog
+@HiltViewModel
+class SetupProfileViewModel @Inject constructor(
+    private val auth: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SetupProfileUiState())
     val uiState: StateFlow<SetupProfileUiState> = _uiState.asStateFlow()
@@ -137,7 +144,7 @@ class SetupProfileViewModel : ViewModel() {
 
         usernameCheckJob = viewModelScope.launch {
             delay(400)
-            val result = FakeAuthStore.isUsernameAvailable(lowered)
+            val result = auth.isUsernameAvailable(lowered)
             result.fold(
                 onSuccess = { available ->
                     _uiState.update { state ->
@@ -196,10 +203,16 @@ class SetupProfileViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            val result = FakeAuthStore.completeProfile(
-                username = current.username,
-                displayName = current.displayName,
-                avatarUrl = current.selectedAvatarUrl
+            val result = auth.completeProfile(
+                ProfileDraft(
+                    username = current.username,
+                    displayName = current.displayName,
+                    avatarUrl = current.selectedAvatarUrl,
+                    bio = current.bio,
+                    birthYear = current.birthYear,
+                    // Ô quê quán chọn theo tên trong ProvinceCatalog (34 tỉnh mới) → lưu mã tỉnh
+                    homeProvinceCode = ProvinceCatalog.allProvinces.firstOrNull { it.name == current.homeProvince }?.code
+                )
             )
             result.fold(
                 onSuccess = {

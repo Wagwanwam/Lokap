@@ -7,7 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import vn.nhom2.lokap.data.presence.PresenceStore
+import vn.nhom2.lokap.data.fake.PresenceStore
 import vn.nhom2.lokap.domain.model.PresenceStatus
 import vn.nhom2.lokap.domain.model.UserPresence
 import java.time.Instant

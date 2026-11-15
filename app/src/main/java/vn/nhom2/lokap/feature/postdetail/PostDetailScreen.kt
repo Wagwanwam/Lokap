@@ -1,6 +1,7 @@
 package vn.nhom2.lokap.feature.postdetail
 
 import androidx.compose.foundation.BorderStroke
+import vn.nhom2.lokap.domain.model.POST_CAPTION_MAX_LENGTH
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +39,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,13 +47,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -65,14 +69,12 @@ import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.data.fake.SampleData2
+import vn.nhom2.lokap.domain.model.ReportReasons
 import vn.nhom2.lokap.domain.model.*
 fun NavGraphBuilder.postDetailScreen(navController: NavController) {
     composable<Route.PostDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<Route.PostDetail>()
         PostDetailRoute(
-            postId = route.id,
             onNavigateBack = { navController.popBackStackSafely() },
             onNavigateToChat = { convId -> navController.navigateSingleTop(Route.Chat(convId)) },
             onNavigateToProfile = { userId -> navController.navigateSingleTop(Route.Profile(userId)) },
@@ -85,26 +87,26 @@ fun NavGraphBuilder.postDetailScreen(navController: NavController) {
 
 @Composable
 fun PostDetailRoute(
-    postId: String,
     onNavigateBack: () -> Unit,
     onNavigateToChat: (String) -> Unit,
     onNavigateToProfile: (String) -> Unit,
     onNavigateToRegionAlbum: (String, String) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PostDetailViewModel = viewModel()
+    viewModel: PostDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(postId) {
-        viewModel.loadPost(postId)
-    }
+    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                PostDetailEffect.NavigateBack -> onNavigateBack()
+                PostDetailEffect.NavigateBack -> {
+                    // Bỏ focus ô bình luận trước khi Back: bàn phím ẩn ngay, không che màn trước suốt animation
+                    focusManager.clearFocus(force = true)
+                    onNavigateBack()
+                }
                 is PostDetailEffect.NavigateToChat -> onNavigateToChat(effect.conversationId)
                 is PostDetailEffect.NavigateToProfile -> onNavigateToProfile(effect.userId)
                 is PostDetailEffect.NavigateToRegionAlbum -> {
@@ -142,6 +144,10 @@ fun PostDetailScreen(
 
     val post = state.post
 
+    if (state.editingComment != null) vn.nhom2.lokap.core.designsystem.component.ContentEditDialog("Sửa bình luận", state.editCommentText, state.isSavingComment,
+        { onAction(PostDetailAction.OnEditCommentText(it)) }, { onAction(PostDetailAction.OnSaveComment) }, { onAction(PostDetailAction.OnDismissCommentEdit) })
+    if (state.deletingCommentId != null) vn.nhom2.lokap.core.designsystem.component.ContentDeleteDialog("Xoá bình luận?", state.isSavingComment,
+        { onAction(PostDetailAction.OnConfirmCommentDelete) }, { onAction(PostDetailAction.OnDismissCommentDelete) })
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -168,7 +174,7 @@ fun PostDetailScreen(
                 Text(
                     text = "Chi tiết khoảnh khắc",
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 17.sp,
+                        fontSize = 19.sp,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                     ),
                     color = colors.textPrimary
@@ -188,32 +194,62 @@ fun PostDetailScreen(
                             onDismissRequest = { menuExpanded = false },
                             modifier = Modifier.background(colors.surfaceHigh)
                         ) {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Báo cáo bài viết",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = colors.textPrimary
-                                    )
-                                },
-                                onClick = {
-                                    menuExpanded = false
-                                    onAction(PostDetailAction.OnOpenReportSheet)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Chặn ${post.author.displayName}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = colors.error
-                                    )
-                                },
-                                onClick = {
-                                    menuExpanded = false
-                                    onAction(PostDetailAction.OnOpenBlockDialog)
-                                }
-                            )
+                            if (state.isOwnPost) {
+                                // Bài của mình: sửa lời nhắn (≤ 60 ký tự) hoặc xoá bài
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Sửa lời nhắn",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = colors.textPrimary
+                                        )
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onAction(PostDetailAction.OnOpenEditCaption)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Xoá bài",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = colors.error
+                                        )
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onAction(PostDetailAction.OnOpenDeleteDialog)
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Báo cáo bài viết",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = colors.textPrimary
+                                        )
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onAction(PostDetailAction.OnOpenReportSheet)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Chặn ${post.author.displayName}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = colors.error
+                                        )
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onAction(PostDetailAction.OnOpenBlockDialog)
+                                    }
+                                )
+                            }
                         }
                     }
                 } else {
@@ -252,7 +288,7 @@ fun PostDetailScreen(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Huỷ",
                                     tint = colors.textSecondary,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -289,7 +325,7 @@ fun PostDetailScreen(
 
                         IconButton(
                             onClick = { onAction(PostDetailAction.OnSendComment) },
-                            enabled = state.commentInput.isNotBlank(),
+                            enabled = !state.isSavingComment && state.commentInput.isNotBlank(),
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
@@ -299,7 +335,7 @@ fun PostDetailScreen(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Gửi",
                                 tint = if (state.commentInput.isNotBlank()) colors.buttonText else colors.textTertiary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(25.dp)
                             )
                         }
                     }
@@ -315,11 +351,19 @@ fun PostDetailScreen(
                     .padding(spacing.lg),
                 contentAlignment = Alignment.Center
             ) {
-                ErrorState(
-                    message = "Bài đã bị xoá hoặc ẩn",
-                    retryLabel = "Quay lại",
-                    onRetry = { onAction(PostDetailAction.OnBackClick) }
-                )
+                when {
+                    // Chưa có bài trong máy, đang hỏi server
+                    state.isLoading -> LokapPulseLoader()
+                    state.errorMessage != null -> ErrorState(
+                        message = state.errorMessage,
+                        onRetry = { onAction(PostDetailAction.OnRetry) }
+                    )
+                    else -> ErrorState(
+                        message = "Bài đã bị xoá hoặc ẩn",
+                        retryLabel = "Quay lại",
+                        onRetry = { onAction(PostDetailAction.OnBackClick) }
+                    )
+                }
             }
             return@Scaffold
         }
@@ -353,6 +397,9 @@ fun PostDetailScreen(
             verticalArrangement = Arrangement.spacedBy(spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (state.isOffline) {
+                OfflineBanner()
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -374,14 +421,14 @@ fun PostDetailScreen(
                         Text(
                             text = post.author.displayName,
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontSize = 14.5.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary
                         )
                         Text(
                             text = timeLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.5.sp),
                             color = colors.textSecondary
                         )
                     }
@@ -424,8 +471,8 @@ fun PostDetailScreen(
                     Text(
                         text = post.caption,
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp
+                            fontSize = 15.5.sp,
+                            lineHeight = 22.sp
                         ),
                         color = colors.textPrimary
                     )
@@ -453,7 +500,7 @@ fun PostDetailScreen(
                         imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Thích",
                         tint = if (isLiked) colors.primary else colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                     Text(
                         text = post.reactions.sumOf { it.count }.toString(),
@@ -474,7 +521,7 @@ fun PostDetailScreen(
                         imageVector = Icons.Default.ChatBubbleOutline,
                         contentDescription = "Bình luận",
                         tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                     Text(
                         text = "${countTotalComments(state.comments)}",
@@ -494,7 +541,7 @@ fun PostDetailScreen(
                         imageVector = Icons.Default.Repeat,
                         contentDescription = "Đăng lại",
                         tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                     Text(
                         text = "0",
@@ -511,7 +558,7 @@ fun PostDetailScreen(
                         imageVector = Icons.Default.Share,
                         contentDescription = "Chia sẻ liên kết",
                         tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                 }
             }
@@ -527,14 +574,16 @@ fun PostDetailScreen(
                     text = "Nhắn tin cho ${post.author.displayName}",
                     leadingIcon = Icons.AutoMirrored.Rounded.Send,
                     onClick = { onAction(PostDetailAction.OnReplyClick) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(42.dp)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
+            state.commentsError?.let { Text(it, color = colors.textSecondary) }
             RedditThreadedCommentsSection(
                 comments = state.comments,
+                currentUserId = state.currentUserId,
+                onEdit = { onAction(PostDetailAction.OnEditComment(it)) },
+                onDelete = { onAction(PostDetailAction.OnDeleteComment(it.id)) },
                 onVote = { id, isUp -> onAction(PostDetailAction.OnVoteComment(id, isUp)) },
                 onReply = { comment -> onAction(PostDetailAction.OnReplyToComment(comment)) }
             )
@@ -559,13 +608,8 @@ fun PostDetailScreen(
                         style = MaterialTheme.typography.titleLarge,
                         color = colors.textPrimary
                     )
-                    Text(
-                        text = "Hãy chọn lý do bạn muốn báo cáo khoảnh khắc này:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textSecondary
-                    )
 
-                    SampleData2.reportReasons.forEach { reason ->
+                    ReportReasons.forEach { reason ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -593,7 +637,115 @@ fun PostDetailScreen(
                 onDismiss = { onAction(PostDetailAction.OnDismissBlockDialog) }
             )
         }
+
+        if (state.isEditCaptionOpen) {
+            EditCaptionDialog(
+                value = state.editCaptionInput,
+                isSaving = state.isSavingCaption,
+                onValueChange = { onAction(PostDetailAction.OnChangeCaptionInput(it)) },
+                onSave = { onAction(PostDetailAction.OnSaveCaption) },
+                onDismiss = { onAction(PostDetailAction.OnDismissEditCaption) }
+            )
+        }
+
+        if (state.showDeleteConfirmDialog) {
+            DeletePostDialog(
+                isDeleting = state.isDeleting,
+                onConfirm = { onAction(PostDetailAction.OnConfirmDelete) },
+                onDismiss = { onAction(PostDetailAction.OnDismissDeleteDialog) }
+            )
+        }
     }
+}
+
+/** Sửa lời nhắn của bài mình đăng: tối đa 60 ký tự, để trống = bỏ lời nhắn. */
+@Composable
+private fun EditCaptionDialog(
+    value: String,
+    isSaving: Boolean,
+    onValueChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = LokapTheme.colors
+    AlertDialog(
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        containerColor = colors.surface,
+        titleContentColor = colors.textPrimary,
+        textContentColor = colors.textSecondary,
+        title = { Text("Sửa lời nhắn") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSaving,
+                    maxLines = 3,
+                    placeholder = { Text("Lời nhắn…", color = colors.textTertiary) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.primary,
+                        unfocusedBorderColor = colors.outline,
+                        cursorColor = colors.primary,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
+                    )
+                )
+                Text(
+                    text = "${value.length}/$POST_CAPTION_MAX_LENGTH",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (value.length >= POST_CAPTION_MAX_LENGTH) colors.primary else colors.textTertiary,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSave, enabled = !isSaving) {
+                Text(
+                    text = if (isSaving) "Đang lưu…" else "Lưu",
+                    color = colors.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSaving) {
+                Text(text = "Huỷ", color = colors.textSecondary)
+            }
+        }
+    )
+}
+
+/** Xoá bài của mình: xoá mềm trên server + xoá ảnh, không hoàn tác. */
+@Composable
+private fun DeletePostDialog(
+    isDeleting: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = LokapTheme.colors
+    AlertDialog(
+        onDismissRequest = { if (!isDeleting) onDismiss() },
+        containerColor = colors.surface,
+        titleContentColor = colors.textPrimary,
+        textContentColor = colors.textSecondary,
+        title = { Text("Xoá bài này?") },
+        text = { Text("Ảnh và cảm xúc của bài sẽ bị xoá, không hoàn tác được.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !isDeleting) {
+                Text(
+                    text = if (isDeleting) "Đang xoá…" else "Xoá",
+                    color = colors.error,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isDeleting) {
+                Text(text = "Huỷ", color = colors.textSecondary)
+            }
+        }
+    )
 }
 
 @Composable
@@ -601,6 +753,9 @@ private fun RedditThreadedCommentsSection(
     comments: List<RedditCommentUi>,
     onVote: (String, Boolean) -> Unit,
     onReply: (RedditCommentUi) -> Unit,
+    currentUserId: String = "",
+    onEdit: (RedditCommentUi) -> Unit = {},
+    onDelete: (RedditCommentUi) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colors = LokapTheme.colors
@@ -623,7 +778,7 @@ private fun RedditThreadedCommentsSection(
             Text(
                 text = "Bình luận · ${countTotalComments(comments)}",
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 15.sp,
+                    fontSize = 16.5.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                 ),
                 color = colors.textPrimary
@@ -632,7 +787,7 @@ private fun RedditThreadedCommentsSection(
 
         if (comments.isEmpty()) {
             Text(
-                text = "Chưa có bình luận nào. Hãy là người đầu tiên chia sẻ suy nghĩ!",
+                text = "Chưa có bình luận",
                 style = MaterialTheme.typography.bodyMedium,
                 color = colors.textSecondary,
                 modifier = Modifier.padding(vertical = spacing.md)
@@ -643,7 +798,7 @@ private fun RedditThreadedCommentsSection(
                     comment = comment,
                     depth = 0,
                     onVote = onVote,
-                    onReply = onReply
+                    onReply = onReply, currentUserId = currentUserId, onEdit = onEdit, onDelete = onDelete
                 )
             }
         }
@@ -659,7 +814,10 @@ private fun RedditCommentTreeItem(
     comment: RedditCommentUi,
     depth: Int,
     onVote: (String, Boolean) -> Unit,
-    onReply: (RedditCommentUi) -> Unit
+    onReply: (RedditCommentUi) -> Unit,
+    currentUserId: String = "",
+    onEdit: (RedditCommentUi) -> Unit = {},
+    onDelete: (RedditCommentUi) -> Unit = {}
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -714,7 +872,7 @@ private fun RedditCommentTreeItem(
                             text = comment.authorName,
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                fontSize = 12.5.sp
+                                fontSize = 14.sp
                             ),
                             color = colors.textPrimary,
                             maxLines = 1,
@@ -736,13 +894,13 @@ private fun RedditCommentTreeItem(
                                         imageVector = Icons.AutoMirrored.Filled.Reply,
                                         contentDescription = null,
                                         tint = colors.primary,
-                                        modifier = Modifier.size(10.dp)
+                                        modifier = Modifier.size(12.dp)
                                     )
                                     Text(
                                         text = comment.replyToAuthorName,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                            fontSize = 11.sp
+                                            fontSize = 12.sp
                                         ),
                                         color = colors.primary,
                                         maxLines = 1,
@@ -757,18 +915,22 @@ private fun RedditCommentTreeItem(
 
                     Text(
                         text = comment.timeAgo,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                         color = colors.textTertiary,
                         maxLines = 1,
                         softWrap = false
                     )
                 }
 
+                if (comment.authorId == currentUserId) Row {
+                    TextButton(onClick = { onEdit(comment) }) { Text("Sửa bình luận") }
+                    TextButton(onClick = { onDelete(comment) }) { Text("Xoá bình luận") }
+                }
                 Text(
                     text = comment.content,
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.5.sp,
-                        lineHeight = 18.5.sp
+                        fontSize = 14.5.sp,
+                        lineHeight = 20.sp
                     ),
                     color = colors.textPrimary
                 )
@@ -796,7 +958,7 @@ private fun RedditCommentTreeItem(
                                 imageVector = Icons.Default.KeyboardArrowUp,
                                 contentDescription = "Thích",
                                 tint = if (comment.userVote == 1) colors.primary else colors.textSecondary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
@@ -804,7 +966,7 @@ private fun RedditCommentTreeItem(
                             text = comment.score.toString(),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                fontSize = 11.sp
+                                fontSize = 12.sp
                             ),
                             color = when (comment.userVote) {
                                 1 -> colors.primary
@@ -821,7 +983,7 @@ private fun RedditCommentTreeItem(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Không thích",
                                 tint = if (comment.userVote == -1) Color(0xFF6366F1) else colors.textSecondary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -842,13 +1004,13 @@ private fun RedditCommentTreeItem(
                                 imageVector = Icons.AutoMirrored.Filled.Reply,
                                 contentDescription = "Trả lời",
                                 tint = colors.textSecondary,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                             Text(
                                 text = "Trả lời",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                                    fontSize = 11.5.sp
+                                    fontSize = 13.sp
                                 ),
                                 color = colors.textSecondary
                             )
@@ -866,7 +1028,7 @@ private fun RedditCommentTreeItem(
                         comment = reply,
                         depth = 1,
                         onVote = onVote,
-                        onReply = onReply
+                        onReply = onReply, currentUserId = currentUserId, onEdit = onEdit, onDelete = onDelete
                     )
                 }
             }
@@ -883,18 +1045,7 @@ private fun formatDetailLocation(location: PostLocation): String {
     }
 }
 
-@Preview(name = "1. PostDetail - Bình thường", showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun PostDetailNormalPreview() {
-    LokapTheme {
-        PostDetailScreen(
-            state = PostDetailUiState(
-                post = SampleData.posts.first()
-            ),
-            onAction = {}
-        )
-    }
-}
+
 
 @Preview(name = "2. PostDetail - Không tồn tại", showBackground = true, backgroundColor = 0xFF0B0B0D)
 @Composable
@@ -904,20 +1055,6 @@ private fun PostDetailNotFoundPreview() {
             state = PostDetailUiState(
                 post = null,
                 isNotFound = true
-            ),
-            onAction = {}
-        )
-    }
-}
-
-@Preview(name = "3. PostDetail - Xác nhận chặn", showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun PostDetailBlockDialogPreview() {
-    LokapTheme {
-        PostDetailScreen(
-            state = PostDetailUiState(
-                post = SampleData.posts.first(),
-                showBlockConfirmDialog = true
             ),
             onAction = {}
         )

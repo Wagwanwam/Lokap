@@ -13,6 +13,7 @@
         android:required="false" />
 
     <application
+        android:name=".LokapApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -32,7 +33,31 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Link mời / QR kết bạn: lokap://add/<username> → màn Thêm bạn -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="add"
+                    android:scheme="lokap" />
+            </intent-filter>
         </activity>
+
+        <!-- WorkManager khởi tạo trong LokapApp (HiltWorkerFactory) thay cho initializer mặc định.
+             Giữ InitializationProvider (merge) vì thư viện khác (lifecycle, emoji…) cũng dùng androidx.startup. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>

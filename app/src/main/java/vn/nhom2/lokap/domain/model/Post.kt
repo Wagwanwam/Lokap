@@ -2,6 +2,10 @@ package vn.nhom2.lokap.domain.model
 
 import androidx.compose.runtime.Immutable
 import java.time.Instant
+
+/** Chú thích tối đa 45 ký tự: vừa 2 dòng trong khung chữ trên ảnh (rules vẫn cho ≤ 60). */
+const val POST_CAPTION_MAX_LENGTH = 45
+
 @Immutable
 data class PostLocation(
     val level: LocationLevel,

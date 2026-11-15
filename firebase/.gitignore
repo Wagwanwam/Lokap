@@ -1,0 +1,5 @@
+node_modules/
+*.log
+requests/*.local.postman_environment.json
+requests/Lokap · Firebase · A.environment.yaml
+requests/Lokap · Firebase Auth & Firestore/

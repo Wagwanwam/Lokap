@@ -13,6 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
@@ -39,11 +41,11 @@ fun PinkButton(
             disabledContentColor = colors.textTertiary
         ),
         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.sm),
-        modifier = modifier.heightIn(min = 44.dp)
+        modifier = modifier.heightIn(min = 54.dp)
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(22.dp),
                 color = colors.buttonText,
                 strokeWidth = 2.2.dp
             )
@@ -52,13 +54,15 @@ fun PinkButton(
             Icon(
                 imageVector = leadingIcon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.width(spacing.sm))
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -87,11 +91,11 @@ fun GhostButton(
             disabledContentColor = colors.textTertiary
         ),
         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.sm),
-        modifier = modifier.heightIn(min = 44.dp)
+        modifier = modifier.heightIn(min = 54.dp)
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(22.dp),
                 color = colors.primary,
                 strokeWidth = 2.dp
             )
@@ -100,13 +104,15 @@ fun GhostButton(
             Icon(
                 imageVector = leadingIcon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.width(spacing.sm))
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

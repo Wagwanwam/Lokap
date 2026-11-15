@@ -15,113 +15,94 @@ Khi file này và tài liệu gốc khác nhau, hỏi nhóm trước khi làm.
 
 App Android kiểu Locket: mở app là camera, chụp và gửi ảnh cho bạn bè. Thêm bản đồ public gom ảnh theo tỉnh/thành → phường/xã (34 tỉnh, không còn cấp quận/huyện từ 01/07/2025), bong bóng địa danh nổi tiếng, feed bạn bè + khám phá, nhắn tin 1-1.
 
-- Android: Kotlin + Jetpack Compose, MVVM + UDF, Hilt, Room, CameraX, Coil 3, WorkManager, Glance, VietMap SDK. Frontend do Gemini dựng theo tài liệu gốc.
-- Backend: **Supabase** (Auth, Postgres + PostGIS, Storage, Realtime, Edge Functions), gói Free. Claude Code dựng phần này.
-- Push: FCM, gửi từ Edge Function.
+Công nghệ theo slide "Công nghệ" (chốt 12/11/2026, chi tiết và đánh đổi ở `docs/database.md`):
+
+- Android: Kotlin, MVVM + UDF, Hilt, **Jetpack Compose + Material 3** (giữ Compose, slide sửa ô Giao diện thay vì XML), Room · SQLite (cache), CameraX (camera của máy), Coil 3, WorkManager, Glance.
+- Bản đồ và thiết bị: **VietMap SDK** (bản đồ) + VietMap API (toạ độ → tỉnh/phường, tìm địa điểm), **Fused Location Provider** (vị trí).
+- Dữ liệu và đám mây: **Firebase Authentication**, **Firestore**, **Cloudinary** (ảnh). Gói Firebase **Spark miễn phí → không có Cloud Functions**: luật nằm trong Security Rules + app.
+- Push: chưa có (cần Cloud Functions, gói Blaze).
 
 ## Cấu trúc repo
 
 ```text
+Mobile/                       # thư mục làm việc, không phải git
+├── Lokap/                    # repo git của app (bên dưới)
+├── BaoCao/Tuan1 · Tuan2 · Tuan3/   # slide .pptx, PDF, kịch bản từng tuần
+└── LuuTru/supabase/          # backend Supabase cũ, app không còn dùng
+
 Lokap/
-├── app/                      # Android, package vn.nhom2.lokap, minSdk 26, targetSdk 37, AGP 9.3
-├── supabase/
-│   ├── config.toml
-│   ├── migrations/           # 0001_extensions, 0002_schema, 0003_rls, 0004_functions, 0005_triggers, 0006_storage
-│   ├── seed.sql              # provinces, wards, landmarks, dữ liệu demo
-│   ├── tests/                # pgTAP: test RLS và luật hiển thị
-│   └── functions/
-│       ├── _shared/
-│       ├── reverse-geocode/
-│       ├── place-search/
-│       └── send-push/
-├── data/                     # dữ liệu thô: tỉnh, phường/xã, địa danh (CSV/JSON + ghi nguồn)
-├── .github/workflows/keepalive.yml
-└── docs/
+├── app/                      # Android, package vn.nhom2.lokap, minSdk 26, targetSdk 37, AGP 9.3, Kotlin 2.2.10
+│   └── src/
+│       ├── main/java/vn/nhom2/lokap/
+│       │   ├── core/         # theme, component dùng chung, điều hướng, mạng, xử lý ảnh
+│       │   ├── data/         # local (Room, prefs) · location (Fused, VietMap) · remote (Cloudinary, schema Firestore) · repository (Firebase*) · worker
+│       │   ├── di/           # Hilt
+│       │   ├── domain/       # model + interface Repository (không phụ thuộc Android)
+│       │   └── feature/      # mỗi màn 1 thư mục: XxxScreen (View) · XxxViewModel · XxxContract (UiState)
+│       ├── test/             # unit test + dữ liệu giả (data/fake)
+│       └── androidTest/      # test trên Firebase thật (opt-in)
+├── firebase/
+│   ├── firebase.json         # emulator: Auth 9099, Firestore 8080, UI 4000
+│   ├── firestore.rules       # luật hiển thị + kiểm tra dữ liệu ghi
+│   ├── firestore.indexes.json
+│   └── tests/rules.test.js   # `npm test`: 3 tài khoản (chủ, bạn, người lạ) trên Firestore Emulator
+├── tools/                    # script Python: tạo logo, tách file Gemini
+└── docs/                     # database.md = mô hình Firestore + đánh đổi
 ```
 
 ## Quy tắc bắt buộc (riêng tư và bảo mật)
 
-1. Toạ độ gốc chỉ nằm trong `post_private_locations`, chỉ chủ bài đọc được. Bảng `posts` chỉ có `display_point` đã làm mờ (tâm phường/tỉnh, cố định, không cộng nhiễu ngẫu nhiên).
-2. Mọi việc lọc hiển thị (bạn bè, bài riêng, hẹn giờ, chặn, ẩn) làm trong Postgres (RLS + RPC), không bao giờ ở app.
-3. `public_visible_at` tính bằng `now()` của server, không nhận giờ từ app.
-4. Bật RLS cho **mọi** bảng. App chỉ có anon key. `service_role`, key VietMap, service account FCM chỉ nằm trong secrets của Edge Functions.
-5. Số trên bong bóng bản đồ đếm theo đúng luật hiển thị (không lộ bài hẹn giờ, bài của người bị chặn).
-6. Bucket ảnh `posts` là private; app dùng signed URL.
-7. Nhắn tin chỉ giữa bạn bè; `send_message` kiểm tra còn là bạn và không chặn nhau.
+1. Toạ độ GPS gốc chỉ nằm ở `posts/{id}/private/location`, chỉ tác giả đọc được. Document `posts` chỉ có `displayLat/Lng` đã làm mờ (tâm tỉnh / ô lưới ~2 km / điểm địa danh công khai), cố định, không cộng nhiễu ngẫu nhiên. Mức "Việt Nam" không lưu toạ độ nào.
+2. Lọc hiển thị (bạn bè, bài riêng, hẹn giờ, ẩn) nằm trong **Security Rules**; truy vấn của app phải khớp rules (rules không lọc hộ). Mỗi bài có `viewerIds`. Sửa rules thì thêm/sửa test trong `firebase/tests/` và chạy `npm test`.
+3. `publicVisibleAt` do app tính lúc gửi, rules bắt lệch ≤ 15 phút so với giờ server.
+4. App chỉ có khoá phía client: Firebase (apiKey/appId/projectId), Cloudinary cloud name + **upload preset Unsigned**, key VietMap (giới hạn theo package + SHA-1). **Không bao giờ** đưa Cloudinary API secret, service account Firebase vào app hay vào git.
+5. Số trên bong bóng bản đồ đếm từ các bài đã tải mà người dùng có quyền xem; không phải tổng toàn hệ thống.
+6. Ảnh Cloudinary là URL công khai khó đoán (postId UUID); app không xoá được ảnh (đã ghi trong docs/database.md).
+7. Nhắn tin chỉ giữa bạn bè; nội dung lấy từ Firestore.
 
-## Mô hình dữ liệu
+## Mô hình dữ liệu (Firestore)
 
-| Bảng | Trường chính |
+| Collection | Trường chính |
 | --- | --- |
-| profiles | id (= auth.users.id), username unique, display_name, avatar_path, default_location_level, created_at |
-| friendships | requester_id, addressee_id, status (pending, accepted), created_at |
-| posts | id (UUID do app tạo), author_id, image_path, caption (≤ 60), audience (friends, direct, public), location_level (place, ward, province, country), province_code, ward_code, place_id, landmark_id, display_point geography, public_visible_at, taken_at, status (active, hidden, deleted), reaction_count, report_count |
-| post_private_locations | post_id, exact_point geography, accuracy_m |
-| post_recipients | post_id, user_id (cho audience = direct) |
-| reactions | post_id, user_id, emoji, created_at |
-| provinces | code, name, centroid (34 dòng) |
-| wards | code, province_code, name, centroid (~3.300 dòng) |
-| landmarks | id, name, province_code, ward_code, point, category, cover_url, cover_attribution, wikidata_id, popularity |
-| places | id, vietmap_ref, name, address, point |
-| reports | post_id, reporter_id (unique theo cặp), reason, created_at |
-| blocks | blocker_id, blocked_id |
-| notifications | id, user_id, type, payload jsonb, read_at, created_at |
-| device_tokens | user_id, fcm_token, updated_at |
-| conversations | id, user_a, user_b (user_a < user_b, unique theo cặp), last_message_at |
-| messages | id (UUID do app tạo), conversation_id, sender_id, body, post_id, created_at |
-| conversation_reads | conversation_id, user_id, last_read_at |
+| users/{uid} | username, displayName, searchName, avatarUrl, bio, friendCount, createdAt |
+| users/{uid}/private/profile | email, birthYear, homeProvinceCode, defaultLocationLevel, notify* |
+| usernames/{username} | uid |
+| friendships/{uidNhỏ_uidLớn} | users[2], requesterId, addresseeId, status (pending, accepted), createdAt, acceptedAt |
+| blocks/{blocker_blocked} | blockerId, blockedId, createdAt |
+| posts/{postId} | authorId, author{…}, imageUrl, imagePublicId, caption (≤ 60), audience (friends, direct, public), viewerIds, recipientId, locationLevel (place, ward, province, country), provinceCode/Name, wardCode/Name, placeId/Name, landmarkId, displayLat/Lng, delayDays (0/1/3/7), publicVisibleAt, takenAt, createdAt, status (active, hidden), reactions {uid: emoji}, reportCount |
+| posts/{postId}/private/location | lat, lng, accuracyM |
+| posts/{postId}/reports/{uid} | reason, createdAt |
+| landmarks/{landmarkId} | name, searchName, address, description, provinceCode/Name, wardCode/Name, lat, lng (điểm công khai), vietmapRef, createdBy, createdAt, status (active, hidden), reportCount |
+| landmarks/{landmarkId}/reports/{uid} | reason, createdAt |
 
-## Luật hiển thị (một hàm SQL dùng chung, ví dụ `can_view_post(viewer, post)`)
+Ảnh của địa danh là bài **public** có `landmarkId` (toạ độ hiển thị = toạ độ địa danh, rules ép). Ảnh bìa = bài public đã hiện có nhiều cảm xúc nhất, app tự tính (xem `docs/database.md` mục 5b).
 
-Viewer V thấy bài P khi: P.status = active, hai bên không chặn nhau, và một trong bốn:
-- V là tác giả;
-- P.audience ∈ (friends, public) và V là bạn của tác giả (bạn bè thấy bài public ngay, kể cả đang hẹn giờ);
-- P.audience = direct và V nằm trong post_recipients;
-- P.audience = public và public_visible_at ≤ now().
+## Luật hiển thị (hàm `canRead()` trong `firebase/firestore.rules`)
 
-## RPC và Edge Functions
+Viewer V thấy bài P khi V là tác giả, hoặc P.status = active và một trong hai:
+- V nằm trong P.viewerIds (bạn bè của tác giả lúc gửi / người nhận bài riêng; bạn bè thấy bài public ngay, kể cả đang hẹn giờ);
+- P.audience = public và P.publicVisibleAt ≤ giờ server.
 
-| Tên | Đầu vào | Đầu ra / ghi chú |
-| --- | --- | --- |
-| create_post | postId, imagePath, caption, audience, level, lat, lng, placeId?, delayDays (0/1/3/7), recipientId? | Upsert theo postId; ghi toạ độ gốc vào bảng riêng; tính display_point theo level; direct thì ghi post_recipients + 1 message |
-| get_friend_feed | cursor | Bài bạn bè + bài riêng gửi mình, mới nhất trước |
-| get_discover_feed | wardCode, provinceCode (không lưu), cursor, snapshot_at | Xếp hạng: score = W_gần × W_địa_danh × (c+1)/(h+2)^1.5; W_gần 3/2/1 (cùng phường/cùng tỉnh/khác); W_địa_danh 1.5; tối đa 2 bài/người/trang |
-| get_map_bubbles | bbox, zoom, filter, timeRange | zoom < 8: theo tỉnh; 8–12: theo phường/xã (+ bong bóng "Khắp tỉnh"); ≥ 13: ghim place; landmark từ zoom 8; level country không lên bản đồ |
-| get_region_album, get_landmark | level/code hoặc landmarkId, cursor | |
-| react, report_post, block_user | | report ≥ 3 → status = hidden; tài khoản < 24 giờ không được báo cáo |
-| get_conversations, get_messages, send_message, mark_read | | Realtime: postgres_changes trên messages; "đang nhập" dùng broadcast, không ghi DB |
-| Edge reverse-geocode | lat, lng | provinceCode, wardCode, tên (gọi VietMap Reverse v4, giấu key) |
-| Edge place-search | text, lat, lng | Danh sách place |
-| Edge send-push | gọi từ trigger (pg_net) | FCM HTTP v1, data message |
-
-Phân trang bằng cursor (created_at, id), không dùng offset.
-
-## Thứ tự việc backend
-
-1. `supabase init`; migration bật `postgis`, `pg_net`, `pg_cron`.
-2. Schema + index (GIST cho geography, index cho cursor).
-3. RLS cho mọi bảng + hàm `can_view_post`, `are_friends`, `is_blocked`.
-4. RPC theo bảng trên.
-5. Storage bucket `posts` (private) + policy: chỉ ghi vào `posts/<uid>/...`.
-6. Trigger: report → ẩn bài; insert posts/messages → gọi send-push.
-7. Seed: 34 tỉnh, phường/xã, địa danh. **Chưa có nguồn dữ liệu phường/xã mới kèm toạ độ tâm: tìm nguồn, đề xuất cho nhóm và hỏi trước khi dùng.**
-8. Edge Functions.
-9. Test pgTAP: đăng nhập bằng 3 tài khoản (chủ, bạn, người lạ) để kiểm tra từng luật ở mục trên.
-10. GitHub Actions gọi API mỗi ngày để project Free không bị tạm dừng.
+Báo cáo: mỗi người 1 phiếu, tài khoản ≥ 24 giờ, đủ 3 phiếu thì `status = hidden` (rules ép). Chặn: xoá quan hệ bạn + rút tên khỏi viewerIds hai phía; người bị chặn vẫn thấy bài public của người chặn ở Khám phá (giới hạn của Rules).
 
 ## Thiết lập lần đầu
 
-1. Tạo project trên supabase.com, chọn region Singapore (gần Việt Nam nhất).
-2. Cài Supabase CLI, rồi: `supabase login` → `supabase link --project-ref <ref>`.
-3. Đẩy schema: `supabase db push`. Chạy local (cần Docker): `supabase start`.
-4. Secrets: `supabase secrets set VIETMAP_API_KEY=... FCM_SERVICE_ACCOUNT_JSON=...`
-5. Deploy function: `supabase functions deploy <tên>`.
-6. App Android chỉ nhận `SUPABASE_URL` và `SUPABASE_ANON_KEY` qua `local.properties` → BuildConfig; không commit file này.
+1. Firebase Console → tạo project (Spark) → Authentication: bật Email/Password và **Google** → Firestore: tạo database (region `asia-southeast1`).
+2. Thêm app Android package `vn.nhom2.lokap` → tải `google-services.json` vào `app/` (bắt buộc: plugin google-services đọc file này; không commit).
+   Đăng nhập Google (Credential Manager): **mỗi máy build** thêm SHA-1 debug của mình (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`) bằng `cd firebase && npx firebase apps:android:sha:create <app id> <SHA-1>` (app id = `mobilesdk_app_id` trong google-services.json). File google-services.json phải tải **sau** khi bật Google (`npx firebase apps:sdkconfig ANDROID <app id> -o ../app/google-services.json`) mới có Web client ID (`client_type` 3); thiếu thì nút Google báo "chưa được cấu hình".
+3. Đẩy rules + index: `cd firebase && npm install && npx firebase login && npx firebase use --add && npm run deploy`.
+4. Cloudinary Console → Upload presets → tạo preset **Unsigned**, folder `lokap` → điền `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_UPLOAD_PRESET` vào `.env`.
+5. VietMap Console → API Keys: key của consumer **API** → `VIETMAP_API_KEY` (tìm địa điểm, thêm địa danh, toạ độ → tỉnh/phường); key của consumer **Tilemap** → `VIETMAP_TILE_KEY` (bản đồ nền). Dùng chung 1 key thì bản đồ nền ăn hết hạn mức tìm kiếm (HTTP 423 "Your request is limited"). Không có key: bản đồ vẽ tay, đoán tỉnh theo tâm gần nhất.
+6. Chạy thử không cần project thật: `cd firebase && npm run emulators`, đặt `FIREBASE_EMULATOR_HOST` (xem `.env.example`).
+7. Build lỗi `jlink ... does not exist`: Gradle đang lấy JRE của extension VS Code → chạy với `JAVA_HOME` trỏ JDK đầy đủ.
+8. Firebase BoM giữ **34.12.0**: bản 35.x (auth 25) build bằng Kotlin 2.4, auth 24.1+ bằng 2.3 → Kotlin 2.2.10 không đọc được. Tương tự `googleid` giữ **1.2.0** (1.2.1 là Kotlin 2.4 dù POM ghi stdlib 1.8): kiểm tra `mv=` bằng `javap -v`, đừng tin POM.
 
 ## Thiết bị chạy thử (chốt 05/11)
 - Dùng **điện thoại Android thật** qua USB (`adb devices` phải thấy máy). **Không bật emulator**: laptop 16 GB RAM không gánh nổi emulator + Gradle (build từng mất 27 phút).
 - Trước khi chạy thử: `adb devices`. Không thấy máy thì dừng lại, nhắc người dùng kiểm tra cáp, USB debugging và hộp thoại "Cho phép gỡ lỗi USB" trên điện thoại; không tự bật emulator thay thế.
 - Chụp màn hình bằng `adb exec-out screencap -p`, lưu vào `docs/screenshots/`.
+- Trước khi gửi lệnh `adb shell input`: kiểm tra `dumpsys window | grep mCurrentFocus` là `vn.nhom2.lokap`. Điện thoại
+  thử là máy riêng của thành viên, đang dùng thì không chạm nhầm sang app khác.
 
 
 ## Quy chuẩn giao diện tối giản (chốt 06/11)
@@ -129,3 +110,10 @@ Phân trang bằng cursor (created_at, id), không dùng offset.
 - Ưu tiên icon hơn chữ; icon ≥ 24dp, nút chính 28–32dp, vùng chạm ≥ 48dp; luôn có contentDescription tiếng Việt.
 - Chữ trên ảnh căn giữa, có nền mờ tối phía sau để đọc được.
 - Áp dụng cho mọi màn mới và khi sửa màn cũ.
+
+## Dữ liệu ứng dụng (12/11/2026)
+
+- App luôn dùng Firebase; thiếu cấu hình Firebase thì build báo lỗi, không tự bật dữ liệu mẫu.
+- Fixtures và fake repositories chỉ nằm ở `app/src/test`, không đóng gói vào APK.
+- Bản đồ, album và hồ sơ dùng bài thật từ repository; nguồn rỗng thì hiển thị rỗng. Danh mục tỉnh ở `data/location/ProvinceCatalog.kt` là dữ liệu tham chiếu.
+- Tìm địa điểm dùng VietMap; chưa cấu hình thì báo chưa khả dụng. Không tự chọn avatar, năm sinh hoặc quê quán.

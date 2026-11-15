@@ -1,0 +1,70 @@
+name: Lokap · Emulator · A
+values:
+  - key: projectId
+    value: demo-lokap
+  - key: databaseId
+    value: (default)
+  - key: apiKey
+    value: fake-api-key
+  - key: authBaseUrl
+    value: 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1'
+  - key: tokenBaseUrl
+    value: 'http://127.0.0.1:9099/securetoken.googleapis.com/v1'
+  - key: firestoreBaseUrl
+    value: 'http://127.0.0.1:8080/v1'
+  - key: authEmulatorOrigin
+    value: 'http://127.0.0.1:9099'
+  - key: email
+    value: lokap.a@example.test
+  - key: password
+    value: Lokap-local-123!
+  - key: idToken
+    value: ''
+  - key: refreshToken
+    value: ''
+  - key: uid
+    value: ''
+  - key: oobCode
+    value: ''
+  - key: username
+    value: lokap.a
+  - key: displayName
+    value: Người thử Lokap
+  - key: bio
+    value: Thử API Lokap
+  - key: birthYear
+    value: '2000'
+  - key: peerUid
+    value: ''
+  - key: searchPrefix
+    value: lokap
+  - key: postId
+    value: ''
+  - key: postAuthorId
+    value: ''
+  - key: messageId
+    value: ''
+  - key: commentId
+    value: ''
+  - key: notificationId
+    value: ''
+  - key: imageUrl
+    value: 'https://res.cloudinary.com/demo/image/upload/sample.jpg'
+  - key: imagePublicId
+    value: sample
+  - key: caption
+    value: Khoảnh khắc từ Postman
+  - key: delayDays
+    value: '0'
+  - key: reaction
+    value: ❤️
+  - key: message
+    value: Chào bạn từ Postman!
+  - key: comment
+    value: Ảnh đẹp quá!
+  - key: reportReason
+    value: Nội dung không phù hợp
+  - key: reportCount
+    value: ''
+  - key: postUpdateTime
+    value: ''

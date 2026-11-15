@@ -46,11 +46,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateClearingBackStack
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import vn.nhom2.lokap.feature.auth.verify.VerifyEmailRoute
 fun NavGraphBuilder.loginScreen(navController: NavController) {
     composable<LoginRoute> {
         LoginRoute(
@@ -65,6 +68,9 @@ fun NavGraphBuilder.loginScreen(navController: NavController) {
             },
             onNavigateToForgotPassword = {
                 navController.navigate(ForgotPasswordRoute) { launchSingleTop = true }
+            },
+            onNavigateToVerifyEmail = { email ->
+                navController.navigate(VerifyEmailRoute(email = email, resendOnOpen = true)) { launchSingleTop = true }
             }
         )
     }
@@ -76,17 +82,29 @@ fun LoginRoute(
     onNavigateToSetupProfile: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
-    viewModel: LoginViewModel = viewModel()
+    onNavigateToVerifyEmail: (String) -> Unit,
+    viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val googleSignIn = rememberGoogleSignInLauncher()
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(googleSignIn) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 LoginEffect.NavigateToCamera -> onNavigateToCamera()
                 LoginEffect.NavigateToSetupProfile -> onNavigateToSetupProfile()
                 LoginEffect.NavigateToRegister -> onNavigateToRegister()
                 LoginEffect.NavigateToForgotPassword -> onNavigateToForgotPassword()
+                is LoginEffect.NavigateToVerifyEmail -> onNavigateToVerifyEmail(effect.email)
+                LoginEffect.LaunchGoogleSignIn -> launch {
+                    // Màn bị huỷ giữa chừng (xoay máy…) thì vẫn báo Cancelled để nút Google hết quay
+                    var result: GoogleSignInResult = GoogleSignInResult.Cancelled
+                    try {
+                        result = googleSignIn.launch()
+                    } finally {
+                        viewModel.onAction(LoginAction.GoogleSignInFinished(result))
+                    }
+                }
             }
         }
     }
@@ -150,7 +168,7 @@ fun LoginScreen(
             onValueChange = { onAction(LoginAction.EmailChanged(it)) },
             enabled = !uiState.isBusy,
             label = { Text("Email") },
-            placeholder = { Text("demo@lokap.vn") },
+            placeholder = { Text("email@example.com") },
             leadingIcon = {
                 Icon(imageVector = Icons.Default.Email, contentDescription = null)
             },
@@ -284,37 +302,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
 
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = LokapTheme.colors.primary.copy(alpha = 0.08f),
-            border = BorderStroke(1.dp, LokapTheme.colors.primary.copy(alpha = 0.25f)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(enabled = !uiState.isBusy) {
-                    onAction(LoginAction.AutofillDemoAccount)
-                }
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.FlashOn,
-                    contentDescription = null,
-                    tint = LokapTheme.colors.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Chạm để dùng tài khoản mẫu: demo@lokap.vn",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = LokapTheme.colors.primary
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
 
         Row(
@@ -391,7 +378,7 @@ internal fun lokapTextFieldColors() = OutlinedTextFieldDefaults.colors(
 private fun LoginScreenDefaultPreview() {
     LokapTheme {
         LoginScreen(
-            uiState = LoginUiState(email = "demo@lokap.vn"),
+            uiState = LoginUiState(email = "email@example.com"),
             onAction = {}
         )
     }
@@ -422,7 +409,7 @@ private fun LoginScreenOfflinePreview() {
     LokapTheme {
         LoginScreen(
             uiState = LoginUiState(
-                email = "demo@lokap.vn",
+                email = "email@example.com",
                 password = "lokap123",
                 isOffline = true,
                 serverError = "Mất kết nối mạng. Vui lòng kiểm tra và thử lại."

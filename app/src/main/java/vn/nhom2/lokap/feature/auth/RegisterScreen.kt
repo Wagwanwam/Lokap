@@ -13,12 +13,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,6 +52,8 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
 import vn.nhom2.lokap.feature.auth.setup.SetupProfileRoute
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import vn.nhom2.lokap.feature.auth.verify.VerifyEmailRoute
 fun NavGraphBuilder.registerScreen(navController: NavController) {
     composable<RegisterRoute> {
         RegisterRoute(
@@ -55,6 +62,9 @@ fun NavGraphBuilder.registerScreen(navController: NavController) {
             },
             onNavigateBackToLogin = {
                 navController.popBackStackSafely()
+            },
+            onNavigateToVerifyEmail = { email ->
+                navController.navigate(VerifyEmailRoute(email = email)) { launchSingleTop = true }
             }
         )
     }
@@ -64,7 +74,8 @@ fun NavGraphBuilder.registerScreen(navController: NavController) {
 fun RegisterRoute(
     onNavigateToSetupProfile: () -> Unit,
     onNavigateBackToLogin: () -> Unit,
-    viewModel: RegisterViewModel = viewModel()
+    onNavigateToVerifyEmail: (String) -> Unit,
+    viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -73,6 +84,7 @@ fun RegisterRoute(
             when (effect) {
                 RegisterEffect.NavigateToSetupProfile -> onNavigateToSetupProfile()
                 RegisterEffect.NavigateBackToLogin -> onNavigateBackToLogin()
+                is RegisterEffect.NavigateToVerifyEmail -> onNavigateToVerifyEmail(effect.email)
             }
         }
     }
@@ -124,7 +136,7 @@ fun RegisterScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Quay lại",
                         tint = colors.textPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                 }
             }
@@ -162,13 +174,7 @@ fun RegisterScreen(
             color = colors.textPrimary
         )
 
-        Spacer(modifier = Modifier.height(spacing.xs))
 
-        Text(
-            text = "Nhập email và mật khẩu an toàn để khởi tạo tài khoản.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.textSecondary
-        )
 
         Spacer(modifier = Modifier.height(spacing.lg))
 
@@ -196,7 +202,11 @@ fun RegisterScreen(
                                 tint = if (uiState.emailError != null) colors.error else colors.primary
                             )
                         },
-                        isError = uiState.emailError != null,
+                        // Kiểm tra email trùng ngay khi gõ (debounce trong RegisterViewModel)
+                        trailingIcon = {
+                            EmailAvailabilityTrailingIcon(availability = uiState.emailAvailability)
+                        },
+                        isError = uiState.emailError != null || uiState.emailAvailability == EmailAvailability.TAKEN,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
@@ -350,7 +360,7 @@ fun RegisterScreen(
                             )
                         )
                         Text(
-                            text = "Tôi đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của Lokap",
+                            text = "Đồng ý Điều khoản & Chính sách",
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textPrimary,
                             modifier = Modifier.padding(start = 6.dp)
@@ -445,8 +455,43 @@ private fun PasswordStrengthBar(strength: PasswordStrength) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
                 color = animatedColor
+            )
+        }
+    }
+}
+
+/** Biểu tượng cuối ô email: đang kiểm tra / dùng được / đã có người dùng. */
+@Composable
+private fun EmailAvailabilityTrailingIcon(availability: EmailAvailability) {
+    when (availability) {
+        EmailAvailability.IDLE -> Unit
+        EmailAvailability.CHECKING -> {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(20.dp)
+                    .semantics { contentDescription = "Đang kiểm tra email" },
+                strokeWidth = 2.dp,
+                color = LokapTheme.colors.primary
+            )
+        }
+
+        EmailAvailability.AVAILABLE -> {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = "Email dùng được",
+                tint = LokapTheme.colors.success,
+                modifier = Modifier.size(30.dp)
+            )
+        }
+
+        EmailAvailability.TAKEN -> {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "Email đã được đăng ký",
+                tint = LokapTheme.colors.error,
+                modifier = Modifier.size(30.dp)
             )
         }
     }

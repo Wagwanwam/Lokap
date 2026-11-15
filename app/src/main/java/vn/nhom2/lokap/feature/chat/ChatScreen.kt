@@ -1,5 +1,6 @@
 package vn.nhom2.lokap.feature.chat
 
+import android.content.ClipData
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,23 +19,29 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.*
 import androidx.navigation.compose.composable
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.common.formatTimeAgo
 import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.*
 private val WallpaperScrimBrush = Brush.verticalGradient(
     colors = listOf(
@@ -89,17 +96,31 @@ fun ChatRoute(
     onNavigateToCamera: () -> Unit,
     onNavigateToPostDetail: (String) -> Unit,
     onNavigateToProfile: (String) -> Unit,
-    viewModel: ChatViewModel = viewModel()
+    viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                ChatEffect.NavigateBack -> onNavigateBack()
-                ChatEffect.NavigateToCamera -> onNavigateToCamera()
-                is ChatEffect.NavigateToPostDetail -> onNavigateToPostDetail(effect.postId)
-                is ChatEffect.NavigateToProfile -> onNavigateToProfile(effect.userId)
+                // Bỏ focus ô nhập trước khi rời màn: bàn phím ẩn ngay, không che màn kế tiếp suốt animation
+                ChatEffect.NavigateBack -> {
+                    focusManager.clearFocus(force = true)
+                    onNavigateBack()
+                }
+                ChatEffect.NavigateToCamera -> {
+                    focusManager.clearFocus(force = true)
+                    onNavigateToCamera()
+                }
+                is ChatEffect.NavigateToPostDetail -> {
+                    focusManager.clearFocus(force = true)
+                    onNavigateToPostDetail(effect.postId)
+                }
+                is ChatEffect.NavigateToProfile -> {
+                    focusManager.clearFocus(force = true)
+                    onNavigateToProfile(effect.userId)
+                }
             }
         }
     }
@@ -117,6 +138,10 @@ fun ChatScreen(
     onAction: (ChatAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (uiState.editingMessage != null) ContentEditDialog("Sửa tin nhắn", uiState.editText, uiState.isSaving,
+        { onAction(ChatAction.EditTextChanged(it)) }, { onAction(ChatAction.SaveEdit) }, { onAction(ChatAction.DismissEdit) })
+    if (uiState.deletingMessageId != null) ContentDeleteDialog("Xoá tin nhắn?", uiState.isSaving,
+        { onAction(ChatAction.ConfirmDelete) }, { onAction(ChatAction.DismissDelete) })
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
     val themeConfig = uiState.themeConfig
@@ -213,8 +238,7 @@ fun ChatScreen(
                     uiState.timelineItems.isEmpty() -> {
                         val friendName = uiState.friend?.displayName ?: "bạn mới"
                         EmptyState(
-                            title = "Gửi lời chào đến $friendName",
-                            subtitle = "Chụp một khoảnh khắc riêng hoặc nhắn gì đó cùng bạn bè",
+                            title = "Chào $friendName 👋",
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(spacing.lg)
@@ -263,6 +287,8 @@ fun ChatScreen(
                                             onPostClick = { postId ->
                                                 onAction(ChatAction.OpenPostDetail(postId))
                                             },
+                                            onEdit = { onAction(ChatAction.EditMessage(item.message)) },
+                                            onDelete = { onAction(ChatAction.DeleteMessage(item.message.id)) },
                                             onRetryClick = { messageId ->
                                                 onAction(ChatAction.RetryMessage(messageId))
                                             }
@@ -337,12 +363,12 @@ private fun ChatTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onBackClick),
                 contentAlignment = Alignment.Center
@@ -351,7 +377,7 @@ private fun ChatTopBar(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Quay lại",
                     tint = if (hasCustomWallpaper) Color.White else colors.textPrimary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
@@ -359,32 +385,32 @@ private fun ChatTopBar(
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable(onClick = onProfileClick)
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(contentAlignment = Alignment.BottomEnd) {
                         AvatarRing(
                             avatarUrl = friend.avatarUrl,
                             displayName = friend.displayName,
-                            size = 32.dp,
+                            size = 42.dp,
                             onClick = onProfileClick
                         )
                         OnlineIndicatorDot(
-                            size = 8.dp,
+                            size = 11.dp,
                             isOnline = true
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     Column {
                         Text(
                             text = friend.displayName,
-                            style = MaterialTheme.typography.titleSmall.copy(
+                            style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.5.sp
+                                fontSize = 18.sp
                             ),
                             color = if (hasCustomWallpaper) Color.White else colors.textPrimary,
                             maxLines = 1,
@@ -394,9 +420,9 @@ private fun ChatTopBar(
                         val subtitleColor = if (isFriendTyping) activePreset.primaryColor else if (hasCustomWallpaper) Color.White.copy(alpha = 0.75f) else colors.textSecondary
                         Text(
                             text = subtitleText,
-                            style = MaterialTheme.typography.labelSmall.copy(
+                            style = MaterialTheme.typography.labelMedium.copy(
                                 fontWeight = if (isFriendTyping) FontWeight.SemiBold else FontWeight.Normal,
-                                fontSize = 11.sp
+                                fontSize = 14.sp
                             ),
                             color = subtitleColor
                         )
@@ -408,7 +434,7 @@ private fun ChatTopBar(
 
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onThemeClick),
                 contentAlignment = Alignment.Center
@@ -417,15 +443,13 @@ private fun ChatTopBar(
                     imageVector = Icons.Rounded.Palette,
                     contentDescription = "Đổi chủ đề",
                     tint = if (hasCustomWallpaper) Color.White else activePreset.primaryColor,
-                    modifier = Modifier.size(17.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
-
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onProfileClick),
                 contentAlignment = Alignment.Center
@@ -434,7 +458,7 @@ private fun ChatTopBar(
                     imageVector = Icons.Rounded.Info,
                     contentDescription = "Thông tin",
                     tint = if (hasCustomWallpaper) Color.White.copy(alpha = 0.85f) else colors.textSecondary,
-                    modifier = Modifier.size(17.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
@@ -458,15 +482,15 @@ private fun ChatDateSeparator(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
+            style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = FontWeight.Medium,
-                fontSize = 11.sp
+                fontSize = 13.5.sp
             ),
             color = if (hasCustomWallpaper) Color.White.copy(alpha = 0.85f) else colors.textSecondary,
             modifier = Modifier
                 .clip(shapes.pill)
                 .background(if (hasCustomWallpaper) Color.Black.copy(alpha = 0.45f) else colors.surface.copy(alpha = 0.9f))
-                .padding(horizontal = 10.dp, vertical = 3.dp)
+                .padding(horizontal = 12.dp, vertical = 4.dp)
         )
     }
 }
@@ -477,7 +501,9 @@ private fun ChatMessageBubbleItem(
     now: java.time.Instant,
     themeConfig: ChatThemeConfig,
     onPostClick: (String) -> Unit,
-    onRetryClick: (String) -> Unit
+    onRetryClick: (String) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -487,6 +513,26 @@ private fun ChatMessageBubbleItem(
     val isFailed = message.sendState == PostSendState.FAILED
     val hasCustomWallpaper = !themeConfig.customWallpaperUri.isNullOrBlank()
     val activePreset = themeConfig.activePreset
+
+    val shouldShowBody = !message.body.isNullOrBlank() &&
+        (message.attachedPost == null || message.body != message.attachedPost.caption)
+    // Nhấn giữ tin nhắn → popup tuỳ chọn. Chỉ sửa/xoá tin của mình đã gửi xong.
+    val canCopy = shouldShowBody
+    val canEdit = isMine && !isPending && shouldShowBody
+    val canDelete = isMine && !isPending
+    val hasMenu = canCopy || canEdit || canDelete
+    var isMenuOpen by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val openMenu: (() -> Unit)? = if (hasMenu) {
+        {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            isMenuOpen = true
+        }
+    } else {
+        null
+    }
 
     Column(
         modifier = Modifier
@@ -504,51 +550,101 @@ private fun ChatMessageBubbleItem(
             Spacer(modifier = Modifier.height(spacing.xs))
         }
 
-        if (message.attachedPost != null) {
-            AttachedLocketPostCard(
-                post = message.attachedPost,
-                onClick = { onPostClick(message.attachedPost.id) }
-            )
-            if (!message.body.isNullOrBlank() && message.body != message.attachedPost.caption) {
-                Spacer(modifier = Modifier.height(4.dp))
+        // Box làm mốc cho popup: menu hiện ngay dưới ảnh/bong bóng được nhấn giữ
+        Box {
+            Column(horizontalAlignment = if (isMine) Alignment.End else Alignment.Start) {
+                if (message.attachedPost != null) {
+                    AttachedLocketPostCard(
+                        post = message.attachedPost,
+                        onClick = { onPostClick(message.attachedPost.id) },
+                        onLongClick = openMenu
+                    )
+                    if (shouldShowBody) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+
+                if (shouldShowBody) {
+                    val bubbleShape = if (isMine) MineBubbleShape else OtherBubbleShape
+                    val bubbleBackground = if (isMine) {
+                        Modifier.background(activePreset.getBubbleBrush())
+                    } else {
+                        Modifier.background(if (hasCustomWallpaper) Color.Black.copy(alpha = 0.68f) else colors.surfaceHigh)
+                    }
+
+                    val textColor = if (isMine) {
+                        activePreset.bubbleTextColor
+                    } else {
+                        if (hasCustomWallpaper) Color.White else colors.textPrimary
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .widthIn(max = 300.dp)
+                            .clip(bubbleShape)
+                            .then(bubbleBackground)
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = openMenu,
+                                onLongClickLabel = "Tuỳ chọn tin nhắn"
+                            )
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = message.body,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = 17.sp,
+                                lineHeight = 24.sp
+                            ),
+                            color = textColor
+                        )
+                    }
+                }
             }
-        }
 
-        val shouldShowBody = !message.body.isNullOrBlank() &&
-            (message.attachedPost == null || message.body != message.attachedPost.caption)
-
-        if (shouldShowBody) {
-            val bubbleShape = if (isMine) MineBubbleShape else OtherBubbleShape
-
-            val bubbleModifier = if (isMine) {
-                Modifier
-                    .widthIn(max = 280.dp)
-                    .clip(bubbleShape)
-                    .background(activePreset.getBubbleBrush())
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            } else {
-                Modifier
-                    .widthIn(max = 280.dp)
-                    .clip(bubbleShape)
-                    .background(if (hasCustomWallpaper) Color.Black.copy(alpha = 0.68f) else colors.surfaceHigh)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            }
-
-            val textColor = if (isMine) {
-                activePreset.bubbleTextColor
-            } else {
-                if (hasCustomWallpaper) Color.White else colors.textPrimary
-            }
-
-            Box(modifier = bubbleModifier) {
-                Text(
-                    text = message.body,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.5.sp,
-                        lineHeight = 19.sp
-                    ),
-                    color = textColor
-                )
+            DropdownMenu(
+                expanded = isMenuOpen,
+                onDismissRequest = { isMenuOpen = false },
+                containerColor = colors.surface,
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                if (canCopy) {
+                    MessageMenuItem(
+                        label = "Sao chép",
+                        icon = Icons.Rounded.ContentCopy,
+                        tint = colors.textPrimary,
+                        onClick = {
+                            isMenuOpen = false
+                            scope.launch {
+                                clipboard.setClipEntry(
+                                    ClipData.newPlainText("Tin nhắn", message.body).toClipEntry()
+                                )
+                            }
+                        }
+                    )
+                }
+                if (canEdit) {
+                    MessageMenuItem(
+                        label = "Sửa",
+                        icon = Icons.Rounded.Edit,
+                        tint = colors.textPrimary,
+                        onClick = {
+                            isMenuOpen = false
+                            onEdit()
+                        }
+                    )
+                }
+                if (canDelete) {
+                    MessageMenuItem(
+                        label = "Xoá",
+                        icon = Icons.Rounded.Delete,
+                        tint = colors.error,
+                        onClick = {
+                            isMenuOpen = false
+                            onDelete()
+                        }
+                    )
+                }
             }
         }
 
@@ -564,6 +660,37 @@ private fun ChatMessageBubbleItem(
             onRetryClick = { onRetryClick(message.id) }
         )
     }
+}
+
+@Composable
+private fun MessageMenuItem(
+    label: String,
+    icon: ImageVector,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 16.sp
+                ),
+                color = tint
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(24.dp)
+            )
+        },
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 48.dp)
+    )
 }
 
 @Composable
@@ -598,20 +725,20 @@ private fun ReplyToPostHeader(
         Column(modifier = Modifier.padding(end = spacing.sm)) {
             Text(
                 text = "Trả lời ảnh",
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 11.5.sp
+                    fontSize = 14.sp
                 ),
                 color = if (isMine) colors.primary else colors.accentLilac
             )
             if (!post.caption.isNullOrBlank()) {
                 Text(
                     text = post.caption,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
                     color = if (hasCustomWallpaper) Color.White.copy(alpha = 0.85f) else colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 160.dp)
+                    modifier = Modifier.widthIn(max = 180.dp)
                 )
             }
         }
@@ -621,7 +748,8 @@ private fun ReplyToPostHeader(
 @Composable
 private fun AttachedLocketPostCard(
     post: Post,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)?
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -629,10 +757,14 @@ private fun AttachedLocketPostCard(
 
     Box(
         modifier = Modifier
-            .size(200.dp)
+            .size(220.dp)
             .clip(cardShape)
             .background(colors.surfaceHigh)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                onLongClickLabel = if (onLongClick != null) "Tuỳ chọn tin nhắn" else null
+            )
     ) {
         AsyncImage(
             model = post.imageUrl,
@@ -650,9 +782,9 @@ private fun AttachedLocketPostCard(
             ) {
                 Text(
                     text = post.caption,
-                    style = MaterialTheme.typography.labelSmall.copy(
+                    style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.5.sp
+                        fontSize = 14.5.sp
                     ),
                     color = colors.textPrimary,
                     maxLines = 1,
@@ -687,7 +819,7 @@ private fun MessageDeliveryFooter(
         isMine && isPending -> {
             Text(
                 text = "Đang gửi…",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
                 color = if (hasCustomWallpaper) Color.White.copy(alpha = 0.7f) else colors.textTertiary,
                 modifier = Modifier.padding(top = 2.dp)
             )
@@ -700,7 +832,7 @@ private fun MessageDeliveryFooter(
             ) {
                 Text(
                     text = "Gửi thất bại",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                    style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
                     color = colors.error
                 )
                 Spacer(modifier = Modifier.width(spacing.xs))
@@ -712,14 +844,14 @@ private fun MessageDeliveryFooter(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
                         tint = colors.primary,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Thử lại",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.5.sp
+                            fontSize = 13.sp
                         ),
                         color = colors.primary
                     )
@@ -737,12 +869,12 @@ private fun MessageDeliveryFooter(
                     imageVector = if (message.seen) Icons.Rounded.DoneAll else Icons.Rounded.Done,
                     contentDescription = null,
                     tint = if (message.seen) activePreset.primaryColor else if (hasCustomWallpaper) Color.White.copy(alpha = 0.75f) else colors.textTertiary,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(18.dp)
                 )
                 val statusLabel = if (message.seen) "Đã xem" else "Đã gửi"
                 Text(
                     text = "$statusLabel • ${formatTimeAgo(message.createdAt, now)}",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                    style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
                     color = if (message.seen) activePreset.primaryColor else if (hasCustomWallpaper) Color.White.copy(alpha = 0.75f) else colors.textTertiary
                 )
             }
@@ -783,14 +915,15 @@ private fun ChatBottomInputBar(
                     imageVector = Icons.Default.Lock,
                     contentDescription = null,
                     tint = colors.textTertiary,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(30.dp)
                 )
                 Spacer(modifier = Modifier.width(spacing.sm))
+                // Chốt 06/11: icon khoá + chữ ngắn nói rõ lý do bị khoá
                 Text(
-                    text = "Bạn không thể nhắn tin với người này",
+                    text = "Chưa là bạn",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Medium,
-                        fontSize = 13.sp
+                        fontSize = 16.sp
                     ),
                     color = if (hasCustomWallpaper) Color.White.copy(alpha = 0.75f) else colors.textSecondary
                 )
@@ -807,12 +940,12 @@ private fun ChatBottomInputBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
                     .background(if (hasCustomWallpaper) Color.White.copy(alpha = 0.16f) else activePreset.primaryColor.copy(alpha = 0.12f))
                     .clickable(onClick = onCameraClick),
@@ -822,7 +955,7 @@ private fun ChatBottomInputBar(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = "Chụp ảnh gửi riêng",
                     tint = if (hasCustomWallpaper) Color.White else activePreset.primaryColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
 
@@ -831,14 +964,16 @@ private fun ChatBottomInputBar(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(18.dp))
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(24.dp))
                     .background(if (hasCustomWallpaper) Color.White.copy(alpha = 0.14f) else colors.surfaceHigh)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
                 if (inputText.isEmpty()) {
                     Text(
                         text = "Nhắn tin…",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp),
                         color = if (hasCustomWallpaper) Color.White.copy(alpha = 0.55f) else colors.textTertiary
                     )
                 }
@@ -849,8 +984,9 @@ private fun ChatBottomInputBar(
                             onInputChanged(newText)
                         }
                     },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.5.sp,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 17.sp,
+                        lineHeight = 23.sp,
                         color = if (hasCustomWallpaper) Color.White else colors.textPrimary
                     ),
                     cursorBrush = SolidColor(if (hasCustomWallpaper) Color.White else activePreset.primaryColor),
@@ -864,7 +1000,7 @@ private fun ChatBottomInputBar(
             if (canSend) {
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(activePreset.primaryColor)
                         .clickable(onClick = onSendClick),
@@ -874,19 +1010,19 @@ private fun ChatBottomInputBar(
                         imageVector = Icons.AutoMirrored.Rounded.Send,
                         contentDescription = "Gửi",
                         tint = Color.White,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             } else {
                 Box(
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(44.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.Send,
                         contentDescription = "Gửi",
                         tint = if (hasCustomWallpaper) Color.White.copy(alpha = 0.35f) else colors.textTertiary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -936,7 +1072,7 @@ private fun ChatThemeBottomSheet(
                     text = "Chủ đề & Hình nền",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        fontSize = 17.5.sp
                     ),
                     color = colors.textPrimary
                 )
@@ -948,7 +1084,7 @@ private fun ChatThemeBottomSheet(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Đóng",
                         tint = colors.textSecondary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
@@ -990,7 +1126,7 @@ private fun ChatThemeBottomSheet(
                                         imageVector = Icons.Rounded.Image,
                                         contentDescription = null,
                                         tint = colors.primary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(25.dp)
                                     )
                                 }
                             }
@@ -1001,13 +1137,13 @@ private fun ChatThemeBottomSheet(
                                 text = if (!themeConfig.customWallpaperUri.isNullOrBlank()) "Đang dùng ảnh thiết bị" else "Hình nền từ thư viện",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 13.5.sp
+                                    fontSize = 14.5.sp
                                 ),
                                 color = colors.textPrimary
                             )
                             Text(
                                 text = "Chọn ảnh và cắt chỉnh vừa màn hình",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
                                 color = colors.textSecondary
                             )
                         }
@@ -1023,7 +1159,7 @@ private fun ChatThemeBottomSheet(
                                     imageVector = Icons.Rounded.Delete,
                                     contentDescription = "Gỡ ảnh",
                                     tint = colors.error,
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(21.dp)
                                 )
                             }
                         }
@@ -1044,7 +1180,7 @@ private fun ChatThemeBottomSheet(
                                     text = if (!themeConfig.customWallpaperUri.isNullOrBlank()) "Đổi ảnh" else "Chọn ảnh",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
+                                        fontSize = 13.5.sp
                                     ),
                                     color = Color.White
                                 )
@@ -1059,7 +1195,7 @@ private fun ChatThemeBottomSheet(
                     text = "Màu đơn sắc",
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.5.sp
+                        fontSize = 14.sp
                     ),
                     color = colors.textSecondary
                 )
@@ -1097,14 +1233,14 @@ private fun ChatThemeBottomSheet(
                                         imageVector = Icons.Rounded.Check,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                             }
                             Text(
                                 text = preset.nameVi,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 ),
                                 color = if (isSelected) colors.primary else colors.textSecondary
@@ -1122,7 +1258,7 @@ private fun ChatThemeBottomSheet(
                     text = "Gradient",
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.5.sp
+                        fontSize = 14.sp
                     ),
                     color = colors.textSecondary
                 )
@@ -1160,14 +1296,14 @@ private fun ChatThemeBottomSheet(
                                         imageVector = Icons.Rounded.Check,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                             }
                             Text(
                                 text = preset.nameVi,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 ),
                                 color = if (isSelected) colors.primary else colors.textSecondary
@@ -1226,13 +1362,13 @@ private fun WallpaperCropDialog(
                             imageVector = Icons.Rounded.Crop,
                             contentDescription = null,
                             tint = colors.primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                         Text(
                             text = "Căn vị trí ảnh nền",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.5.sp
+                                fontSize = 17.sp
                             ),
                             color = colors.textPrimary
                         )
@@ -1245,7 +1381,7 @@ private fun WallpaperCropDialog(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Huỷ",
                             tint = colors.textSecondary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -1288,7 +1424,7 @@ private fun WallpaperCropDialog(
                         ) {
                             Text(
                                 text = "Xem trước hình nền chat ✨",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),
                                 color = activePreset.bubbleTextColor
                             )
                         }
@@ -1318,7 +1454,7 @@ private fun WallpaperCropDialog(
                                 Text(
                                     text = label,
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 11.5.sp,
+                                        fontSize = 13.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     ),
                                     color = if (isSelected) colors.primary else colors.textPrimary
@@ -1357,7 +1493,7 @@ private fun WallpaperCropDialog(
                                 text = "Đặt làm hình nền",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.5.sp
+                                    fontSize = 14.sp
                                 ),
                                 color = Color.White
                             )
@@ -1393,54 +1529,5 @@ private fun ChatLoadingSkeleton() {
                 )
             }
         }
-    }
-}
-
-@Preview(name = "Chat - Đang trò chuyện", showBackground = true)
-@Composable
-private fun ChatScreenActivePreview() {
-    LokapTheme {
-        val friend = SampleData.users.firstOrNull { it.id != SampleData.currentUser.id }
-            ?: SampleData.currentUser
-        val samplePost = SampleData.posts.firstOrNull()
-        val messages = listOf(
-            Message(
-                id = "m1",
-                conversationId = "c1",
-                senderId = friend.id,
-                body = "Góc chụp đẹp ghê, đứng bên đường Trần Hưng Đạo hả?",
-                replyToPost = null,
-                attachedPost = samplePost,
-                createdAt = SampleData.NOW.minusSeconds(3600),
-                sendState = PostSendState.SENT,
-                seen = true
-            ),
-            Message(
-                id = "m2",
-                conversationId = "c1",
-                senderId = SampleData.currentUser.id,
-                body = "Đúng rồi, đứng ngay đầu cầu luôn.",
-                replyToPost = samplePost,
-                attachedPost = null,
-                createdAt = SampleData.NOW.minusSeconds(300),
-                sendState = PostSendState.SENT,
-                seen = true
-            )
-        )
-        val timeline = ChatViewModel.buildReverseTimeline(
-            messagesAscending = messages,
-            myUserId = SampleData.currentUser.id,
-            now = SampleData.NOW
-        )
-        ChatScreen(
-            uiState = ChatUiState(
-                conversationId = "c1",
-                friend = friend,
-                timelineItems = timeline,
-                inputText = "Tối nay đi cà phê không?",
-                isFriendTyping = true
-            ),
-            onAction = {}
-        )
     }
 }

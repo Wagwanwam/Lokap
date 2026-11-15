@@ -44,6 +44,9 @@ enum class MainTab(val title: String) {
     PROFILE("Hồ sơ")
 }
 
+/** Chiều cao hàng tab (chưa tính thanh điều hướng hệ thống); màn nằm dưới thanh này dùng để chừa chỗ. */
+val LokapBottomNavBarHeight = 68.dp
+
 @Composable
 fun LokapBottomNavBar(
     currentTab: MainTab,
@@ -71,9 +74,8 @@ fun LokapBottomNavBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .height(LokapBottomNavBarHeight)
                     .padding(horizontal = spacing.xs),
-                horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
 
@@ -81,14 +83,16 @@ fun LokapBottomNavBar(
                     icon = if (currentTab == MainTab.FEED) Icons.Filled.Explore else Icons.Outlined.Explore,
                     label = MainTab.FEED.title,
                     isSelected = currentTab == MainTab.FEED,
-                    onClick = { onTabSelected(MainTab.FEED) }
+                    onClick = { onTabSelected(MainTab.FEED) },
+                    modifier = Modifier.weight(1f)
                 )
 
                 BottomNavItem(
                     icon = if (currentTab == MainTab.MAP) Icons.Filled.Map else Icons.Outlined.Map,
                     label = MainTab.MAP.title,
                     isSelected = currentTab == MainTab.MAP,
-                    onClick = { onTabSelected(MainTab.MAP) }
+                    onClick = { onTabSelected(MainTab.MAP) },
+                    modifier = Modifier.weight(1f)
                 )
 
                 CameraCenterButton(
@@ -100,14 +104,16 @@ fun LokapBottomNavBar(
                     icon = if (currentTab == MainTab.INBOX) Icons.Filled.ChatBubble else Icons.Outlined.ChatBubbleOutline,
                     label = MainTab.INBOX.title,
                     isSelected = currentTab == MainTab.INBOX,
-                    onClick = { onTabSelected(MainTab.INBOX) }
+                    onClick = { onTabSelected(MainTab.INBOX) },
+                    modifier = Modifier.weight(1f)
                 )
 
                 BottomNavItem(
                     icon = if (currentTab == MainTab.PROFILE) Icons.Filled.Person else Icons.Outlined.PersonOutline,
                     label = MainTab.PROFILE.title,
                     isSelected = currentTab == MainTab.PROFILE,
-                    onClick = { onTabSelected(MainTab.PROFILE) }
+                    onClick = { onTabSelected(MainTab.PROFILE) },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -137,7 +143,7 @@ private fun CameraCenterButton(
 
     Box(
         modifier = Modifier
-            .size(52.dp)
+            .size(58.dp)
             .scale(scale)
             .clip(CircleShape)
             .background(
@@ -158,7 +164,7 @@ private fun CameraCenterButton(
     ) {
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .background(colors.primary),
             contentAlignment = Alignment.Center
@@ -167,7 +173,7 @@ private fun CameraCenterButton(
                 imageVector = Icons.Filled.PhotoCamera,
                 contentDescription = "Chụp ảnh",
                 tint = colors.onPrimary,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(32.dp)
             )
         }
     }
@@ -178,7 +184,8 @@ private fun BottomNavItem(
     icon: ImageVector,
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = LokapTheme.colors
     val interactionSource = remember { MutableInteractionSource() }
@@ -201,20 +208,16 @@ private fun BottomNavItem(
         animationSpec = spring(stiffness = Spring.StiffnessLow)
     )
 
-    val indicatorWidth by animateDpAsState(
-        targetValue = if (isSelected) 12.dp else 0.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
-    )
-
     Column(
-        modifier = Modifier
+        modifier = modifier
+            .fillMaxHeight()
             .clip(RoundedCornerShape(12.dp))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -223,26 +226,20 @@ private fun BottomNavItem(
             contentDescription = label,
             tint = itemColor,
             modifier = Modifier
-                .size(22.dp)
+                .size(32.dp)
                 .scale(scale)
         )
-        Spacer(Modifier.height(3.dp))
-        Text(
+        // Nhãn lấp gần hết bề ngang ô tab; cùng cỡ tối đa để các tab đều nhau
+        FitText(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-            ),
-            color = itemColor
-        )
-        Spacer(Modifier.height(2.dp))
-
-        Box(
+            color = itemColor,
+            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
+            widthFraction = 0.9f,
+            heightFraction = 1f,
+            maxFontSize = 12.sp,
             modifier = Modifier
-                .height(2.5.dp)
-                .width(indicatorWidth)
-                .clip(CircleShape)
-                .background(if (isSelected) colors.primary else Color.Transparent)
+                .fillMaxWidth()
+                .height(18.dp)
         )
     }
 }

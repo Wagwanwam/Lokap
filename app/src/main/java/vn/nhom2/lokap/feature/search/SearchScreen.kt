@@ -2,6 +2,7 @@ package vn.nhom2.lokap.feature.search
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -14,7 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.rounded.HowToReg
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Search
@@ -30,18 +33,30 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -50,7 +65,7 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.presence.PresenceStore
+import vn.nhom2.lokap.core.navigation.rememberEntrySettled
 import vn.nhom2.lokap.domain.model.*
 fun NavGraphBuilder.searchScreen(navController: NavController) {
     composable<Route.Search> {
@@ -59,8 +74,12 @@ fun NavGraphBuilder.searchScreen(navController: NavController) {
             onNavigateToProfile = { userId ->
                 navController.navigateSingleTop(Route.Profile(userId))
             },
-            onNavigateToPlace = { placeId ->
-                navController.navigateSingleTop(Route.Landmark(placeId))
+            onNavigateToPlace = { place ->
+                val uri = Uri.parse("geo:${place.lat},${place.lng}?q=${place.lat},${place.lng}(${Uri.encode(place.name)})")
+                val intent = Intent(Intent.ACTION_VIEW, uri)
+                runCatching { navController.context.startActivity(intent) }.onFailure {
+                    android.widget.Toast.makeText(navController.context, "Không có ứng dụng để mở bản đồ", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         )
     }
@@ -70,25 +89,44 @@ fun NavGraphBuilder.searchScreen(navController: NavController) {
 fun SearchRoute(
     onNavigateBack: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
-    onNavigateToPlace: (String) -> Unit,
-    viewModel: SearchViewModel = viewModel()
+    onNavigateToPlace: (Place) -> Unit,
+    viewModel: SearchViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                SearchEffect.NavigateBack -> onNavigateBack()
-                is SearchEffect.NavigateToProfile -> onNavigateToProfile(effect.userId)
-                is SearchEffect.NavigateToPlace -> onNavigateToPlace(effect.placeId)
+                // Bỏ focus ô tìm kiếm trước khi rời màn: bàn phím ẩn ngay, không che màn kế tiếp suốt animation
+                SearchEffect.NavigateBack -> {
+                    focusManager.clearFocus(force = true)
+                    onNavigateBack()
+                }
+                is SearchEffect.NavigateToProfile -> {
+                    focusManager.clearFocus(force = true)
+                    onNavigateToProfile(effect.userId)
+                }
+                is SearchEffect.NavigateToPlace -> onNavigateToPlace(effect.place)
+                is SearchEffect.ShowMessage -> scope.launch { snackbarHostState.showSnackbar(effect.message) }
             }
         }
     }
 
-    SearchScreen(
-        uiState = uiState,
-        onAction = viewModel::onAction
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        SearchScreen(
+            uiState = uiState,
+            onAction = viewModel::onAction
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+        )
+    }
 }
 
 @Composable
@@ -101,9 +139,18 @@ fun SearchScreen(
     val spacing = LokapTheme.spacing
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    // Chỉ tự focus (mở bàn phím) 1 lần cho mỗi lần vào màn Tìm kiếm và đợi animation chuyển màn xong:
+    // quay lại từ Hồ sơ (kể cả lúc bắt đầu vuốt Back) không bật bàn phím giữa animation
+    var autoFocused by rememberSaveable { mutableStateOf(false) }
+    // Ô đang được focus: lưu lại để focus lại sau khi xoay màn hình / khôi phục app (trước khi rời màn đã clearFocus)
+    var fieldFocused by rememberSaveable { mutableStateOf(false) }
+    val settled = rememberEntrySettled()
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+    LaunchedEffect(settled) {
+        if (settled && (!autoFocused || fieldFocused)) {
+            focusRequester.requestFocus()
+            autoFocused = true
+        }
     }
 
     Column(
@@ -124,7 +171,7 @@ fun SearchScreen(
                 shape = CircleShape,
                 color = colors.surfaceHigh,
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable { onAction(SearchAction.BackClicked) }
             ) {
@@ -133,7 +180,7 @@ fun SearchScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Quay lại",
                         tint = colors.textPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                 }
             }
@@ -142,10 +189,13 @@ fun SearchScreen(
                 value = uiState.query,
                 onValueChange = { onAction(SearchAction.QueryChanged(it)) },
                 placeholder = {
+                    // Một dòng: ô cao ~56dp, gợi ý xuống dòng sẽ lệch khỏi tâm ô
                     Text(
-                        text = "Tìm bạn bè, địa danh, tỉnh thành…",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp),
-                        color = colors.textTertiary
+                        text = "Tìm bạn bè, địa danh",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                        color = colors.textTertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 },
                 leadingIcon = {
@@ -153,7 +203,7 @@ fun SearchScreen(
                         imageVector = Icons.Rounded.Search,
                         contentDescription = null,
                         tint = colors.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                 },
                 trailingIcon = {
@@ -163,12 +213,13 @@ fun SearchScreen(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = "Xoá",
                                 tint = colors.textSecondary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
                 },
                 singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
                 shape = RoundedCornerShape(22.dp),
@@ -181,10 +232,11 @@ fun SearchScreen(
                     focusedTextColor = colors.textPrimary,
                     unfocusedTextColor = colors.textPrimary
                 ),
+                // Không ép chiều cao: ô nhập Material cần ~56dp, ép 48dp là mất phần dưới chữ đang gõ
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp)
                     .focusRequester(focusRequester)
+                    .onFocusChanged { fieldFocused = it.isFocused }
             )
         }
 
@@ -234,11 +286,11 @@ fun SearchScreen(
                                 imageVector = Icons.Rounded.Search,
                                 contentDescription = null,
                                 tint = colors.textTertiary,
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = term,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.5.sp),
                                 color = colors.textPrimary
                             )
                         }
@@ -272,7 +324,7 @@ fun SearchScreen(
                         Icon(
                             imageVector = Icons.Rounded.People,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = "Mọi người (${uiState.userResults.size})",
@@ -295,7 +347,7 @@ fun SearchScreen(
                         Icon(
                             imageVector = Icons.Rounded.Place,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                         Text(
                             text = "Địa danh (${uiState.placeResults.size})",
@@ -318,8 +370,7 @@ fun SearchScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         EmptyState(
-                            title = "Không tìm thấy người dùng",
-                            subtitle = "Thử tìm kiếm với tên hoặc @username khác nhé."
+                            title = "Không tìm thấy"
                         )
                     }
                 } else {
@@ -330,11 +381,10 @@ fun SearchScreen(
                     ) {
                         items(uiState.userResults, key = { it.id }) { user ->
                             val status = uiState.friendStatuses[user.id] ?: FriendStatus.NONE
-                            val presence by PresenceStore.getPresence(user.id).collectAsStateWithLifecycle()
 
                             SearchUserItem(
                                 user = user,
-                                isOnline = presence.isOnline,
+                                isOnline = false,
                                 friendStatus = status,
                                 onAuthorClick = { onAction(SearchAction.AuthorClicked(user.id)) },
                                 onToggleFriend = { onAction(SearchAction.ToggleFriendRequest(user.id)) }
@@ -353,8 +403,7 @@ fun SearchScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         EmptyState(
-                            title = "Không tìm thấy địa danh",
-                            subtitle = "Thử tìm kiếm với tên địa điểm hoặc tỉnh thành khác."
+                            title = "Không tìm thấy"
                         )
                     }
                 } else {
@@ -418,7 +467,7 @@ private fun SearchUserItem(
                 Text(
                     text = user.displayName,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontSize = 14.5.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -426,39 +475,70 @@ private fun SearchUserItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "@${user.username} · Đà Nẵng",
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    text = "@${user.username}",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),
                     color = colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
+            // Chỉ icon (không chữ) để tên người dùng có đủ chỗ; mô tả đọc màn hình nói rõ trạng thái
             when (friendStatus) {
-                FriendStatus.REQUEST_SENT -> {
-                    GhostButton(
-                        text = "Đã gửi",
-                        onClick = onToggleFriend,
-                        modifier = Modifier.height(32.dp)
-                    )
-                }
-                FriendStatus.FRIENDS -> {
-                    GhostButton(
-                        text = "Bạn bè",
-                        onClick = onAuthorClick,
-                        modifier = Modifier.height(32.dp)
-                    )
-                }
-                else -> {
-                    PinkButton(
-                        text = "Kết bạn",
-                        leadingIcon = Icons.Filled.PersonAdd,
-                        onClick = onToggleFriend,
-                        modifier = Modifier.height(32.dp)
-                    )
-                }
+                FriendStatus.REQUEST_SENT -> FriendActionIcon(
+                    icon = Icons.Rounded.Schedule,
+                    description = "Đã gửi lời mời, chạm để huỷ",
+                    highlighted = false,
+                    onClick = onToggleFriend
+                )
+                FriendStatus.FRIENDS -> FriendActionIcon(
+                    icon = Icons.Rounded.HowToReg,
+                    description = "Bạn bè",
+                    highlighted = false,
+                    onClick = onAuthorClick
+                )
+                FriendStatus.REQUEST_RECEIVED -> FriendActionIcon(
+                    icon = Icons.Rounded.PersonAdd,
+                    description = "Chấp nhận lời mời kết bạn",
+                    highlighted = true,
+                    onClick = onToggleFriend
+                )
+                else -> FriendActionIcon(
+                    icon = Icons.Rounded.PersonAdd,
+                    description = "Kết bạn",
+                    highlighted = true,
+                    onClick = onToggleFriend
+                )
             }
         }
+    }
+}
+
+/** Nút tròn chỉ có icon (48dp) cho trạng thái kết bạn ở kết quả tìm người. */
+@Composable
+private fun FriendActionIcon(
+    icon: ImageVector,
+    description: String,
+    highlighted: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = LokapTheme.colors
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(if (highlighted) colors.primary else colors.surfaceHigh)
+            .border(1.dp, if (highlighted) colors.primary else colors.outline, CircleShape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (highlighted) colors.onPrimary else colors.textPrimary,
+            modifier = Modifier.size(26.dp)
+        )
     }
 }
 
@@ -493,7 +573,7 @@ private fun SearchPlaceItem(
                         imageVector = Icons.Rounded.Place,
                         contentDescription = null,
                         tint = colors.primary,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -502,7 +582,7 @@ private fun SearchPlaceItem(
                 Text(
                     text = place.name,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontSize = 14.5.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -511,7 +591,7 @@ private fun SearchPlaceItem(
                 )
                 Text(
                     text = place.address,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.5.sp),
                     color = colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -522,7 +602,7 @@ private fun SearchPlaceItem(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = colors.textTertiary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
     }

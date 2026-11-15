@@ -3,6 +3,7 @@ package vn.nhom2.lokap.domain.model
 import androidx.compose.runtime.Immutable
 import java.time.Instant
 enum class NotificationType {
+    COMMENT,
     NEW_POST,
     REACTION,
     FRIEND_REQUEST,
@@ -19,5 +20,6 @@ data class AppNotification(
     val postId: String?,
     val text: String,
     val createdAt: Instant,
-    val isRead: Boolean
+    val isRead: Boolean,
+    val conversationId: String? = null
 )

@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.feature.notifications
 
 import java.time.Instant
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.AppNotification
 data class NotificationsUiState(
     val isLoading: Boolean = false,
@@ -9,8 +8,15 @@ data class NotificationsUiState(
     val unreadNotifications: List<AppNotification> = emptyList(),
     val earlierNotifications: List<AppNotification> = emptyList(),
     val handledFriendRequestIds: Map<String, Boolean> = emptyMap(),
-    val now: Instant = SampleData.NOW
+    /** Bạn bè hiện tại: lời mời của người đã là bạn coi như đã chấp nhận (kể cả chấp nhận ở màn khác / máy khác). */
+    val friendIds: Set<String> = emptySet(),
+    val now: Instant = Instant.now()
 ) {
+    /** null = lời mời còn chờ (hiện ✕ ✓); true = đã kết bạn; false = đã từ chối trong phiên này. */
+    fun friendRequestDecision(notification: AppNotification): Boolean? =
+        handledFriendRequestIds[notification.id]
+            ?: notification.actor?.id?.takeIf { it in friendIds }?.let { true }
+
     val isEmpty: Boolean
         get() = unreadNotifications.isEmpty() && earlierNotifications.isEmpty()
 
@@ -20,6 +26,8 @@ data class NotificationsUiState(
 
 sealed interface NotificationsAction {
     data class ClickNotification(val notification: AppNotification) : NotificationsAction
+    data class ToggleRead(val notification: AppNotification) : NotificationsAction
+    data class DeleteNotification(val id: String) : NotificationsAction
     data object MarkAllAsRead : NotificationsAction
     data class AcceptFriendRequest(val notificationId: String) : NotificationsAction
     data class DeclineFriendRequest(val notificationId: String) : NotificationsAction

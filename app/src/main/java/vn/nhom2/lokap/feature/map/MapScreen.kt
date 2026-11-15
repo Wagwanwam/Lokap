@@ -1,57 +1,64 @@
 package vn.nhom2.lokap.feature.map
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.rounded.ArrowDropDown
-import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.AddLocationAlt
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.MyLocation
-import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import vn.nhom2.lokap.domain.repository.DeviceLocation
+import vn.nhom2.lokap.domain.repository.LandmarkRepository
+import vn.nhom2.lokap.domain.repository.PostRepository
+import vn.nhom2.lokap.domain.repository.SocialRepository
+import vn.nhom2.lokap.feature.landmark.AddLandmarkSheet
+import vn.nhom2.lokap.domain.repository.observeMapPosts
+import vn.nhom2.lokap.domain.repository.LocationRepository
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import java.time.Duration
 import kotlin.math.abs
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -60,21 +67,12 @@ import vn.nhom2.lokap.core.designsystem.component.*
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
-import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.FakePostStore
-import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.data.fake.SampleMapData
+import vn.nhom2.lokap.core.navigation.navigateToTab
 import vn.nhom2.lokap.domain.model.*
 enum class MapAudienceFilter(val label: String) {
     ALL("Tất cả"),
     FRIENDS("Bạn bè"),
     PUBLIC("Công khai")
-}
-
-enum class MapTimeFilter(val label: String, val days: Long?) {
-    DAYS_7("7 ngày", 7L),
-    DAYS_30("30 ngày", 30L),
-    ALL("Tất cả", null)
 }
 
 data class RegionSheetPreview(
@@ -96,34 +94,55 @@ data class MapUiState(
         zoom = 6.2f
     ),
     val audienceFilter: MapAudienceFilter = MapAudienceFilter.ALL,
-    val timeFilter: MapTimeFilter = MapTimeFilter.ALL,
+    /** Chỉ dùng khi lọc Bạn bè: null = mọi bạn bè, có giá trị = chỉ ảnh của người bạn đó. */
+    val selectedFriendId: String? = null,
+    /** Bạn bè để chọn ở nút lọc; ai có nhiều ảnh trên bản đồ đứng trước. */
+    val friends: List<User> = emptyList(),
     val visibleBubbles: List<MapBubble> = emptyList(),
     val landmarks: List<Landmark> = emptyList(),
     val isViewportEmpty: Boolean = false,
-    val selectedRegionPreview: RegionSheetPreview? = null
+    val selectedRegionPreview: RegionSheetPreview? = null,
+    /** Bảng "Thêm địa danh" đang mở. */
+    val isAddLandmarkOpen: Boolean = false,
+    /**
+     * Vị trí của tôi sau khi bấm "Về vị trí của tôi": chỉ để vẽ chấm đỏ trên máy này,
+     * không lưu, không gửi lên server (null = chưa xác định).
+     */
+    val myLocation: DeviceLocation? = null
 )
 
 sealed interface MapAction {
     data class OnCameraChanged(val camera: MapCameraState) : MapAction
     data class OnAudienceFilterChange(val filter: MapAudienceFilter) : MapAction
-    data class OnTimeFilterChange(val filter: MapTimeFilter) : MapAction
+    /** Chọn một người bạn (null = tất cả bạn bè); tự chuyển sang lọc Bạn bè. */
+    data class OnFriendFilterChange(val friendId: String?) : MapAction
     data class OnBubbleClick(val bubble: MapBubble) : MapAction
     data class OnLandmarkClick(val landmark: Landmark) : MapAction
     data object OnMyLocationClick : MapAction
     data object OnDismissSheet : MapAction
     data class OnOpenRegionAlbumClick(val level: String, val code: String) : MapAction
     data object OnRetry : MapAction
-    data object OnBackClick : MapAction
+    data object OnAddLandmarkClick : MapAction
+    data object OnDismissAddLandmark : MapAction
+    /** Đã thêm địa danh (hoặc địa điểm đã là địa danh): đóng bảng và mở màn Địa danh. */
+    data class OnLandmarkAdded(val landmarkId: String) : MapAction
 }
 
 sealed interface MapEffect {
-    data object NavigateBack : MapEffect
     data class NavigateToRegionAlbum(val level: String, val code: String) : MapEffect
     data class NavigateToLandmark(val landmarkId: String) : MapEffect
     data class NavigateToPostDetail(val postId: String) : MapEffect
 }
 
-class MapViewModel : ViewModel() {
+/** Bản đồ gom các bài có quyền xem từ repository. */
+@HiltViewModel
+class MapViewModel @Inject constructor(
+    private val location: LocationRepository,
+    private val posts: PostRepository,
+    private val social: SocialRepository,
+    private val landmarks: LandmarkRepository
+) : ViewModel() {
+
 
     private val _uiState = MutableStateFlow(MapUiState(isLoading = true))
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
@@ -131,7 +150,10 @@ class MapViewModel : ViewModel() {
     private val _effect = Channel<MapEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
 
-    private var cachedPosts: List<Post> = SampleData.posts
+    private var cachedPosts: List<Post> = emptyList()
+    /** Danh mục địa danh trên server (kể cả địa danh chưa có ảnh). */
+    private var cachedLandmarks: List<Landmark> = emptyList()
+    private var friendIds: Set<String> = emptySet()
 
     init {
         observePostsAndLoad()
@@ -139,10 +161,44 @@ class MapViewModel : ViewModel() {
 
     private fun observePostsAndLoad() {
         viewModelScope.launch {
-            delay(350)
-            FakePostStore.posts.collectLatest { storePosts ->
-                cachedPosts = storePosts.ifEmpty { SampleData.posts }
+            combine(posts.observeMapPosts(), social.graph, landmarks.landmarks) { visible, graph, catalog ->
+                Triple(visible, graph, catalog)
+            }
+                .collectLatest { (visible, graph, catalog) ->
+                    cachedPosts = visible
+                    cachedLandmarks = catalog
+                    friendIds = graph.statuses.filterValues { it == FriendStatus.FRIENDS }.keys
+                    updateFriendOptions(graph.users)
+                    recalculateMapData(isLoading = false)
+                }
+        }
+        // Mở màn: dùng cache có hạn cho feed và danh mục địa danh
+        refreshPosts(force = false)
+    }
+
+    /** Danh sách bạn cho nút chọn bạn bè; bỏ chọn nếu người đó không còn là bạn. */
+    private fun updateFriendOptions(users: Map<String, User>) {
+        val postCounts = cachedPosts.groupingBy { it.author.id }.eachCount()
+        val friends = friendIds
+            .mapNotNull { id -> users[id] ?: cachedPosts.firstOrNull { it.author.id == id }?.author }
+            .sortedWith(compareByDescending<User> { postCounts[it.id] ?: 0 }.thenBy { it.displayName.lowercase() })
+        _uiState.update { state ->
+            state.copy(
+                friends = friends,
+                selectedFriendId = state.selectedFriendId?.takeIf { it in friendIds }
+            )
+        }
+    }
+
+    private fun refreshPosts(force: Boolean = true) {
+        // Danh mục địa danh lỗi (mất mạng) thì vẫn còn địa danh suy ra từ bài đã tải
+        viewModelScope.launch { landmarks.refresh(force) }
+        viewModelScope.launch {
+            posts.refreshFeeds(force).onSuccess {
+                _uiState.update { it.copy(errorMessage = null) }
                 recalculateMapData(isLoading = false)
+            }.onFailure { error ->
+                _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
             }
         }
     }
@@ -155,26 +211,36 @@ class MapViewModel : ViewModel() {
             }
 
             is MapAction.OnAudienceFilterChange -> {
-                _uiState.update { it.copy(audienceFilter = action.filter) }
+                // Đổi nhóm đối tượng thì bỏ chọn bạn cụ thể
+                _uiState.update {
+                    if (it.audienceFilter == action.filter) it
+                    else it.copy(audienceFilter = action.filter, selectedFriendId = null)
+                }
                 recalculateMapData()
             }
 
-            is MapAction.OnTimeFilterChange -> {
-                _uiState.update { it.copy(timeFilter = action.filter) }
+            is MapAction.OnFriendFilterChange -> {
+                _uiState.update {
+                    it.copy(
+                        audienceFilter = MapAudienceFilter.FRIENDS,
+                        selectedFriendId = action.friendId?.takeIf { id -> id in friendIds }
+                    )
+                }
                 recalculateMapData()
             }
 
             is MapAction.OnMyLocationClick -> {
-                _uiState.update {
-                    it.copy(
-                        camera = MapCameraState(
-                            centerLat = 16.0544,
-                            centerLng = 108.2022,
-                            zoom = 11f
+                viewModelScope.launch {
+                    // Chưa cấp quyền / tắt định vị thì giữ nguyên bản đồ
+                    val here = location.currentLocation().getOrNull() ?: return@launch
+                    _uiState.update {
+                        it.copy(
+                            myLocation = here,
+                            camera = MapCameraState(centerLat = here.lat, centerLng = here.lng, zoom = 13f)
                         )
-                    )
+                    }
+                    recalculateMapData()
                 }
-                recalculateMapData()
             }
 
             is MapAction.OnBubbleClick -> handleBubbleClick(action.bubble)
@@ -198,16 +264,16 @@ class MapViewModel : ViewModel() {
 
             is MapAction.OnRetry -> {
                 _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                viewModelScope.launch {
-                    delay(300)
-                    recalculateMapData(isLoading = false)
-                }
+                refreshPosts()
             }
 
-            is MapAction.OnBackClick -> {
-                viewModelScope.launch {
-                    _effect.send(MapEffect.NavigateBack)
-                }
+            MapAction.OnAddLandmarkClick -> _uiState.update { it.copy(isAddLandmarkOpen = true) }
+
+            MapAction.OnDismissAddLandmark -> _uiState.update { it.copy(isAddLandmarkOpen = false) }
+
+            is MapAction.OnLandmarkAdded -> {
+                _uiState.update { it.copy(isAddLandmarkOpen = false) }
+                viewModelScope.launch { _effect.send(MapEffect.NavigateToLandmark(action.landmarkId)) }
             }
         }
     }
@@ -233,7 +299,10 @@ class MapViewModel : ViewModel() {
                 }
             }
 
-            MapBubbleType.WARD, MapBubbleType.PROVINCE_WIDE -> {
+            // "Khắp <tỉnh>": phóng to thì bong bóng ẩn (từ PROVINCE_WIDE_MAX_ZOOM), nên mở album tỉnh luôn
+            MapBubbleType.PROVINCE_WIDE -> openRegionPreview(level = "PROVINCE", bubble = bubble)
+
+            MapBubbleType.WARD -> {
                 if (currentZoom < 10.5f) {
                     _uiState.update {
                         it.copy(
@@ -246,8 +315,7 @@ class MapViewModel : ViewModel() {
                     }
                     recalculateMapData()
                 } else {
-                    val level = if (bubble.type == MapBubbleType.PROVINCE_WIDE) "PROVINCE" else "WARD"
-                    openRegionPreview(level = level, bubble = bubble)
+                    openRegionPreview(level = "WARD", bubble = bubble)
                 }
             }
 
@@ -288,7 +356,7 @@ class MapViewModel : ViewModel() {
 
     private fun filterPostsForRegion(level: String, code: String): List<Post> {
 
-        val validPosts = cachedPosts.filter { it.location.level != LocationLevel.COUNTRY }
+        val validPosts = filteredPosts()
         return validPosts.filter { post ->
             if (level == "PROVINCE") {
                 post.location.provinceCode == code
@@ -299,7 +367,7 @@ class MapViewModel : ViewModel() {
     }
 
     private fun findPostIdForPlaceBubble(bubble: MapBubble): String? {
-        val validPosts = cachedPosts.filter { it.location.level != LocationLevel.COUNTRY }
+        val validPosts = filteredPosts()
         validPosts.firstOrNull { it.id == bubble.code || it.id == bubble.id }?.let { return it.id }
         validPosts.firstOrNull {
             it.location.placeName?.equals(bubble.label, ignoreCase = true) == true
@@ -311,31 +379,11 @@ class MapViewModel : ViewModel() {
         val state = _uiState.value
         val zoom = state.camera.zoom
 
-        val rawBubbles = when {
-            zoom < 8f -> SampleMapData.allProvinceBubbles
-            zoom < 13f -> SampleMapData.allWardAndProvinceWideBubbles
-            else -> SampleMapData.allPlaceBubbles
-        }
-
-        val countablePosts = cachedPosts.filter { post ->
-            post.location.level != LocationLevel.COUNTRY &&
-                post.sendState == PostSendState.SENT &&
-                matchesTimeFilter(post, state.timeFilter) &&
-                matchesAudienceFilter(post, state.audienceFilter)
-        }
-        val meId = SampleData.currentUser.id
-        val filteredBubbles = rawBubbles.mapNotNull { bubble ->
-            val posts = postsForBubble(bubble, countablePosts)
-            if (posts.isEmpty()) return@mapNotNull null
-            bubble.copy(
-                postCount = posts.size,
-                hasFriendPosts = posts.any { it.author.id != meId },
-                coverImageUrl = posts.maxByOrNull { it.takenAt }?.imageUrl ?: bubble.coverImageUrl
-            )
-        }
-        val countedLandmarks = SampleData.landmarks.map { lm ->
-            lm.copy(postCount = countablePosts.count { it.location.landmarkId == lm.id })
-        }
+        val countablePosts = filteredPosts()
+        val filteredBubbles = mapBubblesFromPosts(countablePosts, zoom, friendIds)
+        // Lọc Bạn bè: chỉ địa danh có ảnh của bạn; còn lại hiện cả địa danh chưa có ảnh (mời người đầu tiên)
+        val catalog = if (state.audienceFilter == MapAudienceFilter.FRIENDS) emptyList() else cachedLandmarks
+        val countedLandmarks = landmarksForMap(catalog, countablePosts, posts.now())
 
         val latSpan = 12.0 / Math.pow(2.0, (zoom - 5f).toDouble())
         val lngSpan = 10.0 / Math.pow(2.0, (zoom - 5f).toDouble())
@@ -344,7 +392,7 @@ class MapViewModel : ViewModel() {
             abs(b.lat - state.camera.centerLat) <= latSpan &&
                 abs(b.lng - state.camera.centerLng) <= lngSpan
         }
-        val landmarksInViewport = zoom >= 8f && SampleData.landmarks.any { lm ->
+        val landmarksInViewport = zoom >= 8f && countedLandmarks.any { lm ->
             abs(lm.lat - state.camera.centerLat) <= latSpan &&
                 abs(lm.lng - state.camera.centerLng) <= lngSpan
         }
@@ -359,42 +407,25 @@ class MapViewModel : ViewModel() {
         }
     }
 
-    private fun postsForBubble(bubble: MapBubble, posts: List<Post>): List<Post> = when (bubble.type) {
-        MapBubbleType.PROVINCE -> posts.filter { it.location.provinceCode == bubble.code }
-        MapBubbleType.WARD -> posts.filter {
-            it.location.wardCode == bubble.code &&
-                (it.location.level == LocationLevel.WARD || it.location.level == LocationLevel.PLACE)
-        }
-        MapBubbleType.PROVINCE_WIDE -> posts.filter {
-            it.location.provinceCode == bubble.code && it.location.level == LocationLevel.PROVINCE
-        }
-        MapBubbleType.PLACE -> posts.filter {
-            it.location.level == LocationLevel.PLACE &&
-                it.location.placeName?.equals(bubble.label, ignoreCase = true) == true
-        }
-        MapBubbleType.LANDMARK -> posts.filter { it.location.landmarkId == bubble.code }
+    private fun filteredPosts(): List<Post> {
+        val state = _uiState.value
+        return cachedPosts.filter { post -> matchesAudienceFilter(post, state.audienceFilter, state.selectedFriendId) }
     }
 
-    private fun matchesAudienceFilter(post: Post, filter: MapAudienceFilter): Boolean {
+    private fun matchesAudienceFilter(post: Post, filter: MapAudienceFilter, friendId: String?): Boolean {
         return when (filter) {
             MapAudienceFilter.ALL -> true
-            MapAudienceFilter.FRIENDS -> post.author.id != SampleData.currentUser.id
+            MapAudienceFilter.FRIENDS -> post.author.id in friendIds &&
+                (friendId == null || post.author.id == friendId)
             MapAudienceFilter.PUBLIC -> post.audience == Audience.PUBLIC &&
-                (post.publicVisibleAt == null || !post.publicVisibleAt.isAfter(SampleData.NOW))
+                (post.publicVisibleAt == null || !post.publicVisibleAt.isAfter(posts.now()))
         }
-    }
-
-    private fun matchesTimeFilter(post: Post, filter: MapTimeFilter): Boolean {
-        val maxDays = filter.days ?: return true
-        val diffDays = Duration.between(post.takenAt, SampleData.NOW).toDays()
-        return diffDays <= maxDays
     }
 }
 
 fun NavGraphBuilder.mapScreen(navController: NavController) {
     composable<Route.Map> {
         MapRoute(
-            onBackClick = { navController.popBackStackSafely() },
             onNavigateToRegionAlbum = { level, code ->
                 navController.navigateSingleTop(Route.RegionAlbum(level = level, code = code))
             },
@@ -406,11 +437,11 @@ fun NavGraphBuilder.mapScreen(navController: NavController) {
             },
             onNavigateToTab = { tab ->
                 when (tab) {
-                    MainTab.FEED -> navController.navigateSingleTop(Route.Feed)
+                    MainTab.FEED -> navController.navigateToTab(Route.Feed)
                     MainTab.MAP -> Unit
-                    MainTab.CAMERA -> navController.navigateSingleTop(Route.Camera)
-                    MainTab.INBOX -> navController.navigateSingleTop(Route.Inbox)
-                    MainTab.PROFILE -> navController.navigateSingleTop(Route.Profile())
+                    MainTab.CAMERA -> navController.navigateToTab(Route.Camera)
+                    MainTab.INBOX -> navController.navigateToTab(Route.Inbox)
+                    MainTab.PROFILE -> navController.navigateToTab(Route.Profile())
                 }
             }
         )
@@ -419,19 +450,17 @@ fun NavGraphBuilder.mapScreen(navController: NavController) {
 
 @Composable
 fun MapRoute(
-    onBackClick: () -> Unit,
     onNavigateToRegionAlbum: (level: String, code: String) -> Unit,
     onNavigateToLandmark: (landmarkId: String) -> Unit,
     onNavigateToPostDetail: (postId: String) -> Unit,
     onNavigateToTab: (MainTab) -> Unit = {},
-    viewModel: MapViewModel = viewModel()
+    viewModel: MapViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                MapEffect.NavigateBack -> onBackClick()
                 is MapEffect.NavigateToRegionAlbum -> onNavigateToRegionAlbum(effect.level, effect.code)
                 is MapEffect.NavigateToLandmark -> onNavigateToLandmark(effect.landmarkId)
                 is MapEffect.NavigateToPostDetail -> onNavigateToPostDetail(effect.postId)
@@ -446,6 +475,8 @@ fun MapRoute(
     )
 }
 
+private const val ALL_FRIENDS_LABEL = "Tất cả bạn bè"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
@@ -458,12 +489,119 @@ fun MapScreen(
     val spacing = LokapTheme.spacing
     val shapes = LokapTheme.shapes
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
     var headerHeightPx by remember { mutableIntStateOf(0) }
+    // Đáy bản đồ bị thanh tab của app + thanh điều hướng hệ thống che: tâm bản đồ nằm giữa phần còn thấy
+    val bottomBarHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+        LokapBottomNavBarHeight
+
+    // Tâm hai nút kéo trong toạ độ của Box gốc: vòng lựa chọn vẽ quanh các điểm này
+    var rootCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var rootHeightPx by remember { mutableIntStateOf(0) }
+    var audienceAnchor by remember { mutableStateOf<Offset?>(null) }
+    var friendAnchor by remember { mutableStateOf<Offset?>(null) }
+    fun centerInRoot(coords: LayoutCoordinates): Offset? {
+        val root = rootCoords ?: return null
+        if (!root.isAttached || !coords.isAttached) return null
+        return root.localPositionOf(coords, Offset(coords.size.width / 2f, coords.size.height / 2f))
+    }
+
+    // Vòng đang mở; giữ lại sau khi thả tay để chạy hiệu ứng thu vào
+    var ringPicker by remember { mutableStateOf(MapPicker.AUDIENCE) }
+    var ringOpen by remember { mutableStateOf(false) }
+    var hoveredIndex by remember { mutableStateOf<Int?>(null) }
+    // Chạm nhanh để đổi lựa chọn: tên lựa chọn mới hiện cạnh nút một lúc
+    var hint by remember { mutableStateOf<Pair<MapPicker, String>?>(null) }
+    var hintTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(hintTick) {
+        if (hint != null) {
+            delay(1200)
+            hint = null
+        }
+    }
+
+    val audienceOptions = remember {
+        MapAudienceFilter.entries.map { MapPickerOption(label = it.label, icon = it.icon) }
+    }
+    val friendOptions = remember(uiState.friends) {
+        listOf(MapPickerOption(label = ALL_FRIENDS_LABEL, icon = Icons.Rounded.Groups)) +
+            uiState.friends.map { MapPickerOption(label = it.displayName, user = it) }
+    }
+    val audienceIndex = uiState.audienceFilter.ordinal
+    val selectedFriend = uiState.friends.firstOrNull { it.id == uiState.selectedFriendId }
+    val friendIndex = selectedFriend?.let { uiState.friends.indexOf(it) + 1 } ?: 0
+    val showFriendPicker = uiState.audienceFilter == MapAudienceFilter.FRIENDS && uiState.friends.isNotEmpty()
+
+    // Vòng không đè lên logo (chừa chỗ cho nhãn) và không lọt xuống dưới thanh tab
+    val ringItemPx = with(density) { MapPickerRing.ItemSize.toPx() }
+    val firstRadiusPx = with(density) { MapPickerRing.FirstRadius.toPx() }
+    val ringGapPx = with(density) { MapPickerRing.RingGap.toPx() }
+    val itemSpacingPx = with(density) { MapPickerRing.ItemSpacing.toPx() }
+    val activationPx = with(density) { MapPickerRing.ActivationRadius.toPx() }
+    val topLimitPx = headerHeightPx + with(density) { MapPickerRing.LabelSpace.toPx() } + ringItemPx * 0.65f
+    val bottomLimitPx = rootHeightPx - with(density) { (bottomBarHeight + 8.dp).toPx() } - ringItemPx * 0.65f
+    fun ringPositions(count: Int, anchor: Offset?): List<Offset> =
+        if (anchor == null) emptyList()
+        else MapPickerRing.layout(
+            count = count,
+            firstRadiusPx = firstRadiusPx,
+            ringGapPx = ringGapPx,
+            spacingPx = itemSpacingPx,
+            maxUpPx = anchor.y - topLimitPx,
+            maxDownPx = bottomLimitPx - anchor.y
+        )
+    val audiencePositions = remember(audienceAnchor, topLimitPx, bottomLimitPx, density) {
+        ringPositions(audienceOptions.size, audienceAnchor)
+    }
+    val friendPositions = remember(friendOptions.size, friendAnchor, topLimitPx, bottomLimitPx, density) {
+        ringPositions(friendOptions.size, friendAnchor)
+    }
+
+    fun openRing(picker: MapPicker) {
+        ringPicker = picker
+        hoveredIndex = null
+        hint = null
+        ringOpen = true
+    }
+
+    fun dragRing(finger: Offset, positions: List<Offset>) {
+        val index = MapPickerRing.indexAt(finger, positions, activationPx, hitRadiusPx = itemSpacingPx * 0.75f)
+        if (index != hoveredIndex) {
+            hoveredIndex = index
+            if (index != null) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+
+    // Thả tay ngoài các lựa chọn thì giữ nguyên lựa chọn cũ
+    fun releaseRing(pick: (Int) -> Unit) {
+        hoveredIndex?.let(pick)
+        hoveredIndex = null
+        ringOpen = false
+    }
+
+    fun pickAudience(index: Int) =
+        onAction(MapAction.OnAudienceFilterChange(MapAudienceFilter.entries[index]))
+
+    fun pickFriend(index: Int) =
+        onAction(MapAction.OnFriendFilterChange(uiState.friends.getOrNull(index - 1)?.id))
+
+    // Đang kéo một nút: ẩn các nút còn lại để vòng có chỗ (giống Camera)
+    val locationAlpha by animateFloatAsState(if (ringOpen) 0f else 1f, tween(160), label = "map_location_alpha")
+    val audienceAlpha by animateFloatAsState(
+        if (ringOpen && ringPicker != MapPicker.AUDIENCE) 0f else 1f, tween(160), label = "map_audience_alpha"
+    )
+    val friendAlpha by animateFloatAsState(
+        if (ringOpen && ringPicker != MapPicker.FRIEND) 0f else 1f, tween(160), label = "map_friend_alpha"
+    )
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(colors.background)
+            .onGloballyPositioned {
+                rootCoords = it
+                rootHeightPx = it.size.height
+            }
     ) {
         when {
             uiState.errorMessage != null -> {
@@ -487,261 +625,59 @@ fun MapScreen(
                 LokapMap(
                     bubbles = uiState.visibleBubbles,
                     landmarks = uiState.landmarks,
+                    myLocation = uiState.myLocation,
                     camera = uiState.camera,
                     onCameraChange = { onAction(MapAction.OnCameraChanged(it)) },
                     onBubbleClick = { onAction(MapAction.OnBubbleClick(it)) },
                     onLandmarkClick = { onAction(MapAction.OnLandmarkClick(it)) },
                     modifier = Modifier.fillMaxSize(),
-                    topInset = with(density) { headerHeightPx.toDp() }
+                    topInset = with(density) { headerHeightPx.toDp() },
+                    bottomInset = bottomBarHeight
                 )
             }
         }
 
+        // Góc trên bên trái chỉ còn logo. Chỉ đệm cạnh trên + hai bên: systemBarsPadding() cộng cả
+        // chiều cao thanh điều hướng vào header nên tâm bản đồ bị đẩy xuống.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .onSizeChanged { headerHeightPx = it.height }
-                .systemBarsPadding()
-                .padding(horizontal = spacing.md, vertical = spacing.sm),
+                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .padding(horizontal = spacing.lg, vertical = spacing.sm),
             verticalArrangement = Arrangement.spacedBy(spacing.sm)
         ) {
-            if (uiState.isOffline) {
-                OfflineBanner(modifier = Modifier.fillMaxWidth())
-            }
-
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = colors.surface.copy(alpha = 0.92f),
-                border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.22f)),
-                shadowElevation = 4.dp,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                Surface(
+                    shape = CircleShape,
+                    color = colors.surface.copy(alpha = 0.92f),
+                    border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.22f)),
+                    shadowElevation = 4.dp
                 ) {
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = colors.surfaceHigh,
-                            border = BorderStroke(0.8.dp, colors.outline.copy(alpha = 0.25f)),
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .clickable { onAction(MapAction.OnBackClick) }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Quay lại",
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Bản đồ Lokap",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.5.sp
-                                ),
-                                color = colors.textPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.primary)
-                                )
-                                Text(
-                                    text = zoomLevelLabel(uiState.camera.zoom),
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Medium
-                                    ),
-                                    color = colors.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = CircleShape,
-                            color = colors.primary.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.35f)),
-                            modifier = Modifier
-                                .height(34.dp)
-                                .clip(CircleShape)
-                                .clickable { onAction(MapAction.OnMyLocationClick) }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.MyLocation,
-                                    contentDescription = null,
-                                    tint = colors.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Vị trí của tôi",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 11.5.sp
-                                    ),
-                                    color = colors.primary
-                                )
-                            }
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = colors.surfaceHigh.copy(alpha = 0.75f),
-                            border = BorderStroke(0.8.dp, colors.outline.copy(alpha = 0.18f)),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(34.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                MapAudienceFilter.entries.forEach { filter ->
-                                    val isSelected = uiState.audienceFilter == filter
-                                    Surface(
-                                        shape = RoundedCornerShape(14.dp),
-                                        color = if (isSelected) colors.surface else Color.Transparent,
-                                        border = if (isSelected) BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f)) else null,
-                                        shadowElevation = if (isSelected) 1.5.dp else 0.dp,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .fillMaxHeight()
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .clickable { onAction(MapAction.OnAudienceFilterChange(filter)) }
-                                    ) {
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier.fillMaxSize()
-                                        ) {
-                                            Text(
-                                                text = filter.label,
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    fontSize = 11.5.sp
-                                                ),
-                                                color = if (isSelected) colors.primary else colors.textSecondary
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Box {
-                            var showTimeMenu by remember { mutableStateOf(false) }
-
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = colors.surfaceHigh.copy(alpha = 0.75f),
-                                border = BorderStroke(0.8.dp, colors.outline.copy(alpha = 0.18f)),
-                                modifier = Modifier
-                                    .height(34.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .clickable { showTimeMenu = true }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Schedule,
-                                        contentDescription = null,
-                                        tint = if (uiState.timeFilter != MapTimeFilter.ALL) colors.primary else colors.textSecondary,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Text(
-                                        text = uiState.timeFilter.label,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 11.5.sp
-                                        ),
-                                        color = if (uiState.timeFilter != MapTimeFilter.ALL) colors.primary else colors.textPrimary
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Rounded.ArrowDropDown,
-                                        contentDescription = null,
-                                        tint = colors.textTertiary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-
-                            DropdownMenu(
-                                expanded = showTimeMenu,
-                                onDismissRequest = { showTimeMenu = false },
-                                modifier = Modifier.background(colors.surfaceHigh)
-                            ) {
-                                MapTimeFilter.entries.forEach { timeFilter ->
-                                    val isSelected = uiState.timeFilter == timeFilter
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                if (isSelected) {
-                                                    Icon(
-                                                        imageVector = Icons.Rounded.Check,
-                                                        contentDescription = null,
-                                                        tint = colors.primary,
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                }
-                                                Text(
-                                                    text = timeFilter.label,
-                                                    style = MaterialTheme.typography.bodySmall.copy(
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                        color = if (isSelected) colors.primary else colors.textPrimary
-                                                    )
-                                                )
-                                            }
-                                        },
-                                        onClick = {
-                                            onAction(MapAction.OnTimeFilterChange(timeFilter))
-                                            showTimeMenu = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
+                    LokapLogo(
+                        size = 30.dp,
+                        showText = true,
+                        modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
+                    )
+                }
+                if (uiState.errorMessage == null) {
+                    MapControlButton(onClick = { onAction(MapAction.OnAddLandmarkClick) }) {
+                        Icon(
+                            imageVector = Icons.Rounded.AddLocationAlt,
+                            contentDescription = "Thêm địa danh",
+                            tint = colors.accentYellow,
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
                 }
+            }
+
+            if (uiState.isOffline) {
+                OfflineBanner(modifier = Modifier.fillMaxWidth())
             }
         }
 
@@ -759,6 +695,123 @@ fun MapScreen(
                 leadingIcon = Icons.Default.Refresh,
                 selected = false,
                 onClick = { onAction(MapAction.OnMyLocationClick) }
+            )
+        }
+
+        if (uiState.errorMessage == null) {
+            MapPickerScrim(open = ringOpen)
+
+            // Cạnh phải, ở khoảng 2/3 chiều cao màn hình: về vị trí của tôi · lọc đối tượng ·
+            // lọc bạn bè (chỉ khi đang lọc Bạn bè)
+            Column(
+                modifier = Modifier
+                    .placeAtTwoThirdsEnd()
+                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                    .padding(end = spacing.lg),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(MapControlGap)
+            ) {
+                MapControlButton(
+                    onClick = { onAction(MapAction.OnMyLocationClick) },
+                    modifier = Modifier.graphicsLayer { alpha = locationAlpha }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.MyLocation,
+                        contentDescription = "Về vị trí của tôi",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                MapPickerRow(hint = hint?.takeIf { it.first == MapPicker.AUDIENCE }?.second) {
+                    val filtered = uiState.audienceFilter != MapAudienceFilter.ALL
+                    MapPickerButton(
+                        contentDescription = "Lọc ảnh trên bản đồ",
+                        stateDescription = uiState.audienceFilter.label,
+                        highlighted = filtered,
+                        onTap = {
+                            val next = (audienceIndex + 1) % audienceOptions.size
+                            pickAudience(next)
+                            hint = MapPicker.AUDIENCE to audienceOptions[next].label
+                            hintTick++
+                        },
+                        onOpen = { openRing(MapPicker.AUDIENCE) },
+                        onDrag = { dragRing(it, audiencePositions) },
+                        onRelease = { releaseRing { index -> pickAudience(index) } },
+                        modifier = Modifier
+                            .onGloballyPositioned { audienceAnchor = centerInRoot(it) }
+                            .graphicsLayer { alpha = audienceAlpha }
+                    ) {
+                        Icon(
+                            imageVector = uiState.audienceFilter.icon,
+                            contentDescription = null,
+                            tint = if (filtered) colors.primary else colors.textPrimary,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+
+                // Luôn giữ chỗ cho nút thứ ba để hai nút trên không xê dịch khi nút này hiện / ẩn
+                MapPickerRow(hint = hint?.takeIf { it.first == MapPicker.FRIEND }?.second) {
+                    Box(modifier = Modifier.size(MapPickerRing.ButtonSize)) {
+                        // Gọi bản không phạm vi: bên ngoài còn ColumnScope nên phải ghi rõ
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showFriendPicker,
+                            enter = fadeIn() + scaleIn(initialScale = 0.6f),
+                            exit = fadeOut() + scaleOut(targetScale = 0.6f)
+                        ) {
+                            MapPickerButton(
+                                contentDescription = "Chọn bạn bè",
+                                stateDescription = selectedFriend?.displayName ?: ALL_FRIENDS_LABEL,
+                                highlighted = selectedFriend != null,
+                                onTap = {
+                                    val next = (friendIndex + 1) % friendOptions.size
+                                    pickFriend(next)
+                                    hint = MapPicker.FRIEND to friendOptions[next].label
+                                    hintTick++
+                                },
+                                onOpen = { openRing(MapPicker.FRIEND) },
+                                onDrag = { dragRing(it, friendPositions) },
+                                onRelease = { releaseRing { index -> pickFriend(index) } },
+                                modifier = Modifier
+                                    .onGloballyPositioned { friendAnchor = centerInRoot(it) }
+                                    .graphicsLayer { alpha = friendAlpha }
+                            ) {
+                                if (selectedFriend != null) {
+                                    AvatarRing(
+                                        avatarUrl = selectedFriend.avatarUrl,
+                                        displayName = selectedFriend.displayName,
+                                        size = 44.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Groups,
+                                        contentDescription = null,
+                                        tint = colors.textPrimary,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val isAudienceRing = ringPicker == MapPicker.AUDIENCE
+            MapPickerRingOverlay(
+                open = ringOpen,
+                anchor = if (isAudienceRing) audienceAnchor else friendAnchor,
+                positions = if (isAudienceRing) audiencePositions else friendPositions,
+                options = if (isAudienceRing) audienceOptions else friendOptions,
+                selectedIndex = if (isAudienceRing) audienceIndex else friendIndex,
+                hoveredIndex = hoveredIndex
+            )
+        }
+
+        if (uiState.isAddLandmarkOpen) {
+            AddLandmarkSheet(
+                onDismiss = { onAction(MapAction.OnDismissAddLandmark) },
+                onOpenLandmark = { onAction(MapAction.OnLandmarkAdded(it)) }
             )
         }
 
@@ -858,50 +911,48 @@ private fun MapLoadingSkeleton(modifier: Modifier = Modifier) {
     }
 }
 
-private fun zoomLevelLabel(zoom: Float): String = when {
-    zoom < 8f -> "34 Tỉnh / Thành"
-    zoom < 13f -> "Phường / Xã"
-    else -> "Địa điểm"
-}
-
-@Preview(name = "Map - Tỉnh/Thành (Zoom < 8)", showBackground = true)
-@Composable
-private fun MapScreenProvincePreview() {
-    LokapTheme {
-        MapScreen(
-            uiState = MapUiState(
-                isLoading = false,
-                visibleBubbles = SampleMapData.allProvinceBubbles,
-                landmarks = SampleData.landmarks
-            ),
-            onAction = {}
-        )
+/**
+ * Đặt cụm nút sát cạnh phải sao cho khoảng giữa nút vị trí và nút lọc nằm ở 2/3 chiều cao khung chứa.
+ * Phần tử chiếm cả khung nhưng không nhận chạm (chỉ các nút bên trong nhận), nên bản đồ vẫn kéo được.
+ */
+private fun Modifier.placeAtTwoThirdsEnd(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+    val pairCenter = (MapPickerRing.ButtonSize + MapControlGap / 2).roundToPx()
+    val maxY = (constraints.maxHeight - placeable.height).coerceAtLeast(0)
+    val y = (constraints.maxHeight * 2 / 3 - pairCenter).coerceIn(0, maxY)
+    layout(constraints.maxWidth, constraints.maxHeight) {
+        placeable.place(constraints.maxWidth - placeable.width, y)
     }
 }
 
-@Preview(name = "Map - Phường/Xã + Sheet Xem trước", showBackground = true)
+private val MapControlGap = 12.dp
+
+/** Một nút kéo + nhãn ngắn hiện bên trái nút sau khi chạm đổi lựa chọn. */
 @Composable
-private fun MapScreenWardSheetPreview() {
-    LokapTheme {
-        MapScreen(
-            uiState = MapUiState(
-                isLoading = false,
-                camera = MapCameraState(centerLat = 16.0544, centerLng = 108.2022, zoom = 11f),
-                visibleBubbles = SampleMapData.allWardAndProvinceWideBubbles,
-                landmarks = SampleData.landmarks,
-                selectedRegionPreview = RegionSheetPreview(
-                    level = "PROVINCE",
-                    code = "48",
-                    regionName = "Đà Nẵng",
-                    photoUrls = SampleData.posts.map { it.imageUrl }.take(3),
-                    postCount = 42,
-                    visited = true
-                )
-            ),
-            onAction = {}
-        )
+private fun MapPickerRow(hint: String?, content: @Composable () -> Unit) {
+    // Giữ chữ cũ trong lúc nhãn đang mờ dần
+    val lastHint = remember { arrayOf("") }
+    if (hint != null) lastHint[0] = hint
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        AnimatedVisibility(
+            visible = hint != null,
+            enter = fadeIn() + slideInHorizontally { it / 3 },
+            exit = fadeOut()
+        ) {
+            MapPickerHintPill(
+                text = lastHint[0],
+                modifier = Modifier
+                    .padding(end = 10.dp)
+                    .widthIn(max = 200.dp)
+            )
+        }
+        content()
     }
 }
+
+
+
+
 
 @Preview(name = "Map - Vùng trống & Offline", showBackground = true)
 @Composable
@@ -937,7 +988,7 @@ private fun MapScreenErrorPreview() {
         MapScreen(
             uiState = MapUiState(
                 isLoading = false,
-                errorMessage = "Không thể tải dữ liệu bản đồ. Kiểm tra kết nối mạng nhé!"
+                errorMessage = "Không tải được"
             ),
             onAction = {}
         )

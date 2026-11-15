@@ -2,20 +2,35 @@ package vn.nhom2.lokap.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.designsystem.theme.ThemeManager
-import vn.nhom2.lokap.data.fake.FakeAuthStore
-import vn.nhom2.lokap.data.fake.SampleSocialData
+import vn.nhom2.lokap.domain.model.AppSettingsData
 import vn.nhom2.lokap.domain.model.FriendStatus
-class SettingsViewModel : ViewModel() {
+import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.AuthStoreException
+import vn.nhom2.lokap.domain.repository.SettingsRepository
+import vn.nhom2.lokap.domain.repository.SocialRepository
+import vn.nhom2.lokap.feature.auth.AuthValidators
+
+/**
+ * Cài đặt: hồ sơ / đăng xuất / đổi mật khẩu / xoá tài khoản qua AuthRepository, mức vị trí và công tắc
+ * thông báo qua SettingsRepository, danh sách chặn qua SocialRepository. Giao diện (sáng/tối) vẫn ở máy.
+ */
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val auth: AuthRepository,
+    private val settingsRepository: SettingsRepository,
+    private val social: SocialRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -24,43 +39,28 @@ class SettingsViewModel : ViewModel() {
     val effects: Flow<SettingsEffect> = _effects.receiveAsFlow()
 
     init {
-        observeSettingsAndBlockedUsers()
-        observeThemeMode()
-    }
-
-    private fun observeThemeMode() {
         viewModelScope.launch {
-            ThemeManager.themeMode.collect { mode ->
-                _uiState.update { it.copy(themeMode = mode) }
-            }
+            ThemeManager.themeMode.collect { mode -> _uiState.update { it.copy(themeMode = mode) } }
         }
-    }
-
-    private fun observeSettingsAndBlockedUsers() {
         viewModelScope.launch {
-            combine(
-                SampleSocialData.settings,
-                SampleSocialData.friendStatuses,
-                SampleSocialData.currentUserOverride
-            ) { settings, statuses, _ ->
-                Triple(settings, statuses, SampleSocialData.getCurrentUser())
-            }.collect { (settings, statuses, currentUser) ->
-                val blocked = SampleSocialData.directoryUsers.filter { user ->
-                    statuses[user.id] == FriendStatus.BLOCKED
-                }
-                _uiState.update { prev ->
-                    prev.copy(
+            auth.currentUser.collect { me -> _uiState.update { it.copy(currentUser = me) } }
+        }
+        viewModelScope.launch {
+            settingsRepository.settings.collect { settings ->
+                _uiState.update {
+                    it.copy(
                         isLoading = false,
-                        currentUser = currentUser,
                         defaultLocationLevel = settings.defaultLocationLevel,
                         notifyNewPhotos = settings.notifyNewPhotos,
                         notifyReactions = settings.notifyReactions,
                         notifyMessages = settings.notifyMessages,
-                        notifyFriendRequests = settings.notifyFriendRequests,
-                        blockedUsers = blocked
+                        notifyFriendRequests = settings.notifyFriendRequests
                     )
                 }
             }
+        }
+        viewModelScope.launch {
+            social.graph.collect { graph -> _uiState.update { it.copy(blockedUsers = graph.usersWith(FriendStatus.BLOCKED)) } }
         }
     }
 
@@ -73,28 +73,17 @@ class SettingsViewModel : ViewModel() {
             is SettingsAction.SelectThemeMode -> {
                 ThemeManager.setThemeMode(action.mode)
                 _uiState.update { it.copy(showThemeDialog = false) }
-                _effects.trySend(
-                    SettingsEffect.ShowMessage("Đã chuyển giao diện: ${action.mode.labelVi}")
-                )
             }
 
             is SettingsAction.SelectLocationLevel -> {
-                SampleSocialData.updateSettings {
+                _uiState.update { it.copy(showLocationLevelDialog = false) }
+                updateSettings {
                     it.copy(defaultLocationLevel = action.level)
                 }
-                _uiState.update { it.copy(showLocationLevelDialog = false) }
-                _effects.trySend(
-                    SettingsEffect.ShowMessage("Đã đặt mức vị trí mặc định: ${action.level.labelVi}")
-                )
             }
 
             is SettingsAction.ToggleOnlineStatus -> {
                 _uiState.update { it.copy(isOnlineStatusVisible = action.enabled) }
-                _effects.trySend(
-                    SettingsEffect.ShowMessage(
-                        if (action.enabled) "Đã bật hiển thị trạng thái Online" else "Đã ẩn trạng thái Online"
-                    )
-                )
             }
 
             SettingsAction.OpenThemeDialog -> _uiState.update { it.copy(showThemeDialog = true) }
@@ -108,41 +97,47 @@ class SettingsViewModel : ViewModel() {
             SettingsAction.DismissRecoveryPhoneDialog -> _uiState.update { it.copy(showRecoveryPhoneDialog = false) }
             is SettingsAction.SaveRecoveryPhone -> {
                 _uiState.update { it.copy(recoveryPhone = action.phone, showRecoveryPhoneDialog = false) }
-                _effects.trySend(SettingsEffect.ShowMessage("Đã lưu số điện thoại khôi phục"))
             }
 
             SettingsAction.OpenLinkedEmailsDialog -> _uiState.update { it.copy(showLinkedEmailsDialog = true) }
             SettingsAction.DismissLinkedEmailsDialog -> _uiState.update { it.copy(showLinkedEmailsDialog = false) }
             is SettingsAction.AddLinkedEmail -> {
                 _uiState.update { it.copy(linkedEmails = it.linkedEmails + action.email, showLinkedEmailsDialog = false) }
-                _effects.trySend(SettingsEffect.ShowMessage("Đã thêm email liên kết: ${action.email}"))
             }
 
             SettingsAction.OpenChangePasswordDialog -> _uiState.update { it.copy(showChangePasswordDialog = true) }
             SettingsAction.DismissChangePasswordDialog -> _uiState.update { it.copy(showChangePasswordDialog = false) }
             is SettingsAction.ConfirmChangePassword -> {
                 _uiState.update { it.copy(showChangePasswordDialog = false) }
-                _effects.trySend(SettingsEffect.ShowMessage("Đã đổi mật khẩu thành công"))
+                // Cùng luật với Đăng ký: ≥ 8 ký tự, có cả chữ và số
+                val error = AuthValidators.validatePassword(action.newPass)
+                if (error != null) {
+                    _effects.trySend(SettingsEffect.ShowMessage(error))
+                    return
+                }
+                viewModelScope.launch {
+                    auth.changePassword(action.newPass).onFailure {
+                        _effects.trySend(SettingsEffect.ShowMessage(it.message ?: "Không đổi được mật khẩu"))
+                    }
+                }
             }
 
             is SettingsAction.UnblockUser -> {
-                val target = _uiState.value.blockedUsers.find { it.id == action.userId }
-                SampleSocialData.unblockUser(action.userId)
-                _effects.trySend(
-                    SettingsEffect.ShowMessage(
-                        "Đã bỏ chặn ${target?.displayName ?: "người dùng"}"
-                    )
-                )
+                viewModelScope.launch {
+                    social.unblock(action.userId).onFailure {
+                        _effects.trySend(SettingsEffect.ShowMessage(it.message ?: "Không bỏ chặn được"))
+                    }
+                }
             }
 
             SettingsAction.OpenEditProfileSheet -> {
-                val me = SampleSocialData.getCurrentUser()
+                val me = _uiState.value.currentUser ?: return
                 _uiState.update {
                     it.copy(
                         isEditProfileSheetOpen = true,
                         editDisplayNameInput = me.displayName,
                         editUsernameInput = me.username,
-                        editBioInput = me.bio.ifBlank { "Ghi lại khoảnh khắc đẹp tại các tỉnh thành Việt Nam." },
+                        editBioInput = me.bio,
                         editDisplayNameError = null,
                         editUsernameError = null
                     )
@@ -154,45 +149,28 @@ class SettingsViewModel : ViewModel() {
             }
 
             is SettingsAction.ChangeEditDisplayName -> {
-                val err = if (action.value.trim().length < 2) "Tên hiển thị tối thiểu 2 ký tự" else null
+                val err = AuthValidators.validateDisplayName(action.value)
                 _uiState.update { it.copy(editDisplayNameInput = action.value, editDisplayNameError = err) }
             }
 
             is SettingsAction.ChangeEditUsername -> {
-                val clean = action.value.trim().removePrefix("@")
-                val err = if (clean.length < 3) "Username tối thiểu 3 ký tự" else null
-                _uiState.update { it.copy(editUsernameInput = clean, editUsernameError = err) }
+                val clean = action.value.trim().removePrefix("@").lowercase()
+                _uiState.update { it.copy(editUsernameInput = clean, editUsernameError = AuthValidators.validateUsernameFormat(clean)) }
             }
 
             is SettingsAction.ChangeEditBio -> {
-                _uiState.update { it.copy(editBioInput = action.value) }
+                // Ràng buộc profiles_bio_length: tối đa 60 ký tự
+                _uiState.update { it.copy(editBioInput = action.value.take(60)) }
             }
 
-            SettingsAction.SaveEditProfile -> {
-                val state = _uiState.value
-                val trimmedName = state.editDisplayNameInput.trim()
-                val cleanUsername = state.editUsernameInput.trim().removePrefix("@")
-                if (trimmedName.length < 2 || cleanUsername.length < 3) return
-                SampleSocialData.updateMyProfile(trimmedName, cleanUsername, state.editBioInput)
-                val updatedMe = SampleSocialData.getCurrentUser()
-                _uiState.update {
-                    it.copy(
-                        isEditProfileSheetOpen = false,
-                        currentUser = updatedMe
-                    )
-                }
-                _effects.trySend(SettingsEffect.ShowMessage("Đã cập nhật hồ sơ cá nhân"))
-            }
+            SettingsAction.SaveEditProfile -> saveProfile()
 
             SettingsAction.ClearCache -> {
-                _uiState.update { it.copy(cacheSizeLabel = "0.0 MB") }
-                _effects.trySend(SettingsEffect.ShowMessage("Đã giải phóng 34.5 MB bộ nhớ đệm"))
+                _effects.trySend(SettingsEffect.ShowMessage("Chưa khả dụng"))
             }
 
             is SettingsAction.ToggleDataSaver -> {
                 _uiState.update { it.copy(dataSaverEnabled = action.enabled) }
-                val msg = if (action.enabled) "Đã bật tiết kiệm dữ liệu" else "Đã tắt tiết kiệm dữ liệu"
-                _effects.trySend(SettingsEffect.ShowMessage(msg))
             }
 
             is SettingsAction.ToggleAutoSave -> {
@@ -203,21 +181,13 @@ class SettingsViewModel : ViewModel() {
                 _uiState.update { it.copy(highQualityUpload = action.enabled) }
             }
 
-            is SettingsAction.ToggleNotifyNewPhotos -> {
-                SampleSocialData.updateSettings { it.copy(notifyNewPhotos = action.enabled) }
-            }
+            is SettingsAction.ToggleNotifyNewPhotos -> updateSettings { it.copy(notifyNewPhotos = action.enabled) }
 
-            is SettingsAction.ToggleNotifyReactions -> {
-                SampleSocialData.updateSettings { it.copy(notifyReactions = action.enabled) }
-            }
+            is SettingsAction.ToggleNotifyReactions -> updateSettings { it.copy(notifyReactions = action.enabled) }
 
-            is SettingsAction.ToggleNotifyMessages -> {
-                SampleSocialData.updateSettings { it.copy(notifyMessages = action.enabled) }
-            }
+            is SettingsAction.ToggleNotifyMessages -> updateSettings { it.copy(notifyMessages = action.enabled) }
 
-            is SettingsAction.ToggleNotifyFriendRequests -> {
-                SampleSocialData.updateSettings { it.copy(notifyFriendRequests = action.enabled) }
-            }
+            is SettingsAction.ToggleNotifyFriendRequests -> updateSettings { it.copy(notifyFriendRequests = action.enabled) }
 
             is SettingsAction.UpdateNotificationPermissionState -> {
                 _uiState.update { it.copy(hasNotificationPermission = action.granted) }
@@ -252,7 +222,7 @@ class SettingsViewModel : ViewModel() {
             SettingsAction.ConfirmLogout -> {
                 _uiState.update { it.copy(showLogoutDialog = false) }
                 viewModelScope.launch {
-                    FakeAuthStore.logout()
+                    auth.logout()
                     _effects.send(SettingsEffect.NavigateToLogin)
                 }
             }
@@ -281,21 +251,59 @@ class SettingsViewModel : ViewModel() {
 
             SettingsAction.ConfirmDeleteAccount -> {
                 if (!_uiState.value.isDeleteConfirmEnabled) return
-                SampleSocialData.resetAccountForDemo()
-                _uiState.update {
-                    it.copy(
-                        showDeleteAccountDialog = false,
-                        deleteConfirmTextInput = ""
+                _uiState.update { it.copy(showDeleteAccountDialog = false, deleteConfirmTextInput = "") }
+                viewModelScope.launch {
+                    auth.deleteAccount().fold(
+                        onSuccess = {
+                            _effects.send(SettingsEffect.NavigateToLogin)
+                        },
+                        onFailure = { error ->
+                            _effects.send(SettingsEffect.ShowMessage(error.message ?: "Không xoá được tài khoản, thử lại sau"))
+                        }
                     )
                 }
-                _effects.trySend(
-                    SettingsEffect.ShowMessage("Tài khoản, ảnh và tin nhắn của bạn đã được xoá vĩnh viễn")
-                )
-                viewModelScope.launch {
-                    FakeAuthStore.logout()
-                    _effects.send(SettingsEffect.NavigateToLogin)
-                }
             }
+        }
+    }
+
+    /** Đổi ngay trên máy rồi lưu lên server (Repository tự trả lại giá trị cũ nếu lỗi). */
+    private fun updateSettings(successMessage: String? = null, transform: (AppSettingsData) -> AppSettingsData) {
+        viewModelScope.launch {
+            settingsRepository.update(transform).fold(
+                onSuccess = { if (successMessage != null) _effects.trySend(SettingsEffect.ShowMessage(successMessage)) },
+                onFailure = { error -> _effects.trySend(SettingsEffect.ShowMessage(error.message ?: "Không lưu được cài đặt")) }
+            )
+        }
+    }
+
+    private fun saveProfile() {
+        val state = _uiState.value
+        val trimmedName = state.editDisplayNameInput.trim()
+        val cleanUsername = state.editUsernameInput.trim().removePrefix("@").lowercase()
+        val nameError = AuthValidators.validateDisplayName(trimmedName)
+        val usernameError = AuthValidators.validateUsernameFormat(cleanUsername)
+        if (nameError != null || usernameError != null) {
+            _uiState.update { it.copy(editDisplayNameError = nameError, editUsernameError = usernameError) }
+            return
+        }
+        val bioError = AuthValidators.validateBio(state.editBioInput)
+        if (bioError != null) {
+            _effects.trySend(SettingsEffect.ShowMessage(bioError))
+            return
+        }
+        viewModelScope.launch {
+            auth.updateProfile(displayName = trimmedName, username = cleanUsername, bio = state.editBioInput).fold(
+                onSuccess = { updated ->
+                    _uiState.update { it.copy(isEditProfileSheetOpen = false, currentUser = updated) }
+                },
+                onFailure = { error ->
+                    if (error is AuthStoreException.UsernameAlreadyTaken) {
+                        _uiState.update { it.copy(editUsernameError = error.message) }
+                    } else {
+                        _effects.trySend(SettingsEffect.ShowMessage(error.message ?: "Không lưu được, thử lại sau"))
+                    }
+                }
+            )
         }
     }
 }

@@ -17,8 +17,6 @@ enum class LocationAccuracyState {
 }
 
 data class OnboardingUiState(
-    val currentPage: Int = 0,
-    val totalPages: Int = 4,
     val cameraStatus: PermissionStatus = PermissionStatus.NOT_GRANTED,
     val locationStatus: PermissionStatus = PermissionStatus.NOT_GRANTED,
     val locationAccuracy: LocationAccuracyState = LocationAccuracyState.NONE,
@@ -30,9 +28,6 @@ data class OnboardingUiState(
 }
 
 sealed interface OnboardingAction {
-    data class PageChanged(val page: Int) : OnboardingAction
-    data object NextPageClicked : OnboardingAction
-    data object SkipToPermissionsClicked : OnboardingAction
     data class SyncPermissionState(
         val cameraGranted: Boolean,
         val fineLocationGranted: Boolean,

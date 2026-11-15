@@ -1,7 +1,11 @@
 package vn.nhom2.lokap.feature.postdetail
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,65 +14,117 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.FakeCommentStore
-import vn.nhom2.lokap.data.fake.FakePostStore
-import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.data.fake.SampleData2
+import vn.nhom2.lokap.core.navigation.Route
+import vn.nhom2.lokap.domain.repository.CommentRepository
+import vn.nhom2.lokap.domain.repository.MessagingRepository
 import vn.nhom2.lokap.domain.model.toRegionAlbumTarget
-class PostDetailViewModel : ViewModel() {
+import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.PostRepository
+import vn.nhom2.lokap.domain.repository.SocialRepository
+import vn.nhom2.lokap.domain.repository.isOffline
 
-    private var targetPostId: String? = null
+/**
+ * Chi tiết bài: theo dõi bài trong PostRepository (bản Firestore: Room + làm mới 1 lần từ server).
+ * Bài của mình có thêm Sửa lời nhắn / Xoá bài. Bình luận theo dõi trực tiếp từ Firestore.
+ */
+@HiltViewModel
+class PostDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val posts: PostRepository,
+    private val social: SocialRepository,
+    auth: AuthRepository,
+    private val comments: CommentRepository,
+    private val messages: MessagingRepository
+) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PostDetailUiState(isLoading = true))
+    private val postId: String = runCatching { savedStateHandle.toRoute<Route.PostDetail>().id }
+        .getOrElse { savedStateHandle.get<String>("id").orEmpty() }
+
+    private val _uiState = MutableStateFlow(
+        PostDetailUiState(
+            isLoading = true,
+            now = posts.now(),
+            currentUserId = auth.currentUser.value?.id.orEmpty()
+        )
+    )
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
 
     private val _effects = Channel<PostDetailEffect>(Channel.BUFFERED)
     val effects: Flow<PostDetailEffect> = _effects.receiveAsFlow()
 
-    fun loadPost(postId: String) {
-        if (targetPostId == postId) return
-        targetPostId = postId
+    /** Đã hỏi server xong chưa: trước đó bài chưa có trong máy chỉ là "đang tải", chưa phải "đã xoá". */
+    private var refreshed = false
 
+    /** Đang tự rời màn (xoá / báo cáo / chặn): bài biến khỏi máy không phải là "đã bị xoá hoặc ẩn". */
+    private var leaving = false
+
+    init {
         viewModelScope.launch {
-            FakePostStore.posts.collect { list ->
-                val found = list.firstOrNull { it.id == postId }
-                _uiState.update { state ->
-                    state.copy(
+            auth.currentUser.collect { me -> _uiState.update { it.copy(currentUserId = me?.id.orEmpty()) } }
+        }
+        viewModelScope.launch {
+            posts.observePost(postId).collect { found ->
+                _uiState.update {
+                    it.copy(
                         post = found,
-                        isLoading = false,
-                        isNotFound = (found == null)
+                        isLoading = found == null && !refreshed,
+                        isNotFound = found == null && refreshed && !leaving
                     )
                 }
             }
         }
-
         viewModelScope.launch {
-            FakeCommentStore.comments.collect { map ->
-                val list = map[postId] ?: emptyList()
-                _uiState.update { state ->
-                    state.copy(comments = list)
+            comments.observeComments(postId).collect { result ->
+                _uiState.update { it.copy(comments = result.getOrDefault(emptyList()).toCommentUi(), commentsError = result.exceptionOrNull()?.message) }
+            }
+        }
+        refresh()
+    }
+
+    private fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(errorMessage = null, isLoading = it.post == null, now = posts.now()) }
+            val error = posts.refreshPost(postId).exceptionOrNull()
+            refreshed = true
+            _uiState.update { state ->
+                if (error == null) {
+                    state.copy(isLoading = false, isNotFound = state.post == null, isOffline = false)
+                } else {
+                    state.copy(
+                        isLoading = false,
+                        isOffline = error.isOffline,
+                        // Bài đã có trong máy thì vẫn xem được; chưa có thì báo lỗi + Thử lại
+                        errorMessage = if (state.post == null) error.message else null
+                    )
                 }
             }
         }
     }
 
     fun onAction(action: PostDetailAction) {
-        val currentPost = _uiState.value.post
+        val state = _uiState.value
+        val currentPost = state.post
 
         when (action) {
             PostDetailAction.OnBackClick -> {
                 sendEffect(PostDetailEffect.NavigateBack)
             }
 
+            PostDetailAction.OnRetry -> refresh()
+
             is PostDetailAction.OnReact -> {
                 val id = currentPost?.id ?: return
-                FakePostStore.toggleReaction(id, action.emoji)
+                viewModelScope.launch {
+                    posts.toggleReaction(id, action.emoji)
+                        .onFailure { sendEffect(PostDetailEffect.ShowSnackbar(it.message ?: "Không thả cảm xúc được")) }
+                }
             }
 
             PostDetailAction.OnReplyClick -> {
                 val authorId = currentPost?.author?.id ?: return
-                val convId = SampleData2.resolveConversationIdForUser(authorId)
-                sendEffect(PostDetailEffect.NavigateToChat(convId))
+                viewModelScope.launch { messages.openConversation(authorId).fold(
+                    onSuccess = { sendEffect(PostDetailEffect.NavigateToChat(it)) },
+                    onFailure = { sendEffect(PostDetailEffect.ShowSnackbar(it.message ?: "Không mở được cuộc trò chuyện")) }) }
             }
 
             PostDetailAction.OnAuthorClick -> {
@@ -90,11 +146,18 @@ class PostDetailViewModel : ViewModel() {
             }
 
             is PostDetailAction.OnSubmitReport -> {
-
-                val id = currentPost?.id
+                val id = currentPost?.id ?: return
                 _uiState.update { it.copy(isReportSheetOpen = false) }
-                sendEffect(PostDetailEffect.NavigateBack)
-                if (id != null) FakePostStore.removePost(id)
+                viewModelScope.launch {
+                    leaving = true
+                    posts.reportPost(id, action.reason).fold(
+                        onSuccess = { sendEffect(PostDetailEffect.NavigateBack) },
+                        onFailure = {
+                            leaving = false
+                            sendEffect(PostDetailEffect.ShowSnackbar(it.message ?: "Không gửi được báo cáo"))
+                        }
+                    )
+                }
             }
 
             PostDetailAction.OnOpenBlockDialog -> {
@@ -106,46 +169,111 @@ class PostDetailViewModel : ViewModel() {
             }
 
             PostDetailAction.OnConfirmBlock -> {
-
-                val authorId = currentPost?.author?.id
+                val authorId = currentPost?.author?.id ?: return
                 _uiState.update { it.copy(showBlockConfirmDialog = false) }
-                sendEffect(PostDetailEffect.NavigateBack)
-                if (authorId != null) FakePostStore.removePostsByAuthor(authorId)
-            }
-
-            is PostDetailAction.OnVoteComment -> {
-                val postId = targetPostId ?: return
-                FakeCommentStore.voteComment(postId, action.commentId, action.isUpvote)
-            }
-
-            is PostDetailAction.OnReplyToComment -> {
-                _uiState.update { it.copy(replyingToComment = action.comment) }
-            }
-
-            is PostDetailAction.OnChangeCommentInput -> {
-                _uiState.update { it.copy(commentInput = action.text) }
-            }
-
-            PostDetailAction.OnSendComment -> {
-                val text = _uiState.value.commentInput.trim()
-                val postId = targetPostId ?: return
-                if (text.isNotBlank()) {
-                    val replyTarget = _uiState.value.replyingToComment
-                    FakeCommentStore.addComment(
-                        postId = postId,
-                        content = text,
-                        replyTargetId = replyTarget?.id,
-                        replyToAuthorName = replyTarget?.authorName
-                    )
-                    _uiState.update {
-                        it.copy(
-                            commentInput = "",
-                            replyingToComment = null
-                        )
+                viewModelScope.launch {
+                    leaving = true
+                    val result = social.block(authorId)
+                    if (result.isSuccess) {
+                        posts.hidePostsByAuthor(authorId)
+                        sendEffect(PostDetailEffect.NavigateBack)
+                    } else {
+                        leaving = false
+                        sendEffect(PostDetailEffect.ShowSnackbar(result.exceptionOrNull()?.message ?: "Không chặn được, thử lại sau"))
                     }
-                    sendEffect(PostDetailEffect.ShowSnackbar("Đã gửi bình luận"))
                 }
             }
+
+            // ---------- Bài của mình ----------
+
+            PostDetailAction.OnOpenEditCaption -> {
+                if (!state.isOwnPost) return
+                _uiState.update { it.copy(isEditCaptionOpen = true, editCaptionInput = currentPost?.caption.orEmpty()) }
+            }
+
+            PostDetailAction.OnDismissEditCaption -> {
+                _uiState.update { it.copy(isEditCaptionOpen = false, isSavingCaption = false) }
+            }
+
+            is PostDetailAction.OnChangeCaptionInput -> {
+                _uiState.update { it.copy(editCaptionInput = action.text.take(vn.nhom2.lokap.domain.model.POST_CAPTION_MAX_LENGTH)) }
+            }
+
+            PostDetailAction.OnSaveCaption -> {
+                val id = currentPost?.id ?: return
+                if (!state.isOwnPost || state.isSavingCaption) return
+                _uiState.update { it.copy(isSavingCaption = true) }
+                viewModelScope.launch {
+                    posts.updateCaption(id, state.editCaptionInput.trim().ifEmpty { null }).fold(
+                        onSuccess = {
+                            _uiState.update { it.copy(isEditCaptionOpen = false, isSavingCaption = false) }
+                        },
+                        onFailure = { error ->
+                            _uiState.update { it.copy(isSavingCaption = false) }
+                            sendEffect(PostDetailEffect.ShowSnackbar(error.message ?: "Không lưu được, thử lại sau"))
+                        }
+                    )
+                }
+            }
+
+            PostDetailAction.OnOpenDeleteDialog -> {
+                if (!state.isOwnPost) return
+                _uiState.update { it.copy(showDeleteConfirmDialog = true) }
+            }
+
+            PostDetailAction.OnDismissDeleteDialog -> {
+                _uiState.update { it.copy(showDeleteConfirmDialog = false) }
+            }
+
+            PostDetailAction.OnConfirmDelete -> {
+                val id = currentPost?.id ?: return
+                if (!state.isOwnPost || state.isDeleting) return
+                _uiState.update { it.copy(isDeleting = true) }
+                viewModelScope.launch {
+                    leaving = true
+                    posts.deletePost(id).fold(
+                        onSuccess = {
+                            _uiState.update { it.copy(showDeleteConfirmDialog = false, isDeleting = false) }
+                            sendEffect(PostDetailEffect.NavigateBack)
+                        },
+                        onFailure = { error ->
+                            leaving = false
+                            _uiState.update { it.copy(isDeleting = false) }
+                            sendEffect(PostDetailEffect.ShowSnackbar(error.message ?: "Không xoá được, thử lại sau"))
+                        }
+                    )
+                }
+            }
+
+            is PostDetailAction.OnVoteComment -> commentCall { comments.vote(postId, action.commentId, action.isUpvote) }
+            is PostDetailAction.OnReplyToComment -> _uiState.update { it.copy(replyingToComment = action.comment) }
+            is PostDetailAction.OnChangeCommentInput -> _uiState.update { it.copy(commentInput = action.text.take(1000)) }
+            PostDetailAction.OnSendComment -> if (state.commentInput.isNotBlank() && !state.isSavingComment) commentCall {
+                comments.add(postId, state.commentInput, state.replyingToComment?.id).onSuccess {
+                    _uiState.update { it.copy(commentInput = "", replyingToComment = null) }
+                }
+            }
+            is PostDetailAction.OnEditComment -> if (action.comment.authorId == state.currentUserId) _uiState.update { it.copy(editingComment = action.comment, editCommentText = action.comment.content) }
+            is PostDetailAction.OnEditCommentText -> _uiState.update { it.copy(editCommentText = action.text.take(1000)) }
+            PostDetailAction.OnDismissCommentEdit -> _uiState.update { it.copy(editingComment = null) }
+            PostDetailAction.OnSaveComment -> state.editingComment?.let { comment -> commentCall {
+                comments.editComment(postId, comment.id, state.editCommentText).onSuccess { _uiState.update { it.copy(editingComment = null) } }
+            } }
+            is PostDetailAction.OnDeleteComment -> _uiState.update { it.copy(deletingCommentId = action.id) }
+            PostDetailAction.OnDismissCommentDelete -> _uiState.update { it.copy(deletingCommentId = null) }
+            PostDetailAction.OnConfirmCommentDelete -> state.deletingCommentId?.let { id -> commentCall {
+                comments.deleteComment(postId, id).onSuccess { _uiState.update { it.copy(deletingCommentId = null) } }
+            } }
+        }
+    }
+
+    private fun commentCall(block: suspend () -> Result<Unit>) {
+        if (_uiState.value.isSavingComment) return
+        _uiState.update { it.copy(isSavingComment = true) }
+        viewModelScope.launch {
+            val result = block()
+            _uiState.update { it.copy(isSavingComment = false) }
+            result.onFailure { sendEffect(PostDetailEffect.ShowSnackbar(it.message ?: "Không lưu được bình luận")) }
         }
     }
 

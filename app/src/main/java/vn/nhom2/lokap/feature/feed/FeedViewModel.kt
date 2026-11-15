@@ -2,6 +2,11 @@ package vn.nhom2.lokap.feature.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import java.text.Collator
+import java.util.Locale
+import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -11,64 +16,111 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.FakeNotificationStore
-import vn.nhom2.lokap.data.fake.FakePostStore
-import vn.nhom2.lokap.data.fake.SampleData
-import vn.nhom2.lokap.data.fake.SampleData2
-import vn.nhom2.lokap.domain.model.*
-class FeedViewModel : ViewModel() {
+import vn.nhom2.lokap.domain.repository.CommentRepository
+import vn.nhom2.lokap.domain.repository.MessagingRepository
+import vn.nhom2.lokap.domain.repository.NotificationRepository
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import vn.nhom2.lokap.domain.model.FriendStatus
+import vn.nhom2.lokap.domain.model.Post
+import vn.nhom2.lokap.domain.model.User
+import vn.nhom2.lokap.domain.model.toRegionAlbumTarget
+import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.PostRepository
+import vn.nhom2.lokap.domain.repository.SocialRepository
+import vn.nhom2.lokap.domain.repository.isOffline
 
-    private val _uiState = MutableStateFlow(FeedUiState())
+/**
+ * Feed đọc bài qua PostRepository (bản Firestore: cache Room hiện ngay, làm mới từ server),
+ * bạn bè qua SocialRepository. Bình luận và thông báo theo dõi trực tiếp từ Firestore.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltViewModel
+class FeedViewModel @Inject constructor(
+    private val posts: PostRepository,
+    private val social: SocialRepository,
+    private val auth: AuthRepository,
+    private val comments: CommentRepository,
+    private val messages: MessagingRepository,
+    private val notifications: NotificationRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(
+        FeedUiState(now = posts.now(), currentUserId = auth.currentUser.value?.id.orEmpty())
+    )
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
 
     private val _effects = Channel<FeedEffect>(Channel.BUFFERED)
     val effects: Flow<FeedEffect> = _effects.receiveAsFlow()
 
-    init {
-        _uiState.update { it.copy(searchResults = SampleData.users.filter { u -> u.id != SampleData.currentUser.id }) }
-        viewModelScope.launch {
-            FakeNotificationStore.unreadCount.collect { n -> _uiState.update { it.copy(unreadNotificationsCount = n) } }
-        }
-        viewModelScope.launch {
-            FakePostStore.posts.collect { allPosts ->
-                updatePostsState(allPosts)
-            }
-        }
-        viewModelScope.launch {
-            vn.nhom2.lokap.data.fake.FakeCommentStore.observeAllCounts().collect { counts ->
-                _uiState.update { it.copy(commentsCountMap = counts) }
-            }
-        }
-    }
-
     private var cachedPublicPosts: List<Post> = emptyList()
+    /** Id bài public (tab Khám phá, nơi duy nhất hiện số bình luận). Set nên đổi thứ tự không dựng lại listener. */
+    private val publicPostIds = MutableStateFlow<Set<String>>(emptySet())
+    private var searchJob: Job? = null
+    private var graphFriends: List<User> = emptyList()
+    private val nameCollator: Collator = Collator.getInstance(Locale.forLanguageTag("vi"))
 
-    private fun updatePostsState(allPosts: List<Post>) {
-        val now = SampleData.NOW
-        val meId = SampleData.currentUser.id
-
-        val friendIds = SampleData.users.map { it.id }.toSet()
-        val friendFeed = allPosts
-            .filter { post -> post.author.id == meId || post.author.id in friendIds }
-            .sortedByDescending { it.takenAt }
-
-        val visiblePublicPosts = allPosts
-            .filter { post ->
-                post.audience == Audience.PUBLIC &&
-                    post.sendState == PostSendState.SENT &&
-                    (post.publicVisibleAt == null || !post.publicVisibleAt.isAfter(now))
+    init {
+        viewModelScope.launch {
+            auth.currentUser.collect { me ->
+                _uiState.update { it.copy(currentUserId = me?.id.orEmpty()) }
+                updateFriendFilterOptions()
             }
-            .sortedByDescending { it.takenAt }
-
-        cachedPublicPosts = visiblePublicPosts
-        applyProvinceFilter(visiblePublicPosts, _uiState.value.currentProvinceName, friendFeed)
+        }
+        viewModelScope.launch {
+            posts.friendFeed.collect { list ->
+                // Có bài trong máy (Room) thì hiện ngay, không đợi server
+                _uiState.update { it.copy(friendPosts = list, isLoading = it.isLoading && list.isEmpty() && it.allPublicPosts.isEmpty()) }
+                updateFriendFilterOptions()
+            }
+        }
+        viewModelScope.launch {
+            posts.publicPosts.collect { list ->
+                cachedPublicPosts = list
+                applyProvinceFilter(list, _uiState.value.currentProvinceName)
+                publicPostIds.value = list.map { it.id }.toSet()
+            }
+        }
+        viewModelScope.launch {
+            social.graph.collect { graph ->
+                graphFriends = graph.usersWith(FriendStatus.FRIENDS)
+                _uiState.update { it.copy(friendStatuses = graph.statuses) }
+                updateFriendFilterOptions()
+                // Gợi ý suy ra từ graph (bản Firestore): danh sách bạn về muộn thì nạp lại
+                if (_uiState.value.searchQuery.isBlank()) searchUsers("")
+            }
+        }
+        viewModelScope.launch {
+            notifications.observeUnreadCount().collect { count -> _uiState.update { it.copy(unreadNotificationsCount = count) } }
+        }
+        viewModelScope.launch {
+            // Mỗi bài public một listener chỉ đếm số bình luận; chỉ dựng lại khi tập bài đổi
+            publicPostIds.flatMapLatest { ids ->
+                if (ids.isEmpty()) flowOf(emptyMap()) else combine(ids.map { id -> comments.observeCommentCount(id).map { id to it } }) { it.toMap() }
+            }.collect { counts -> _uiState.update { it.copy(commentsCountMap = counts) } }
+        }
+        searchUsers("")
+        // Mở màn: dùng cache có hạn (vừa tải ở Bản đồ / Album thì không tải lại)
+        refresh(initial = true, force = false)
     }
 
-    private fun applyProvinceFilter(
-        publicPosts: List<Post>,
-        provinceName: String,
-        friendFeed: List<Post> = _uiState.value.friendPosts
-    ) {
+    /**
+     * Dropdown tab Bạn bè: bạn bè trong graph + tác giả đang có bài trong feed (gồm chính mình),
+     * mình đứng đầu, còn lại xếp theo tên tiếng Việt. Người đang chọn biến mất (huỷ kết bạn, chặn)
+     * thì quay về "Tất cả".
+     */
+    private fun updateFriendFilterOptions() {
+        _uiState.update { state ->
+            val me = state.currentUserId
+            val options = (graphFriends + state.friendPosts.map { it.author })
+                .distinctBy { it.id }
+                .sortedWith(compareBy<User> { it.id != me }.thenComparator { a, b -> nameCollator.compare(a.displayName, b.displayName) })
+            val selected = state.selectedFriendId?.takeIf { id -> options.any { it.id == id } }
+            state.copy(friendFilterOptions = options, selectedFriendId = selected)
+        }
+    }
+
+    private fun applyProvinceFilter(publicPosts: List<Post>, provinceName: String) {
         val q = provinceName.trim()
         val isAll = q.isEmpty() || q.equals(NATIONWIDE_VIETNAM, ignoreCase = true) ||
             q.equals("Việt Nam", ignoreCase = true) || q.equals("Toàn quốc", ignoreCase = true)
@@ -93,7 +145,7 @@ class FeedViewModel : ViewModel() {
 
         _uiState.update { state ->
             state.copy(
-                friendPosts = friendFeed,
+                isLoading = state.isLoading && publicPosts.isEmpty() && state.friendPosts.isEmpty(),
                 allPublicPosts = publicPosts,
                 explorePosts = filtered,
                 nearbyPosts = filtered,
@@ -104,29 +156,40 @@ class FeedViewModel : ViewModel() {
         }
     }
 
+    /** Làm mới từ server. Có bài trong máy thì lỗi chỉ hiện banner offline, không che bằng màn lỗi. */
+    private fun refresh(initial: Boolean = false, force: Boolean = true) {
+        viewModelScope.launch {
+            _uiState.update { state ->
+                val empty = state.friendPosts.isEmpty() && state.allPublicPosts.isEmpty()
+                state.copy(isLoading = initial && empty, isRefreshing = !initial, errorMessage = null, now = posts.now())
+            }
+            val result = posts.refreshFeeds(force)
+            _uiState.update { state ->
+                val empty = state.friendPosts.isEmpty() && state.allPublicPosts.isEmpty()
+                val error = result.exceptionOrNull()
+                state.copy(
+                    isLoading = false,
+                    isRefreshing = false,
+                    isOffline = error?.isOffline == true,
+                    errorMessage = if (error != null && empty && !error.isOffline) error.message else null
+                )
+            }
+        }
+    }
+
     fun onAction(action: FeedAction) {
         when (action) {
             is FeedAction.OnSelectTab -> {
                 _uiState.update { it.copy(selectedTab = action.tab) }
             }
 
-            FeedAction.OnRefresh -> {
-                viewModelScope.launch {
-                    _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
-                    delay(600L)
-                    updatePostsState(FakePostStore.posts.value)
-                    _uiState.update { it.copy(isRefreshing = false) }
-                }
+            is FeedAction.OnSelectFriendFilter -> {
+                _uiState.update { it.copy(selectedFriendId = action.userId) }
             }
 
-            FeedAction.OnRetry -> {
-                viewModelScope.launch {
-                    _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                    delay(500L)
-                    updatePostsState(FakePostStore.posts.value)
-                    _uiState.update { it.copy(isLoading = false) }
-                }
-            }
+            FeedAction.OnRefresh -> refresh()
+
+            FeedAction.OnRetry -> refresh(initial = true)
 
             FeedAction.OnSwipeDownToCamera -> {
                 sendEffect(FeedEffect.NavigateBackToCamera)
@@ -154,21 +217,25 @@ class FeedViewModel : ViewModel() {
             }
 
             is FeedAction.OnReplyClick -> {
-                val convId = SampleData2.resolveConversationIdForUser(action.post.author.id)
-                sendEffect(FeedEffect.NavigateToChat(convId))
+                viewModelScope.launch { messages.openConversation(action.post.author.id).fold(
+                    onSuccess = { sendEffect(FeedEffect.NavigateToChat(it)) },
+                    onFailure = { sendEffect(FeedEffect.ShowMessage(it.message ?: "Không mở được cuộc trò chuyện")) }) }
             }
 
-            is FeedAction.OnReact -> {
-                FakePostStore.toggleReaction(action.postId, action.emoji)
+            is FeedAction.OnReact -> viewModelScope.launch {
+                posts.toggleReaction(action.postId, action.emoji)
+                    .onFailure { sendEffect(FeedEffect.ShowMessage(it.message ?: "Không thả cảm xúc được")) }
             }
 
-            is FeedAction.OnRetrySendPost -> {
-                FakePostStore.retrySend(action.postId)
+            is FeedAction.OnRetrySendPost -> viewModelScope.launch {
+                posts.retrySend(action.postId)
             }
 
-            is FeedAction.OnReportPost -> {
-                FakePostStore.removePost(action.postId)
-                sendEffect(FeedEffect.ShowMessage("Đã gửi báo cáo và ẩn bài viết"))
+            is FeedAction.OnReportPost -> viewModelScope.launch {
+                posts.reportPost(action.postId, reason = "Nội dung không phù hợp").fold(
+                    onSuccess = { },
+                    onFailure = { sendEffect(FeedEffect.ShowMessage(it.message ?: "Không gửi được báo cáo")) }
+                )
             }
 
             is FeedAction.OnBlockUser -> {
@@ -182,8 +249,15 @@ class FeedViewModel : ViewModel() {
             FeedAction.OnConfirmBlock -> {
                 val target = _uiState.value.pendingBlock ?: return
                 _uiState.update { it.copy(pendingBlock = null) }
-                FakePostStore.removePostsByAuthor(target.userId)
-                sendEffect(FeedEffect.ShowMessage("Đã chặn ${target.displayName}"))
+                viewModelScope.launch {
+                    val result = social.block(target.userId)
+                    if (result.isSuccess) {
+                        // Sau khi chặn: bỏ ngay mọi bài của người đó khỏi máy
+                        posts.hidePostsByAuthor(target.userId)
+                    } else {
+                        sendEffect(FeedEffect.ShowMessage(result.exceptionOrNull()?.message ?: "Không chặn được, thử lại sau"))
+                    }
+                }
             }
 
             is FeedAction.OnToggleRepost -> {
@@ -193,15 +267,10 @@ class FeedViewModel : ViewModel() {
                     val next = if (wasReposted) state.repostedPostIds - postId else state.repostedPostIds + postId
                     state.copy(repostedPostIds = next)
                 }
-                sendEffect(
-                    FeedEffect.ShowMessage(
-                        if (!wasReposted) "Đã đăng lại lên trang cá nhân" else "Đã huỷ đăng lại"
-                    )
-                )
             }
 
             is FeedAction.OnOpenComments -> {
-                _uiState.update { it.copy(activeCommentPostId = action.postId) }
+                sendEffect(FeedEffect.NavigateToPostDetail(action.postId))
             }
 
             FeedAction.OnDismissComments -> {
@@ -210,14 +279,15 @@ class FeedViewModel : ViewModel() {
 
             is FeedAction.OnAddComment -> {
                 if (action.text.isNotBlank()) {
-                    vn.nhom2.lokap.data.fake.FakeCommentStore.addComment(action.postId, action.text)
-                    sendEffect(FeedEffect.ShowMessage("Đã gửi bình luận"))
+                    viewModelScope.launch { comments.add(action.postId, action.text).fold(
+                        onSuccess = { },
+                        onFailure = { sendEffect(FeedEffect.ShowMessage(it.message ?: "Không lưu được bình luận")) }) }
                 }
             }
 
             is FeedAction.OnShareLink -> {
                 val shareUrl = "https://lokap.vn/p/${action.post.id}"
-                sendEffect(FeedEffect.ShowMessage("Đã sao chép liên kết: $shareUrl"))
+                sendEffect(FeedEffect.ShowMessage("Đã sao chép"))
             }
 
             is FeedAction.OnShowReactionPicker -> {
@@ -229,36 +299,11 @@ class FeedViewModel : ViewModel() {
             }
 
             is FeedAction.OnSearchQueryChange -> {
-                val query = action.query
-                val allUsers = SampleData.users.filter { it.id != SampleData.currentUser.id }
-                val filtered = if (query.isBlank()) {
-                    allUsers
-                } else {
-                    allUsers.filter { user ->
-                        user.displayName.contains(query, ignoreCase = true) ||
-                            user.username.contains(query, ignoreCase = true)
-                    }
-                }
-                _uiState.update { it.copy(searchQuery = query, searchResults = filtered) }
+                _uiState.update { it.copy(searchQuery = action.query) }
+                searchUsers(action.query)
             }
 
-            is FeedAction.OnToggleFriendRequest -> {
-                val currentStatus = _uiState.value.friendStatuses[action.userId] ?: FriendStatus.NONE
-                val nextStatus = when (currentStatus) {
-                    FriendStatus.NONE -> FriendStatus.REQUEST_SENT
-                    FriendStatus.REQUEST_SENT -> FriendStatus.NONE
-                    FriendStatus.FRIENDS -> FriendStatus.NONE
-                    else -> FriendStatus.REQUEST_SENT
-                }
-                _uiState.update { state ->
-                    state.copy(friendStatuses = state.friendStatuses + (action.userId to nextStatus))
-                }
-                sendEffect(
-                    FeedEffect.ShowMessage(
-                        if (nextStatus == FriendStatus.REQUEST_SENT) "Đã gửi lời mời kết bạn" else "Đã huỷ lời mời kết bạn"
-                    )
-                )
-            }
+            is FeedAction.OnToggleFriendRequest -> toggleFriendRequest(action.userId)
 
             is FeedAction.OnSelectProvince -> {
                 applyProvinceFilter(cachedPublicPosts.ifEmpty { _uiState.value.allPublicPosts }, action.provinceName)
@@ -284,6 +329,31 @@ class FeedViewModel : ViewModel() {
             is FeedAction.OnProvinceFilterSearchChange -> {
                 _uiState.update { it.copy(provinceFilterSearch = action.query) }
             }
+        }
+    }
+
+    /** Ô tìm bạn trong Feed: chưa gõ thì gợi ý, gõ thì đợi 300 ms rồi hỏi server. */
+    private fun searchUsers(query: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            if (query.isNotBlank()) delay(300)
+            val result = if (query.isBlank()) social.suggestions() else social.search(query)
+            result.onSuccess { users -> _uiState.update { it.copy(searchResults = users) } }
+        }
+    }
+
+    private fun toggleFriendRequest(userId: String) {
+        viewModelScope.launch {
+            val message: Result<String> = when (social.graph.value.statusOf(userId)) {
+                FriendStatus.NONE -> social.sendFriendRequest(userId).map { status ->
+                    if (status == FriendStatus.FRIENDS) "Hai bạn đã trở thành bạn bè!" else "Đã gửi lời mời kết bạn"
+                }
+                FriendStatus.REQUEST_SENT -> social.cancelFriendRequest(userId).map { "Đã huỷ lời mời kết bạn" }
+                FriendStatus.REQUEST_RECEIVED -> social.acceptFriendRequest(userId).map { "Hai bạn đã trở thành bạn bè!" }
+                FriendStatus.FRIENDS -> social.unfriend(userId).map { "Đã huỷ kết bạn" }
+                FriendStatus.BLOCKED -> return@launch
+            }
+            message.onFailure { sendEffect(FeedEffect.ShowMessage(it.message ?: "Không thực hiện được")) }
         }
     }
 

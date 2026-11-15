@@ -12,7 +12,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-import vn.nhom2.lokap.data.fake.SampleData
 @Composable
 fun BadgeDot(
     count: Int,
@@ -38,23 +37,5 @@ fun BadgeDot(
             style = MaterialTheme.typography.labelSmall,
             color = colors.onPrimary
         )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun BadgeDotPreview() {
-    LokapTheme {
-        val unreadTotal = SampleData.conversations.sumOf { it.unreadCount }
-        Row(
-            modifier = Modifier
-                .background(LokapTheme.colors.background)
-                .padding(LokapTheme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md)
-        ) {
-            BadgeDot(count = unreadTotal)
-            BadgeDot(count = 12)
-            BadgeDot(count = 128)
-        }
     }
 }

@@ -17,7 +17,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import coil3.compose.AsyncImage
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-import vn.nhom2.lokap.data.fake.SampleData
 @Composable
 fun AvatarRing(
     avatarUrl: String?,
@@ -92,33 +91,6 @@ fun AvatarRing(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 1.dp, bottom = 1.dp)
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0B0B0D)
-@Composable
-private fun AvatarRingPreview() {
-    LokapTheme {
-        Row(
-            modifier = Modifier
-                .background(LokapTheme.colors.background)
-                .padding(LokapTheme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.md)
-        ) {
-            val user1 = SampleData.users[0]
-            val user2 = SampleData.users[1]
-            AvatarRing(
-                avatarUrl = user1.avatarUrl,
-                displayName = user1.displayName,
-                hasNewPost = true,
-                onClick = {}
-            )
-            AvatarRing(
-                avatarUrl = null,
-                displayName = user2.displayName,
-                hasNewPost = false
             )
         }
     }

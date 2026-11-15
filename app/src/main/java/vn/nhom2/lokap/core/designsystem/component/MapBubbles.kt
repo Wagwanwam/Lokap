@@ -8,6 +8,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.Icon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.*
@@ -20,7 +23,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import coil3.compose.AsyncImage
 import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.*
 private val CardWidth: Dp = 58.dp
 private val CardHeight: Dp = 66.dp
@@ -42,17 +44,12 @@ fun MapBubbleItem(
         else -> 3
     }
 
-    val resolvedPhotos = remember(bubble.id, photos) {
+    val resolvedPhotos = remember(bubble.id, bubble.coverImageUrl, photos) {
         val list = mutableListOf<String>()
         if (!bubble.coverImageUrl.isNullOrBlank()) {
             list.add(bubble.coverImageUrl)
         }
         photos.forEach { if (!list.contains(it) && it.isNotBlank()) list.add(it) }
-        val samplePool = SampleData.posts.map { it.imageUrl }.filter { it.isNotBlank() }
-        for (sample in samplePool) {
-            if (list.size >= 3) break
-            if (!list.contains(sample)) list.add(sample)
-        }
         list
     }
 
@@ -194,6 +191,16 @@ fun LandmarkBubble(
                         contentDescription = landmark.name,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
+                    )
+                } else if (landmark.coverUrl.isNullOrBlank()) {
+                    // Địa danh chưa có ảnh: ngôi sao vàng, chạm để thành người đầu tiên đăng ảnh
+                    Icon(
+                        imageVector = Icons.Rounded.Star,
+                        contentDescription = null,
+                        tint = colors.accentYellow,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(28.dp)
                     )
                 }
             }

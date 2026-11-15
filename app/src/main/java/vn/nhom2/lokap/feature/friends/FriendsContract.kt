@@ -30,11 +30,13 @@ data class FriendsUiState(
     val incomingRequests: List<User> = emptyList(),
     val sentRequests: List<User> = emptyList(),
     val friends: List<User> = emptyList(),
+    /** Số bạn thật (server đếm), có thể khác friends.size khi chưa tải xong hồ sơ của từng người. */
+    val friendCount: Int = 0,
     val maxFriends: Int = 20,
     val pendingConfirmation: PendingFriendConfirmation? = null
 ) {
     val isFriendLimitReached: Boolean
-        get() = friends.size >= maxFriends
+        get() = friendCount >= maxFriends
 
     val isSearching: Boolean
         get() = debouncedQuery.isNotBlank()
@@ -43,6 +45,7 @@ data class FriendsUiState(
 sealed interface FriendsAction {
     data object Retry : FriendsAction
     data object NavigateBack : FriendsAction
+    data object OpenAddFriend : FriendsAction
     data class ChangeSearchQuery(val query: String) : FriendsAction
     data object ClearSearch : FriendsAction
     data class OpenProfile(val userId: String) : FriendsAction
@@ -61,6 +64,7 @@ sealed interface FriendsAction {
 
 sealed interface FriendsEffect {
     data object NavigateBack : FriendsEffect
+    data object NavigateToAddFriend : FriendsEffect
     data class NavigateToProfile(val userId: String) : FriendsEffect
     data class ShowMessage(val message: String) : FriendsEffect
 }

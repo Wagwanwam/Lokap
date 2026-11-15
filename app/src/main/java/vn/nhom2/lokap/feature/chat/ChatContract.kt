@@ -1,7 +1,6 @@
 package vn.nhom2.lokap.feature.chat
 
 import java.time.Instant
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.*
 sealed interface ChatTimelineItem {
     val key: String
@@ -24,6 +23,10 @@ sealed interface ChatTimelineItem {
 
 data class ChatUiState(
     val isLoading: Boolean = false,
+    val isSaving: Boolean = false,
+    val editingMessage: Message? = null,
+    val editText: String = "",
+    val deletingMessageId: String? = null,
     val isOffline: Boolean = false,
     val errorMessage: String? = null,
     val conversationId: String = "",
@@ -32,16 +35,23 @@ data class ChatUiState(
     val timelineItems: List<ChatTimelineItem> = emptyList(),
     val inputText: String = "",
     val isFriendTyping: Boolean = false,
-    val now: Instant = SampleData.NOW,
+    val now: Instant = Instant.now(),
     val themeConfig: ChatThemeConfig = ChatThemeConfig(),
     val isThemeSheetVisible: Boolean = false
 ) {
     val canSend: Boolean
-        get() = isFriendStatusValid && inputText.trim().isNotEmpty() && inputText.length <= 1000
+        get() = !isSaving && isFriendStatusValid && inputText.trim().isNotEmpty() && inputText.length <= 1000
 }
 
 sealed interface ChatAction {
     data class InputChanged(val text: String) : ChatAction
+    data class EditMessage(val message: Message) : ChatAction
+    data class EditTextChanged(val text: String) : ChatAction
+    data object DismissEdit : ChatAction
+    data object SaveEdit : ChatAction
+    data class DeleteMessage(val id: String) : ChatAction
+    data object DismissDelete : ChatAction
+    data object ConfirmDelete : ChatAction
     data object SendMessage : ChatAction
     data class RetryMessage(val messageId: String) : ChatAction
     data object OpenCameraForDirectShot : ChatAction

@@ -2,98 +2,129 @@ package vn.nhom2.lokap.feature.friends
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import vn.nhom2.lokap.data.fake.SampleSocialData
 import vn.nhom2.lokap.domain.model.FriendStatus
+import vn.nhom2.lokap.domain.repository.SocialRepository
+import vn.nhom2.lokap.domain.repository.isOffline
+
+/** Bạn bè: danh sách từ SocialRepository.graph, tìm kiếm hỏi server sau 300 ms ngừng gõ. */
 @OptIn(FlowPreview::class)
-class FriendsViewModel : ViewModel() {
+@HiltViewModel
+class FriendsViewModel @Inject constructor(
+    private val social: SocialRepository
+) : ViewModel() {
 
     private val rawSearchQuery = MutableStateFlow("")
 
-    private val _uiState = MutableStateFlow(FriendsUiState(isLoading = true))
+    private val _uiState = MutableStateFlow(FriendsUiState(isLoading = true, maxFriends = social.maxFriends))
     val uiState: StateFlow<FriendsUiState> = _uiState.asStateFlow()
 
     private val _effects = Channel<FriendsEffect>(Channel.BUFFERED)
     val effects: Flow<FriendsEffect> = _effects.receiveAsFlow()
 
     init {
-        observeFriendsAndSearch()
-    }
-
-    private fun observeFriendsAndSearch() {
-        val debouncedQueryFlow = rawSearchQuery
-            .map { it.trim() }
-            .debounce(300L)
-            .distinctUntilChanged()
-
         viewModelScope.launch {
-            combine(
-                SampleSocialData.friendStatuses,
-                debouncedQueryFlow
-            ) { statuses, query ->
-                statuses to query
-            }.collect { (statuses, query) ->
-                val currentUserId = SampleSocialData.getCurrentUser().id
-                val allOthers = SampleSocialData.directoryUsers.filter { it.id != currentUserId }
-
-                val incoming = allOthers.filter { statuses[it.id] == FriendStatus.REQUEST_RECEIVED }
-                val sent = allOthers.filter { statuses[it.id] == FriendStatus.REQUEST_SENT }
-                val friends = allOthers.filter { statuses[it.id] == FriendStatus.FRIENDS }
-
-                val normalizedQuery = query.removePrefix("@").lowercase()
-                val searchResults = if (normalizedQuery.isBlank()) {
-                    emptyList()
-                } else {
-
-                    allOthers.filter { user ->
-                        statuses[user.id] != FriendStatus.BLOCKED &&
-                            (user.username.lowercase().contains(normalizedQuery) ||
-                                user.displayName.lowercase().contains(normalizedQuery))
-                    }.map { user ->
-                        FriendUserItemUi(
-                            user = user,
-                            status = statuses[user.id] ?: FriendStatus.NONE
-                        )
-                    }
-                }
-
+            social.graph.collect { graph ->
                 _uiState.update { prev ->
                     prev.copy(
-                        isLoading = false,
+                        // Còn chờ server chỉ khi trong máy chưa có quan hệ nào
+                        isLoading = prev.isLoading && graph.statuses.isEmpty(),
                         errorMessage = null,
-                        debouncedQuery = query,
-                        searchResults = searchResults,
-                        incomingRequests = incoming,
-                        sentRequests = sent,
-                        friends = friends,
-                        maxFriends = SampleSocialData.MAX_FRIENDS
+                        incomingRequests = graph.usersWith(FriendStatus.REQUEST_RECEIVED),
+                        sentRequests = graph.usersWith(FriendStatus.REQUEST_SENT),
+                        friends = graph.usersWith(FriendStatus.FRIENDS),
+                        friendCount = graph.friendCount,
+                        maxFriends = social.maxFriends,
+                        // Kết quả tìm kiếm đang hiện: cập nhật nút theo trạng thái mới
+                        searchResults = prev.searchResults
+                            .filter { graph.statusOf(it.user.id) != FriendStatus.BLOCKED }
+                            .map { it.copy(status = graph.statusOf(it.user.id)) }
                     )
                 }
             }
         }
+        viewModelScope.launch {
+            rawSearchQuery
+                .map { it.trim() }
+                .debounce(300L)
+                .distinctUntilChanged()
+                .collect { query -> search(query) }
+        }
+        refresh()
+    }
+
+    /** Làm mới từ server khi mở màn: graph trong máy có thể trống nếu mở app lúc mất mạng. */
+    private fun refresh() {
+        _uiState.update { it.copy(errorMessage = null) }
+        viewModelScope.launch {
+            social.refresh().fold(
+                onSuccess = { _uiState.update { it.copy(isLoading = false, isOffline = false) } },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        val empty = state.friends.isEmpty() && state.incomingRequests.isEmpty() && state.sentRequests.isEmpty()
+                        state.copy(
+                            isLoading = false,
+                            isOffline = error.isOffline,
+                            // Có dữ liệu trong máy thì chỉ hiện banner offline, không che bằng màn lỗi
+                            errorMessage = if (empty) error.message else null
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    private suspend fun search(query: String) {
+        if (query.removePrefix("@").isBlank()) {
+            _uiState.update { it.copy(debouncedQuery = "", searchResults = emptyList()) }
+            return
+        }
+        social.search(query).fold(
+            onSuccess = { users ->
+                val graph = social.graph.value
+                _uiState.update {
+                    it.copy(
+                        debouncedQuery = query,
+                        isOffline = false,
+                        searchResults = users
+                            .filter { user -> graph.statusOf(user.id) != FriendStatus.BLOCKED }
+                            .map { user -> FriendUserItemUi(user = user, status = graph.statusOf(user.id)) }
+                    )
+                }
+            },
+            onFailure = { error ->
+                _uiState.update { it.copy(debouncedQuery = query, isOffline = error.isOffline) }
+                _effects.trySend(FriendsEffect.ShowMessage(error.message ?: "Không tìm được, thử lại sau"))
+            }
+        )
     }
 
     fun onAction(action: FriendsAction) {
         when (action) {
             FriendsAction.Retry -> {
-                _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                observeFriendsAndSearch()
+                _uiState.update { it.copy(isLoading = true) }
+                refresh()
             }
 
             FriendsAction.NavigateBack -> {
                 _effects.trySend(FriendsEffect.NavigateBack)
+            }
+
+            FriendsAction.OpenAddFriend -> {
+                _effects.trySend(FriendsEffect.NavigateToAddFriend)
             }
 
             is FriendsAction.ChangeSearchQuery -> {
@@ -116,41 +147,26 @@ class FriendsViewModel : ViewModel() {
                 _effects.trySend(FriendsEffect.NavigateToProfile(action.userId))
             }
 
-            is FriendsAction.SendRequest -> {
-                val ok = SampleSocialData.sendFriendRequest(action.userId)
-                if (!ok) {
-                    _effects.trySend(
-                        FriendsEffect.ShowMessage("Đã chạm mốc 20 bạn bè! Hãy dọn danh sách nếu muốn thêm bạn mới.")
-                    )
-                } else {
-                    _effects.trySend(FriendsEffect.ShowMessage("Đã gửi lời mời kết bạn"))
+            is FriendsAction.SendRequest -> perform {
+                social.sendFriendRequest(action.userId).map { status ->
+                    if (status == FriendStatus.FRIENDS) "Đã thêm vào hội bạn thân!" else "Đã gửi lời mời kết bạn"
                 }
             }
 
-            is FriendsAction.CancelSentRequest -> {
-                SampleSocialData.cancelFriendRequest(action.userId)
-                _effects.trySend(FriendsEffect.ShowMessage("Đã thu hồi lời mời kết bạn"))
+            is FriendsAction.CancelSentRequest -> perform {
+                social.cancelFriendRequest(action.userId).map { "Đã thu hồi lời mời kết bạn" }
             }
 
-            is FriendsAction.AcceptRequest -> {
-                val ok = SampleSocialData.acceptFriendRequest(action.userId)
-                if (!ok) {
-                    _effects.trySend(
-                        FriendsEffect.ShowMessage("Đã đủ 20 người bạn, không thể chấp nhận thêm")
-                    )
-                } else {
-                    _effects.trySend(FriendsEffect.ShowMessage("Đã thêm vào hội bạn thân!"))
-                }
+            is FriendsAction.AcceptRequest -> perform {
+                social.acceptFriendRequest(action.userId).map { "Đã thêm vào hội bạn thân!" }
             }
 
-            is FriendsAction.DeclineRequest -> {
-                SampleSocialData.declineFriendRequest(action.userId)
-                _effects.trySend(FriendsEffect.ShowMessage("Đã từ chối lời mời"))
+            is FriendsAction.DeclineRequest -> perform {
+                social.declineFriendRequest(action.userId).map { "Đã từ chối lời mời" }
             }
 
-            is FriendsAction.UnblockUser -> {
-                SampleSocialData.unblockUser(action.userId)
-                _effects.trySend(FriendsEffect.ShowMessage("Đã bỏ chặn người dùng"))
+            is FriendsAction.UnblockUser -> perform {
+                social.unblock(action.userId).map { "Đã bỏ chặn người dùng" }
             }
 
             is FriendsAction.RequestUnfriendConfirm -> {
@@ -181,23 +197,24 @@ class FriendsViewModel : ViewModel() {
 
             FriendsAction.ConfirmPendingAction -> {
                 val pending = _uiState.value.pendingConfirmation ?: return
+                _uiState.update { it.copy(pendingConfirmation = null) }
                 when (pending.actionType) {
-                    FriendConfirmActionType.UNFRIEND -> {
-                        SampleSocialData.unfriend(pending.user.id)
-                        _effects.trySend(
-                            FriendsEffect.ShowMessage("Đã huỷ kết bạn với ${pending.user.displayName}")
-                        )
+                    FriendConfirmActionType.UNFRIEND -> perform {
+                        social.unfriend(pending.user.id).map { "Đã huỷ kết bạn với ${pending.user.displayName}" }
                     }
 
-                    FriendConfirmActionType.BLOCK -> {
-                        SampleSocialData.blockUser(pending.user.id)
-                        _effects.trySend(
-                            FriendsEffect.ShowMessage("Đã chặn ${pending.user.displayName}")
-                        )
+                    FriendConfirmActionType.BLOCK -> perform {
+                        social.block(pending.user.id).map { "Đã chặn ${pending.user.displayName}" }
                     }
                 }
-                _uiState.update { it.copy(pendingConfirmation = null) }
             }
+        }
+    }
+
+    /** Gọi server rồi báo một câu; trạng thái mới tự về qua graph. Lỗi (đủ 20 bạn, mất mạng…) báo đúng câu của server. */
+    private fun perform(block: suspend () -> Result<String>) {
+        viewModelScope.launch {
+            block().onFailure { _effects.trySend(FriendsEffect.ShowMessage(it.message ?: "Không thực hiện được")) }
         }
     }
 }

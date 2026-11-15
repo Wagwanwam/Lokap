@@ -26,7 +26,7 @@ fun BlockUserDialog(
         },
         text = {
             Text(
-                text = "Họ sẽ không thể gửi ảnh, nhắn tin hoặc xem các khoảnh khắc của bạn trên Lokap nữa.",
+                text = "Họ sẽ không xem hay nhắn được cho bạn.",
                 style = MaterialTheme.typography.bodyMedium
             )
         },

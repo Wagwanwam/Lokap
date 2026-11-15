@@ -19,6 +19,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // VietMap SDK chỉ có trên JitPack; giới hạn nhóm để Gradle không hỏi JitPack cho thư viện khác
+        maven("https://jitpack.io") {
+            content { includeGroup("com.github.vietmap-company") }
+        }
     }
 }
 

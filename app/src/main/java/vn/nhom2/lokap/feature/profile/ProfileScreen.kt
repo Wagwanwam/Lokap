@@ -20,11 +20,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LocationOn
@@ -55,7 +56,7 @@ import androidx.compose.ui.text.style.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -66,8 +67,8 @@ import vn.nhom2.lokap.core.designsystem.theme.ThemeManager
 import vn.nhom2.lokap.core.designsystem.theme.regionGradient
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
+import vn.nhom2.lokap.core.navigation.navigateToTab
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
-import vn.nhom2.lokap.data.fake.SampleData
 import vn.nhom2.lokap.domain.model.*
 import vn.nhom2.lokap.feature.map.LokapMap
 fun NavGraphBuilder.profileScreen(navController: NavController) {
@@ -77,6 +78,8 @@ fun NavGraphBuilder.profileScreen(navController: NavController) {
             onNavigateToSettings = {
                 navController.navigateSingleTop(Route.Settings)
             },
+            onNavigateToFriends = { navController.navigateSingleTop(Route.Friends) },
+            onNavigateToAddFriend = { navController.navigateSingleTop(Route.AddFriend()) },
             onNavigateToPostDetail = { postId ->
                 navController.navigateSingleTop(Route.PostDetail(postId))
             },
@@ -91,10 +94,10 @@ fun NavGraphBuilder.profileScreen(navController: NavController) {
             },
             onNavigateToTab = { tab ->
                 when (tab) {
-                    MainTab.FEED -> navController.navigateSingleTop(Route.Feed)
-                    MainTab.MAP -> navController.navigateSingleTop(Route.Map)
-                    MainTab.CAMERA -> navController.navigateSingleTop(Route.Camera)
-                    MainTab.INBOX -> navController.navigateSingleTop(Route.Inbox)
+                    MainTab.FEED -> navController.navigateToTab(Route.Feed)
+                    MainTab.MAP -> navController.navigateToTab(Route.Map)
+                    MainTab.CAMERA -> navController.navigateToTab(Route.Camera)
+                    MainTab.INBOX -> navController.navigateToTab(Route.Inbox)
                     MainTab.PROFILE -> Unit
                 }
             }
@@ -110,7 +113,9 @@ fun ProfileRoute(
     onNavigateToChat: (String) -> Unit,
     onNavigateToRegionAlbum: (String) -> Unit,
     onNavigateToTab: (MainTab) -> Unit = {},
-    viewModel: ProfileViewModel = viewModel()
+    onNavigateToFriends: () -> Unit = {},
+    onNavigateToAddFriend: () -> Unit = {},
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -120,6 +125,8 @@ fun ProfileRoute(
             when (effect) {
                 ProfileEffect.NavigateBack -> onNavigateBack()
                 ProfileEffect.NavigateToSettings -> onNavigateToSettings()
+                ProfileEffect.NavigateToFriends -> onNavigateToFriends()
+                ProfileEffect.NavigateToAddFriend -> onNavigateToAddFriend()
                 is ProfileEffect.NavigateToPostDetail -> onNavigateToPostDetail(effect.postId)
                 is ProfileEffect.NavigateToChat -> onNavigateToChat(effect.conversationId)
                 is ProfileEffect.NavigateToRegionAlbum -> onNavigateToRegionAlbum(effect.provinceCode)
@@ -208,7 +215,6 @@ fun ProfileScreen(
                     ) {
                         EmptyState(
                             title = "Người dùng không tồn tại",
-                            subtitle = "Tài khoản này có thể đã đổi tên hoặc không còn hoạt động trên Lokap.",
                             actionLabel = "Quay lại",
                             onActionClick = { onAction(ProfileAction.NavigateBack) },
                             modifier = Modifier.padding(LokapTheme.spacing.lg)
@@ -244,12 +250,7 @@ fun ProfileScreen(
                                 if (uiState.visiblePosts.isEmpty()) {
                                     item(span = { GridItemSpan(maxLineSpan) }) {
                                         EmptyState(
-                                            title = "Chưa có khoảnh khắc nào",
-                                            subtitle = if (uiState.isMe) {
-                                                "Mở camera lên và chụp ngay bức ảnh đầu tiên nhé!"
-                                            } else {
-                                                "Người này chưa chia sẻ khoảnh khắc nào."
-                                            },
+                                            title = "Chưa có ảnh",
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(
@@ -284,8 +285,7 @@ fun ProfileScreen(
                                 if (uiState.savedPosts.isEmpty()) {
                                     item(span = { GridItemSpan(maxLineSpan) }) {
                                         EmptyState(
-                                            title = "Chưa có bài lưu nào",
-                                            subtitle = "Lưu lại những khoảnh khắc bạn yêu thích để xem lại sau.",
+                                            title = "Chưa lưu bài nào",
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(
@@ -312,7 +312,6 @@ fun ProfileScreen(
                                     item(span = { GridItemSpan(maxLineSpan) }) {
                                         EmptyState(
                                             title = "Chưa có bài đăng lại",
-                                            subtitle = "Các bài viết bạn đăng lại sẽ xuất hiện ở đây.",
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(
@@ -397,7 +396,7 @@ private fun ProfileTopBar(
         Text(
             text = if (username != null) "@$username" else "Hồ sơ cá nhân",
             style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = 17.sp,
+                fontSize = 19.sp,
                 fontWeight = FontWeight.Bold
             ),
             color = colors.textPrimary,
@@ -421,7 +420,7 @@ private fun ProfileTopBar(
                         imageVector = Icons.Rounded.Settings,
                         contentDescription = "Cài đặt",
                         tint = colors.textPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(25.dp)
                     )
                 }
             }
@@ -473,7 +472,7 @@ private fun ProfileHeaderSection(
                     Text(
                         text = user.displayName,
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 17.5.sp,
+                            fontSize = 19.5.sp,
                             fontWeight = FontWeight.Bold
                         ),
                         color = colors.textPrimary,
@@ -482,7 +481,7 @@ private fun ProfileHeaderSection(
                     Text(
                         text = "@${user.username}",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 13.sp,
+                            fontSize = 14.5.sp,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.primary,
@@ -495,8 +494,8 @@ private fun ProfileHeaderSection(
                     Text(
                         text = bioText,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.5.sp,
-                            lineHeight = 17.sp
+                            fontSize = 14.sp,
+                            lineHeight = 19.sp
                         ),
                         color = colors.textSecondary,
                         textAlign = TextAlign.Center,
@@ -519,12 +518,12 @@ private fun ProfileHeaderSection(
                             imageVector = Icons.Rounded.LocationOn,
                             contentDescription = null,
                             tint = colors.primary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = "Đã check-in ${uiState.visitedProvincesCount}/${uiState.totalProvincesCount} tỉnh thành",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 11.5.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary
@@ -556,8 +555,13 @@ private fun ProfileHeaderSection(
                                 .background(colors.outline.copy(alpha = 0.25f))
                         )
                         ProfileStatItem(
-                            value = uiState.followersCount.toString(),
-                            label = "Người theo dõi"
+                            value = uiState.friendCount.toString(),
+                            label = "Bạn bè",
+                            onClick = if (uiState.isMe) {
+                                { onAction(ProfileAction.OpenFriends) }
+                            } else {
+                                null
+                            }
                         )
                         Box(
                             modifier = Modifier
@@ -566,8 +570,8 @@ private fun ProfileHeaderSection(
                                 .background(colors.outline.copy(alpha = 0.25f))
                         )
                         ProfileStatItem(
-                            value = uiState.followingCount.toString(),
-                            label = "Đang theo dõi"
+                            value = uiState.visitedProvincesCount.toString(),
+                            label = "Dấu chân"
                         )
                     }
                 }
@@ -594,14 +598,14 @@ private fun ProfileHeaderSection(
                                     imageVector = Icons.Rounded.Edit,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(19.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Chỉnh sửa hồ sơ",
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.sp
+                                        fontSize = 14.5.sp
                                     ),
                                     color = Color.White
                                 )
@@ -610,32 +614,18 @@ private fun ProfileHeaderSection(
 
                         Surface(
                             shape = CircleShape,
-                            color = colors.surface,
-                            border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.35f)),
+                            color = colors.primarySoft,
                             modifier = Modifier
-                                .weight(1f)
+                                .width(52.dp)
                                 .height(38.dp)
-                                .clickable { onAction(ProfileAction.OpenSettings) }
+                                .clickable { onAction(ProfileAction.OpenAddFriend) }
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Settings,
-                                    contentDescription = null,
-                                    tint = colors.textPrimary,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Cài đặt",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.sp
-                                    ),
-                                    color = colors.textPrimary
+                                    imageVector = Icons.Filled.PersonAdd,
+                                    contentDescription = "Thêm bạn",
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(30.dp)
                                 )
                             }
                         }
@@ -656,18 +646,22 @@ private fun ProfileHeaderSection(
 private fun ProfileStatItem(
     value: String,
     label: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     val colors = LokapTheme.colors
     Column(
-        modifier = modifier,
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 10.dp, vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(1.dp)
     ) {
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = 16.sp,
+                fontSize = 17.5.sp,
                 fontWeight = FontWeight.ExtraBold
             ),
             color = colors.textPrimary
@@ -675,7 +669,7 @@ private fun ProfileStatItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             ),
             color = colors.textTertiary
@@ -747,7 +741,7 @@ private fun OtherUserRelationshipBar(
                 if (isFriendLimitReached) {
                     Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
                     Text(
-                        text = "Danh sách bạn bè đã đầy (20/20). Không thể chấp nhận thêm.",
+                        text = "Đã đủ 20 bạn",
                         style = MaterialTheme.typography.labelSmall,
                         color = LokapTheme.colors.accentYellow
                     )
@@ -857,26 +851,23 @@ private fun ProfileTabSelector(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = tab.titleVi,
-                        tint = itemColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = tab.titleVi,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 11.sp
-                        ),
-                        color = itemColor,
-                        maxLines = 1
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = itemColor,
+                    modifier = Modifier.size(30.dp)
+                )
+                FitText(
+                    text = tab.titleVi,
+                    color = itemColor,
+                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
+                    widthFraction = 0.85f,
+                    heightFraction = 1f,
+                    maxFontSize = 13.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                )
 
                 Spacer(modifier = Modifier.height(6.dp))
 
@@ -897,8 +888,9 @@ private fun ProfilePhotoGridItem(
     post: Post,
     onClick: () -> Unit
 ) {
-    val viewCount = remember(post.id) {
-        val count = ((post.id.hashCode().toLong() and 0x7FFFFFFF) % 3800 + 150)
+    // Số cảm xúc thật của bài (không còn "lượt xem" giả)
+    val viewCount = remember(post.reactions) {
+        val count = post.reactions.sumOf { it.count }
         if (count >= 1000) {
             String.format(java.util.Locale.US, "%.1fK", count / 1000.0)
         } else {
@@ -943,16 +935,16 @@ private fun ProfilePhotoGridItem(
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Icon(
-                imageVector = Icons.Filled.Visibility,
-                contentDescription = "Lượt xem",
+                imageVector = Icons.Filled.Favorite,
+                contentDescription = "Cảm xúc",
                 tint = androidx.compose.ui.graphics.Color.White,
-                modifier = Modifier.size(13.dp)
+                modifier = Modifier.size(16.dp)
             )
             Text(
                 text = viewCount,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                 color = androidx.compose.ui.graphics.Color.White,
-                fontSize = 11.sp
+                fontSize = 12.sp
             )
         }
     }
@@ -965,8 +957,7 @@ private fun ProfileFootprintsSection(
 ) {
     if (uiState.visitedProvinces.isEmpty()) {
         EmptyState(
-            title = "Chưa có khoảnh khắc nào",
-            subtitle = "Chưa có dấu chân nào được ghi nhận trên bản đồ.",
+            title = "Chưa có ảnh",
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
@@ -1091,11 +1082,6 @@ private fun EditProfileBottomSheetContent(
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.xs))
 
-        Text(
-            text = "Cập nhật tên hiển thị, tên người dùng và tiểu sử trên Lokap.",
-            style = MaterialTheme.typography.bodySmall,
-            color = LokapTheme.colors.textSecondary
-        )
 
         Spacer(modifier = Modifier.height(LokapTheme.spacing.md))
 
@@ -1132,11 +1118,8 @@ private fun EditProfileBottomSheetContent(
             singleLine = true,
             label = { Text("Tên người dùng (@username)") },
             isError = usernameError != null,
-            supportingText = {
-                Text(
-                    text = usernameError ?: "Tối thiểu 3 ký tự",
-                    color = if (usernameError != null) LokapTheme.colors.error else LokapTheme.colors.textTertiary
-                )
+            supportingText = usernameError?.let { err ->
+                { Text(text = err, color = LokapTheme.colors.error) }
             },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = LokapTheme.colors.primary,
@@ -1244,46 +1227,9 @@ private fun ProfileLoadingContent(modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(name = "Profile - Hồ sơ của tôi", showBackground = true)
-@Composable
-private fun ProfileMyScreenPreview() {
-    LokapTheme {
-        ProfileScreen(
-            uiState = ProfileUiState(
-                isLoading = false,
-                isMe = true,
-                user = SampleData.currentUser,
-                visitedProvincesCount = 5,
-                totalProvincesCount = 34,
-                postCount = SampleData.posts.size,
-                friendCount = 12,
-                visiblePosts = SampleData.posts.take(6)
-            ),
-            onAction = {}
-        )
-    }
-}
 
-@Preview(name = "Profile - Hồ sơ người khác (Lời mời)", showBackground = true)
-@Composable
-private fun ProfileOtherUserRequestPreview() {
-    LokapTheme {
-        ProfileScreen(
-            uiState = ProfileUiState(
-                isLoading = false,
-                isMe = false,
-                user = SampleData.users.firstOrNull() ?: SampleData.currentUser,
-                friendStatus = FriendStatus.REQUEST_RECEIVED,
-                visitedProvincesCount = 2,
-                totalProvincesCount = 34,
-                postCount = 0,
-                friendCount = 8,
-                visiblePosts = emptyList()
-            ),
-            onAction = {}
-        )
-    }
-}
+
+
 
 @Preview(name = "Profile - Đang tải", showBackground = true)
 @Composable
@@ -1318,7 +1264,7 @@ private fun ProfileErrorPreview() {
         ProfileScreen(
             uiState = ProfileUiState(
                 isLoading = false,
-                errorMessage = "Không thể tải hồ sơ. Kiểm tra kết nối mạng nhé!"
+                errorMessage = "Không tải được"
             ),
             onAction = {}
         )

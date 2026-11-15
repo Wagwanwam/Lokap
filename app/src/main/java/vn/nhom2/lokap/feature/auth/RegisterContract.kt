@@ -4,6 +4,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object RegisterRoute
 
+enum class EmailAvailability {
+    IDLE,
+    CHECKING,
+    AVAILABLE,
+    TAKEN
+}
+
 enum class PasswordStrength {
     NONE,
     WEAK,
@@ -24,6 +31,7 @@ data class RegisterUiState(
     val passwordError: String? = null,
     val confirmPasswordError: String? = null,
     val termsError: String? = null,
+    val emailAvailability: EmailAvailability = EmailAvailability.IDLE,
     val isPasswordVisible: Boolean = false,
     val isConfirmPasswordVisible: Boolean = false,
     val passwordStrength: PasswordStrength = PasswordStrength.NONE,
@@ -50,4 +58,5 @@ sealed interface RegisterAction {
 sealed interface RegisterEffect {
     data object NavigateToSetupProfile : RegisterEffect
     data object NavigateBackToLogin : RegisterEffect
+    data class NavigateToVerifyEmail(val email: String) : RegisterEffect
 }
