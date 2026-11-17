@@ -1,0 +1,260 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-lokap", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 19150.
+i  Running script: node --test tests/rules.test.js
+▶ Đọc bài theo luật hiển thị
+  ✔ bạn thấy bài bạn bè, bài gửi riêng và cả bài public đang hẹn giờ (243.769916ms)
+  ✔ người lạ không truy vấn được feed của người khác (45.309584ms)
+  ✔ Khám phá chỉ có bài public đã tới giờ (39.750375ms)
+  ✔ truy vấn Khám phá thiếu mốc giờ bị từ chối (33.511708ms)
+  ✔ người lạ không mở được bài bạn bè / bài hẹn giờ, mở được bài public đã hiện (52.447166ms)
+  ✔ bài bị ẩn: chỉ tác giả còn thấy (45.680833ms)
+  ✔ toạ độ gốc chỉ tác giả đọc được (44.68175ms)
+✔ Đọc bài theo luật hiển thị (1313.986625ms)
+▶ Tạo bài
+  ✔ bài bạn bè hợp lệ (43.690125ms)
+[2026-11-17T10:20:21.133Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0113 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L532, false for 'update' @ L533
+  ✔ email chưa xác nhận thì không đăng được (34.931834ms)
+[2026-11-17T10:20:21.165Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0115 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, evaluation error at L540:26 for 'create' @ L540, false for 'create' @ L540
+  ✔ không đăng bài thay người khác (30.992208ms)
+[2026-11-17T10:20:21.200Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0117 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, evaluation error at L540:26 for 'create' @ L540, false for 'create' @ L532
+  ✔ hẹn giờ 7 ngày nhưng giờ hiện quá sớm bị từ chối (35.008375ms)
+  ✔ hẹn giờ 1 ngày đúng giờ server (33.046541ms)
+[2026-11-17T10:20:21.264Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff011b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, false for 'create' @ L532
+  ✔ mức "Việt Nam" không được kèm toạ độ (30.589209ms)
+[2026-11-17T10:20:21.312Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff011e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, evaluation error at L540:26 for 'create' @ L540, false for 'create' @ L532
+  ✔ gửi riêng chỉ cho bạn bè (49.316375ms)
+✔ Tạo bài (257.940792ms)
+[2026-11-17T10:20:21.357Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0120 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+[2026-11-17T10:20:21.370Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0121 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+▶ Cảm xúc, rời danh sách xem, báo cáo
+  ✔ người xem chỉ sửa được cảm xúc của chính mình (56.707459ms)
+[2026-11-17T10:20:21.401Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0123 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+  ✔ người xem chỉ tự rút tên mình khỏi viewerIds (43.824667ms)
+[2026-11-17T10:20:21.454Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0126 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L550:26 for 'create' @ L550, evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+[2026-11-17T10:20:21.486Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0128 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L550:26 for 'create' @ L550, evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+  ✔ báo cáo tăng đúng 1 và kèm phiếu (71.950958ms)
+[2026-11-17T10:20:21.514Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff012a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L550:26 for 'create' @ L550, evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533, false for 'create' @ L550
+  ✔ tài khoản mới dưới 24 giờ không báo cáo được (28.60425ms)
+[2026-11-17T10:20:21.548Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff012d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L550:26 for 'create' @ L550, evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+  ✔ phiếu thứ 3 phải ẩn bài (46.8245ms)
+✔ Cảm xúc, rời danh sách xem, báo cáo (248.127958ms)
+[2026-11-17T10:20:21.599Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0131 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L126
+▶ Bạn bè và chặn
+  ✔ mời kết bạn rồi người được mời chấp nhận (46.720792ms)
+[2026-11-17T10:20:21.701Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0135 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L112:24 for 'create' @ L112, evaluation error at L126:24 for 'update' @ L126, false for 'create' @ L112
+  ✔ bị chặn thì không mời được (93.405416ms)
+  ✔ chỉ người chặn đọc được danh sách chặn của mình (99.216333ms)
+[2026-11-17T10:20:21.885Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff013e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L126:24 for 'update' @ L126, evaluation error at L319:24 for 'create' @ L319, false for 'update' @ L324, Null value error. for 'update' @ L126
+  ✔ lời mời đã thu hồi thì không chấp nhận được nhưng vẫn đọc lại được (83.923791ms)
+[2026-11-17T10:20:21.905Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0140 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L133
+  ✔ người ngoài không xoá được quan hệ của người khác (27.528667ms)
+✔ Bạn bè và chặn (351.046458ms)
+▶ Hồ sơ và username
+  ✔ tạo hồ sơ giữ username (24.590208ms)
+[2026-11-17T10:20:21.985Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0146 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L94:24 for 'create' @ L94, evaluation error at L100:24 for 'update' @ L100, evaluation error at L70:24 for 'create' @ L70, evaluation error at L75:24 for 'update' @ L75, false for 'create' @ L70, false for 'update' @ L100
+  ✔ không lấy được username của người khác (48.403125ms)
+[2026-11-17T10:20:22.030Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0149 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L85, false for 'update' @ L85
+  ✔ thông tin riêng chỉ chủ đọc được, dưới 13 tuổi bị từ chối (53.373458ms)
+✔ Hồ sơ và username (126.499209ms)
+▶ Đúng các truy vấn app đang dùng
+  ✔ đọc cặp bạn chưa tồn tại (transaction mời kết bạn), người ngoài thì không (30.874708ms)
+  ✔ danh sách bạn và danh sách chặn của mình (31.521083ms)
+  ✔ trang hồ sơ: bạn xem bài có tên mình, người lạ chỉ xem bài public đã hiện (47.753291ms)
+[2026-11-17T10:20:22.191Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0158 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+  ✔ tác giả đọc hết bài của mình (kể cả bài bị ẩn) để cập nhật viewerIds (41.686125ms)
+  ✔ hỏi bài không tồn tại trả về "không có" thay vì lỗi quyền (24.515042ms)
+  ✔ tìm người theo tiền tố username (24.060292ms)
+✔ Đúng các truy vấn app đang dùng (200.623833ms)
+[2026-11-17T10:20:22.286Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0161 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L201, false for 'update' @ L206
+[2026-11-17T10:20:22.308Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0163 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L206:26 for 'update' @ L206, false for 'update' @ L206
+[2026-11-17T10:20:22.314Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0164 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L195:24 for 'update' @ L195, false for 'update' @ L195
+[2026-11-17T10:20:22.319Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0165 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L209:26 for 'delete' @ L209, false for 'delete' @ L209
+▶ Live social content
+  ✔ chat CRUD, outsider denial and read receipt ownership (80.839125ms)
+[2026-11-17T10:20:22.367Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0168 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L201:26 for 'create' @ L201, evaluation error at L206:26 for 'update' @ L206, false for 'create' @ L201
+[2026-11-17T10:20:22.372Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0169 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L201:26 for 'create' @ L201, evaluation error at L206:26 for 'update' @ L206, false for 'create' @ L201
+[2026-11-17T10:20:22.378Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff016a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L201:26 for 'create' @ L201, evaluation error at L206:26 for 'update' @ L206, false for 'create' @ L201
+[2026-11-17T10:20:22.384Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff016b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L201:26 for 'create' @ L201, evaluation error at L206:26 for 'update' @ L206, Null value error. for 'create' @ L201
+[2026-11-17T10:20:22.391Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff016c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L201:26 for 'create' @ L201, evaluation error at L206:26 for 'update' @ L206, false for 'create' @ L201
+[2026-11-17T10:20:22.397Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff016d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L206:26 for 'update' @ L206, false for 'update' @ L206
+  ✔ tin nhắn trả lời ảnh: bản chụp phải khớp bài gốc người gửi xem được, ảnh của 1 trong 2 người (76.731416ms)
+[2026-11-17T10:20:22.442Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff016f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L201:26 for 'create' @ L201, evaluation error at L206:26 for 'update' @ L206, false for 'create' @ L201
+[2026-11-17T10:20:22.446Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0171 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L206:26 for 'update' @ L206, false for 'update' @ L206
+[2026-11-17T10:20:22.459Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0173 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L201:26 for 'create' @ L201, evaluation error at L206:26 for 'update' @ L206, false for 'create' @ L201
+  ✔ blocked and unfriended accounts cannot send or edit (61.471125ms)
+[2026-11-17T10:20:22.498Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0175 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L214:24 for 'create' @ L214, evaluation error at L221:24 for 'update' @ L221, false for 'create' @ L214
+[2026-11-17T10:20:22.503Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0178 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L214:24 for 'create' @ L214, evaluation error at L221:24 for 'update' @ L221, false for 'create' @ L214
+[2026-11-17T10:20:22.518Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff017a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L221
+[2026-11-17T10:20:22.538Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff017c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L221
+[2026-11-17T10:20:22.547Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff017d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L221
+  ✔ comment CRUD, replies and votes check author and parent access (90.791459ms)
+[2026-11-17T10:20:22.574Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff017f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L319:24 for 'create' @ L319, false for 'update' @ L324, Null value error. for 'create' @ L319
+[2026-11-17T10:20:22.591Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0182 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L324:24 for 'update' @ L324, false for 'update' @ L324
+[2026-11-17T10:20:22.598Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0180 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L319:24 for 'create' @ L319, false for 'update' @ L324, false for 'create' @ L319
+  ✔ notifications reject forged sources, outsider reads and source replay (48.385125ms)
+  ✔ real friendship transitions create notices atomically (33.651042ms)
+[2026-11-17T10:20:22.657Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0188 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L319:24 for 'create' @ L319, false for 'update' @ L324, false for 'create' @ L319
+[2026-11-17T10:20:22.670Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff018a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, evaluation error at L319:24 for 'create' @ L319, false for 'update' @ L324, false for 'create' @ L319
+  ✔ reaction notice requires a real change and respects blocks (38.021417ms)
+✔ Live social content (430.166416ms)
+[2026-11-17T10:20:22.712Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff018e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239
+▶ Đăng lại
+  ✔ ai cũng đăng lại được ảnh public đã hiện của người khác, mỗi người 1 lần (41.884458ms)
+[2026-11-17T10:20:22.737Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0190 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, false for 'create' @ L239
+[2026-11-17T10:20:22.741Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0191 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, false for 'create' @ L239
+[2026-11-17T10:20:22.744Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0192 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, false for 'create' @ L239
+[2026-11-17T10:20:22.748Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0193 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, false for 'create' @ L239
+[2026-11-17T10:20:22.751Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0194 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, Null value error. for 'create' @ L239
+[2026-11-17T10:20:22.760Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0195 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, false for 'create' @ L239
+  ✔ không đăng lại ảnh bạn bè, ảnh đang hẹn giờ, bài bị ẩn, bài của mình (48.680417ms)
+[2026-11-17T10:20:22.782Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0197 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L239
+[2026-11-17T10:20:22.786Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0198 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, false for 'create' @ L239
+[2026-11-17T10:20:22.788Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff0199 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, false for 'create' @ L239
+[2026-11-17T10:20:22.791Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff019a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L239
+[2026-11-17T10:20:22.799Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff019b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L239
+[2026-11-17T10:20:22.820Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff019d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L239:24 for 'create' @ L239, false for 'create' @ L239
+  ✔ không đăng lại thay người khác, sai dữ liệu, chưa xác nhận email, bị chặn (59.775ms)
+  ✔ đếm lượt và truy vấn nhóm theo người đăng lại; chưa đăng nhập thì không (62.822916ms)
+[2026-11-17T10:20:22.922Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01a7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L244:24 for 'delete' @ L244, false for 'delete' @ L244
+  ✔ bỏ đăng lại: chính mình hoặc tác giả bài (khi xoá bài); người khác thì không (54.27025ms)
+✔ Đăng lại (267.65275ms)
+[2026-11-17T10:20:22.968Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01ab error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L253:24 for 'delete' @ L253, false for 'delete' @ L253
+[2026-11-17T10:20:22.979Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01ad error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L319:24 for 'create' @ L319, false for 'update' @ L324, false for 'create' @ L319
+[2026-11-17T10:20:22.985Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01ae error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L255:24 for 'create' @ L255, evaluation error at L319:24 for 'create' @ L319, false for 'update' @ L324, false for 'create' @ L319
+✔ new post notice uses one-time receipt; deletion cannot cause replay, blocks are retained (47.577708ms)
+▶ Địa danh
+  ✔ người đã xác nhận email thêm được địa danh của chính mình (28.528291ms)
+[2026-11-17T10:20:23.046Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01b4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L370, false for 'update' @ L377
+[2026-11-17T10:20:23.054Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01b5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L370:24 for 'create' @ L370, evaluation error at L377:24 for 'update' @ L377, false for 'create' @ L370
+[2026-11-17T10:20:23.063Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01b6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L370, evaluation error at L377:24 for 'update' @ L377, false for 'create' @ L370
+[2026-11-17T10:20:23.072Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01b7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L370:24 for 'create' @ L370, evaluation error at L377:24 for 'update' @ L377, false for 'create' @ L370
+[2026-11-17T10:20:23.083Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01b8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L370:24 for 'create' @ L370, evaluation error at L377:24 for 'update' @ L377, false for 'create' @ L370
+[2026-11-17T10:20:23.091Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01b9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L370:24 for 'create' @ L370, evaluation error at L377:24 for 'update' @ L377, false for 'create' @ L370
+[2026-11-17T10:20:23.100Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01ba error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L370:24 for 'create' @ L370, evaluation error at L377:24 for 'update' @ L377, false for 'create' @ L370
+  ✔ thêm địa danh sai dữ liệu bị từ chối (86.941417ms)
+[2026-11-17T10:20:23.158Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01bd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L370:24 for 'create' @ L370, evaluation error at L377:24 for 'update' @ L377, false for 'update' @ L377
+[2026-11-17T10:20:23.170Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01be error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L377:24 for 'update' @ L377, false for 'update' @ L377
+[2026-11-17T10:20:23.188Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01bf error. Code: 7 Message: 7 PERMISSION_DENIED: No matching allow statements
+  ✔ không ghi đè, sửa hay xoá địa danh đã có (87.388792ms)
+  ✔ ai đăng nhập cũng xem được địa danh đang hoạt động; bị ẩn thì chỉ người tạo thấy (79.08125ms)
+[2026-11-17T10:20:23.299Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01ca error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L381:26 for 'create' @ L381, evaluation error at L377:24 for 'update' @ L377, false for 'update' @ L377
+[2026-11-17T10:20:23.308Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01cb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L381:26 for 'create' @ L381, evaluation error at L377:24 for 'update' @ L377, false for 'update' @ L377
+[2026-11-17T10:20:23.326Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01cd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L381:26 for 'create' @ L381, evaluation error at L377:24 for 'update' @ L377, false for 'update' @ L377
+[2026-11-17T10:20:23.335Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01ce error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L381:26 for 'create' @ L381, evaluation error at L377:24 for 'update' @ L377, false for 'update' @ L377, false for 'create' @ L381
+[2026-11-17T10:20:23.349Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01d0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L381:26 for 'create' @ L381, evaluation error at L377:24 for 'update' @ L377, false for 'update' @ L377
+  ✔ báo cáo địa danh: đúng +1 kèm phiếu, người tạo không tự báo cáo, phiếu thứ 3 phải ẩn (92.588708ms)
+[2026-11-17T10:20:23.398Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01d5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, false for 'create' @ L532
+[2026-11-17T10:20:23.407Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01d6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, false for 'create' @ L532
+[2026-11-17T10:20:23.417Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01d7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, false for 'create' @ L532
+[2026-11-17T10:20:23.430Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01d8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, false for 'create' @ L532
+[2026-11-17T10:20:23.440Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01d9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, false for 'create' @ L532
+[2026-11-17T10:20:23.450Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01da error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L532:24 for 'create' @ L532, evaluation error at L533:24 for 'update' @ L533, false for 'create' @ L532
+  ✔ đăng ảnh lên địa danh: bài public, đúng điểm và tỉnh của địa danh (90.4085ms)
+[2026-11-17T10:20:23.481Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01dd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+[2026-11-17T10:20:23.491Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01de error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+[2026-11-17T10:20:23.502Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01df error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+[2026-11-17T10:20:23.512Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01e0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+[2026-11-17T10:20:23.530Z]  @firebase/firestore: Firestore (13.3.0): GrpcConnection RPC 'Write' stream 0x2fff01e2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L533:24 for 'update' @ L533, false for 'update' @ L533
+  ✔ tác giả gắn bài public đã đăng vào địa danh và gỡ ra; người khác thì không (89.059667ms)
+  ✔ lưới ảnh địa danh: ai cũng truy vấn được bài public đã tới giờ, kèm cảm xúc để chọn ảnh bìa (48.03525ms)
+✔ Địa danh (602.38375ms)
+ℹ tests 54
+ℹ suites 9
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4101.330042
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

@@ -1,14 +1,21 @@
 package vn.nhom2.lokap
 
 import android.app.Application
+import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import vn.nhom2.lokap.core.designsystem.theme.ThemeManager
+import vn.nhom2.lokap.core.settings.DevicePreferenceStore
+import vn.nhom2.lokap.core.image.DataSaverImageInterceptor
+import vn.nhom2.lokap.domain.repository.DeviceSettingsRepository
 import vn.vietmap.vietmapsdk.Vietmap
 
 /**
@@ -16,10 +23,20 @@ import vn.vietmap.vietmapsdk.Vietmap
  * nên initializer mặc định của WorkManager đã bị tắt trong AndroidManifest.
  */
 @HiltAndroidApp
-class LokapApp : Application(), Configuration.Provider {
+class LokapApp : Application(), Configuration.Provider, SingletonImageLoader.Factory {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var devicePreferenceStore: DevicePreferenceStore
+
+    @Inject
+    lateinit var deviceSettingsRepository: DeviceSettingsRepository
+
+    override fun newImageLoader(context: Context): ImageLoader = ImageLoader.Builder(context)
+        .components { add(DataSaverImageInterceptor(deviceSettingsRepository)) }
+        .build()
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -28,6 +45,7 @@ class LokapApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        ThemeManager.initialize(devicePreferenceStore)
         initFirebase()
         // MapView của VietMap cần khởi tạo trước khi tạo view đầu tiên
         if (BuildConfig.VIETMAP_TILE_KEY.isNotBlank()) Vietmap.getInstance(this)

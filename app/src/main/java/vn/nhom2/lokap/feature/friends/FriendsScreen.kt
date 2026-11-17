@@ -199,6 +199,7 @@ fun FriendsScreen(
                             ) { item ->
                                 SearchResultUserRow(
                                     item = item,
+                                    isWorking = item.user.id in uiState.workingUserIds,
                                     isFriendLimitReached = uiState.isFriendLimitReached,
                                     onAction = onAction
                                 )
@@ -231,6 +232,7 @@ fun FriendsScreen(
                             ) { user ->
                                 IncomingRequestRow(
                                     user = user,
+                                    isWorking = user.id in uiState.workingUserIds,
                                     isFriendLimitReached = uiState.isFriendLimitReached,
                                     onOpenProfile = { onAction(FriendsAction.OpenProfile(user.id)) },
                                     onAccept = { onAction(FriendsAction.AcceptRequest(user.id)) },
@@ -255,6 +257,7 @@ fun FriendsScreen(
                             ) { user ->
                                 SentRequestRow(
                                     user = user,
+                                    isWorking = user.id in uiState.workingUserIds,
                                     onOpenProfile = { onAction(FriendsAction.OpenProfile(user.id)) },
                                     onCancel = { onAction(FriendsAction.CancelSentRequest(user.id)) }
                                 )
@@ -487,6 +490,7 @@ private fun SectionHeaderRow(
 @Composable
 private fun SearchResultUserRow(
     item: FriendUserItemUi,
+    isWorking: Boolean,
     isFriendLimitReached: Boolean,
     onAction: (FriendsAction) -> Unit
 ) {
@@ -540,7 +544,7 @@ private fun SearchResultUserRow(
                 PinkButton(
                     text = "Kết bạn",
                     leadingIcon = Icons.Default.Add,
-                    enabled = !isFriendLimitReached,
+                    enabled = !isFriendLimitReached && !isWorking,
                     onClick = { onAction(FriendsAction.SendRequest(user.id)) }
                 )
             }
@@ -548,6 +552,7 @@ private fun SearchResultUserRow(
             FriendStatus.REQUEST_SENT -> {
                 GhostButton(
                     text = "Huỷ",
+                    enabled = !isWorking,
                     onClick = { onAction(FriendsAction.CancelSentRequest(user.id)) }
                 )
             }
@@ -556,11 +561,12 @@ private fun SearchResultUserRow(
                 Row(horizontalArrangement = Arrangement.spacedBy(LokapTheme.spacing.xs)) {
                     PinkButton(
                         text = "Chấp nhận",
-                        enabled = !isFriendLimitReached,
+                        enabled = !isFriendLimitReached && !isWorking,
                         onClick = { onAction(FriendsAction.AcceptRequest(user.id)) }
                     )
                     GhostButton(
                         text = "Từ chối",
+                        enabled = !isWorking,
                         onClick = { onAction(FriendsAction.DeclineRequest(user.id)) }
                     )
                 }
@@ -576,6 +582,7 @@ private fun SearchResultUserRow(
             FriendStatus.BLOCKED -> {
                 GhostButton(
                     text = "Bỏ chặn",
+                    enabled = !isWorking,
                     onClick = { onAction(FriendsAction.UnblockUser(user.id)) }
                 )
             }
@@ -586,6 +593,7 @@ private fun SearchResultUserRow(
 @Composable
 private fun IncomingRequestRow(
     user: User,
+    isWorking: Boolean,
     isFriendLimitReached: Boolean,
     onOpenProfile: () -> Unit,
     onAccept: () -> Unit,
@@ -638,13 +646,14 @@ private fun IncomingRequestRow(
             PinkButton(
                 text = "Chấp nhận",
                 leadingIcon = Icons.Default.Check,
-                enabled = !isFriendLimitReached,
+                enabled = !isFriendLimitReached && !isWorking,
                 onClick = onAccept,
                 modifier = Modifier.weight(1f)
             )
             GhostButton(
                 text = "Từ chối",
                 leadingIcon = Icons.Default.Close,
+                enabled = !isWorking,
                 onClick = onDecline,
                 modifier = Modifier.weight(1f)
             )
@@ -655,6 +664,7 @@ private fun IncomingRequestRow(
 @Composable
 private fun SentRequestRow(
     user: User,
+    isWorking: Boolean,
     onOpenProfile: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -696,6 +706,7 @@ private fun SentRequestRow(
 
         GhostButton(
             text = "Huỷ",
+            enabled = !isWorking,
             onClick = onCancel
         )
     }

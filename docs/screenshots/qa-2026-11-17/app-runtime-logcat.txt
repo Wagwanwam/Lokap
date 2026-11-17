@@ -1,0 +1,28 @@
+--------- beginning of (HKS)3AC6F17F62E4E6B78AB7B1A632289862E833D19EFABD46DE4BDAC7BC7511061F7A75182152A4557E45F2EE058BFF0B3F784AF1BFB0E7E752FDA082BB2BECA8D1532F8374AC1A20E194C789F7FE59954BF5C8FA0B26AF53B25AC4E265EBF7C74D96CFB84DEFE67C02B7072690B332F62F97579631398B837B83923DFB217762E93014573DE6D08CA96B180C80942AC4B6CFF038D60F3E751B81C93E9B114734BF1013716B4D39D26F25E2B231844FB23A770D16B6D98C3ECF522136629CE7057E09EE55E619638ACBBB2AA20EDE8D5E745C587C276E1136BFD8882DEC6541CEA6106B8294925A86B68BF4F373748BA5F419CB99B6FFF519721876D736839384D9(HKE)
+--------- beginning of system
+11-17 17:32:11.776 20058 20058 I ActivityThread: initHwArgs result ok for mw or virtual
+11-17 17:32:11.778 20058 20058 D ActivityThread: Attach thread to application
+11-17 17:32:11.794 20058 20068 I ActivityThread: Init compatible state: true
+11-17 17:32:11.816 20058 20058 I HwActivityThreadImpl: acceptPreloadedApplication  mPreloadStatus: 0
+11-17 17:32:11.879 20058 20058 I ActivityThread: finishPreloaded preloadStatus 0
+11-17 17:32:11.881 20058 20058 V ActivityThread: Handling launch of ActivityRecord{b19f4d1 token=android.os.BinderProxy@a43426a {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}}
+11-17 17:32:11.893 20058 20099 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+11-17 17:32:11.909 20058 20058 V ActivityThread: callActivityOnCreate
+11-17 17:32:11.935 20058 20058 I ActivityThread: add activity client record, r= ActivityRecord{b19f4d1 token=android.os.BinderProxy@a43426a {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}} token= android.os.BinderProxy@a43426a
+11-17 17:32:11.966 20058 20058 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 17:32:12.082 20058 20058 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 17:32:12.108 20058 20058 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 17:32:12.114 20058 20058 I HwForceDarkManager: setAllowedHwForceDark:false package:vn.nhom2.lokap mCurrProcessState:0 mIsPackageNameChange:false hwForceDarkState:0 isViewAllowedForceDark:true isLastHonorForceDark:false
+11-17 17:32:12.121 20058 20058 I HnPgAppThreadImpl: late FAS register
+11-17 17:32:12.124 20058 20058 I RtgSchedEvent: current pid:20058 AppType:-1
+11-17 17:32:12.139 20058 20058 I VRI[MainActivity]: send MSG_WINDOW_FOCUS_CHANGED msg
+11-17 17:32:12.718 20058 20058 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 17:32:22.287 20058 20213 W HwApsManager: HwApsManagerService, registerCallback, start !
+--------- beginning of main
+11-17 17:34:25.280 20058 20058 I HiTouch_PressGestureDetector: checkDoublePointerLimit: false
+11-17 17:34:25.291 20058 20058 D Choreographer: still have 1 traversal callbacks
+11-17 17:34:25.628 20058 20061 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:34:25.628 20058 20061 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:34:25.628 20058 20061 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:34:25.628 20058 20061 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:34:25.628 20058 20061 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)

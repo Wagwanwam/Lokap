@@ -3,6 +3,7 @@ package vn.nhom2.lokap.data.repository
 import android.util.Log
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseUser
@@ -242,8 +243,17 @@ class FirebaseAuthRepository @Inject constructor(
         updated.also(::setSignedIn)
     }
 
-    override suspend fun changePassword(newPassword: String): Result<Unit> = authCall {
+    override suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> = authCall {
+        if (currentPassword.isBlank()) {
+            throw AuthStoreException.Unknown("Vui lòng nhập mật khẩu hiện tại")
+        }
         val user = firebaseAuth.currentUser ?: throw AuthStoreException.RecentLoginRequired()
+        if (user.providerData.none { it.providerId == EmailAuthProvider.PROVIDER_ID }) {
+            throw AuthStoreException.Unsupported("Tài khoản này không dùng mật khẩu. Hãy quản lý đăng nhập qua nhà cung cấp của bạn.")
+        }
+        val email = user.email?.takeIf { it.isNotBlank() } ?: throw AuthStoreException.RecentLoginRequired()
+        // Luôn kiểm tra mật khẩu đã nhập, kể cả khi phiên Firebase vẫn được xem là vừa đăng nhập.
+        user.reauthenticate(EmailAuthProvider.getCredential(email, currentPassword)).await()
         user.updatePassword(newPassword).await()
         Unit
     }

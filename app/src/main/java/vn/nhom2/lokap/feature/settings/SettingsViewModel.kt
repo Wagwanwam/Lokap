@@ -14,9 +14,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import vn.nhom2.lokap.core.designsystem.theme.ThemeManager
 import vn.nhom2.lokap.domain.model.AppSettingsData
+import vn.nhom2.lokap.domain.model.AccountContactData
 import vn.nhom2.lokap.domain.model.FriendStatus
 import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.AccountContactRepository
 import vn.nhom2.lokap.domain.repository.AuthStoreException
+import vn.nhom2.lokap.domain.repository.AppCacheRepository
+import vn.nhom2.lokap.domain.repository.DeviceSettingsRepository
 import vn.nhom2.lokap.domain.repository.SettingsRepository
 import vn.nhom2.lokap.domain.repository.SocialRepository
 import vn.nhom2.lokap.feature.auth.AuthValidators
@@ -29,7 +33,10 @@ import vn.nhom2.lokap.feature.auth.AuthValidators
 class SettingsViewModel @Inject constructor(
     private val auth: AuthRepository,
     private val settingsRepository: SettingsRepository,
-    private val social: SocialRepository
+    private val social: SocialRepository,
+    private val deviceSettings: DeviceSettingsRepository,
+    private val appCache: AppCacheRepository,
+    private val accountContacts: AccountContactRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -40,10 +47,32 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            deviceSettings.settings.collect { settings ->
+                _uiState.update {
+                    it.copy(
+                        dataSaverEnabled = settings.dataSaverEnabled,
+                        autoSaveToGallery = settings.autoSaveToGallery,
+                        highQualityUpload = settings.highQualityUpload
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
             ThemeManager.themeMode.collect { mode -> _uiState.update { it.copy(themeMode = mode) } }
         }
         viewModelScope.launch {
-            auth.currentUser.collect { me -> _uiState.update { it.copy(currentUser = me) } }
+            auth.currentUser.collect { me ->
+                val contacts = me?.id?.let(accountContacts::read) ?: AccountContactData()
+                _uiState.update {
+                    it.copy(
+                        currentUser = me,
+                        recoveryPhone = contacts.recoveryPhone,
+                        linkedEmails = contacts.linkedEmails,
+                        showRecoveryPhoneDialog = if (it.currentUser?.id == me?.id) it.showRecoveryPhoneDialog else false,
+                        showLinkedEmailsDialog = if (it.currentUser?.id == me?.id) it.showLinkedEmailsDialog else false
+                    )
+                }
+            }
         }
         viewModelScope.launch {
             settingsRepository.settings.collect { settings ->
@@ -96,29 +125,59 @@ class SettingsViewModel @Inject constructor(
             SettingsAction.OpenRecoveryPhoneDialog -> _uiState.update { it.copy(showRecoveryPhoneDialog = true) }
             SettingsAction.DismissRecoveryPhoneDialog -> _uiState.update { it.copy(showRecoveryPhoneDialog = false) }
             is SettingsAction.SaveRecoveryPhone -> {
-                _uiState.update { it.copy(recoveryPhone = action.phone, showRecoveryPhoneDialog = false) }
-            }
-
-            SettingsAction.OpenLinkedEmailsDialog -> _uiState.update { it.copy(showLinkedEmailsDialog = true) }
-            SettingsAction.DismissLinkedEmailsDialog -> _uiState.update { it.copy(showLinkedEmailsDialog = false) }
-            is SettingsAction.AddLinkedEmail -> {
-                _uiState.update { it.copy(linkedEmails = it.linkedEmails + action.email, showLinkedEmailsDialog = false) }
-            }
-
-            SettingsAction.OpenChangePasswordDialog -> _uiState.update { it.copy(showChangePasswordDialog = true) }
-            SettingsAction.DismissChangePasswordDialog -> _uiState.update { it.copy(showChangePasswordDialog = false) }
-            is SettingsAction.ConfirmChangePassword -> {
-                _uiState.update { it.copy(showChangePasswordDialog = false) }
-                // Cùng luật với Đăng ký: ≥ 8 ký tự, có cả chữ và số
-                val error = AuthValidators.validatePassword(action.newPass)
+                val error = SettingsValidators.validateRecoveryPhone(action.phone)
                 if (error != null) {
                     _effects.trySend(SettingsEffect.ShowMessage(error))
                     return
                 }
+                updateContacts(closePhoneDialog = true) {
+                    it.copy(recoveryPhone = SettingsValidators.normalizeRecoveryPhone(action.phone))
+                }
+            }
+            SettingsAction.RemoveRecoveryPhone -> updateContacts(closePhoneDialog = true) { it.copy(recoveryPhone = null) }
+
+            SettingsAction.OpenLinkedEmailsDialog -> _uiState.update { it.copy(showLinkedEmailsDialog = true) }
+            SettingsAction.DismissLinkedEmailsDialog -> _uiState.update { it.copy(showLinkedEmailsDialog = false) }
+            is SettingsAction.AddLinkedEmail -> {
+                val email = action.email.trim()
+                val error = SettingsValidators.validateLinkedEmail(email)
+                if (error != null) {
+                    _effects.trySend(SettingsEffect.ShowMessage(error))
+                    return
+                }
+                updateContacts(closeEmailDialog = true) { contacts ->
+                    contacts.copy(
+                        linkedEmails = if (contacts.linkedEmails.any { it.equals(email, ignoreCase = true) }) contacts.linkedEmails else contacts.linkedEmails + email
+                    )
+                }
+            }
+            is SettingsAction.RemoveLinkedEmail -> updateContacts {
+                it.copy(linkedEmails = it.linkedEmails.filterNot { email -> email.equals(action.email.trim(), ignoreCase = true) })
+            }
+
+            SettingsAction.OpenChangePasswordDialog -> _uiState.update { it.copy(showChangePasswordDialog = true, changePasswordError = null) }
+            SettingsAction.DismissChangePasswordDialog -> if (!_uiState.value.isChangingPassword) {
+                _uiState.update { it.copy(showChangePasswordDialog = false, changePasswordError = null) }
+            }
+            is SettingsAction.ConfirmChangePassword -> {
+                if (_uiState.value.isChangingPassword) return
+                val error = if (action.oldPass.isBlank()) "Vui lòng nhập mật khẩu hiện tại"
+                    else AuthValidators.validatePassword(action.newPass)
+                if (error != null) {
+                    _uiState.update { it.copy(changePasswordError = error) }
+                    return
+                }
+                _uiState.update { it.copy(isChangingPassword = true, changePasswordError = null) }
                 viewModelScope.launch {
-                    auth.changePassword(action.newPass).onFailure {
-                        _effects.trySend(SettingsEffect.ShowMessage(it.message ?: "Không đổi được mật khẩu"))
-                    }
+                    auth.changePassword(action.oldPass, action.newPass).fold(
+                        onSuccess = {
+                            _uiState.update { it.copy(isChangingPassword = false, showChangePasswordDialog = false) }
+                            _effects.send(SettingsEffect.ShowMessage("Đã đổi mật khẩu thành công"))
+                        },
+                        onFailure = { error ->
+                            _uiState.update { it.copy(isChangingPassword = false, changePasswordError = error.message ?: "Không đổi được mật khẩu") }
+                        }
+                    )
                 }
             }
 
@@ -166,19 +225,31 @@ class SettingsViewModel @Inject constructor(
             SettingsAction.SaveEditProfile -> saveProfile()
 
             SettingsAction.ClearCache -> {
-                _effects.trySend(SettingsEffect.ShowMessage("Chưa khả dụng"))
+                if (_uiState.value.isClearingCache) return
+                _uiState.update { it.copy(isClearingCache = true) }
+                viewModelScope.launch {
+                    val result = appCache.clearCache()
+                    _uiState.update { it.copy(isClearingCache = false) }
+                    _effects.send(SettingsEffect.ShowMessage(result.fold(
+                        onSuccess = { "Đã xoá bộ nhớ đệm ảnh" },
+                        onFailure = { it.message ?: "Không xoá được bộ nhớ đệm ảnh" }
+                    )))
+                }
             }
 
+            SettingsAction.OpenPrivacyPolicy -> _uiState.update { it.copy(showPrivacyPolicy = true) }
+            SettingsAction.DismissPrivacyPolicy -> _uiState.update { it.copy(showPrivacyPolicy = false) }
+
             is SettingsAction.ToggleDataSaver -> {
-                _uiState.update { it.copy(dataSaverEnabled = action.enabled) }
+                deviceSettings.setDataSaver(action.enabled)
             }
 
             is SettingsAction.ToggleAutoSave -> {
-                _uiState.update { it.copy(autoSaveToGallery = action.enabled) }
+                deviceSettings.setAutoSave(action.enabled)
             }
 
             is SettingsAction.ToggleHighQuality -> {
-                _uiState.update { it.copy(highQualityUpload = action.enabled) }
+                deviceSettings.setHighQuality(action.enabled)
             }
 
             is SettingsAction.ToggleNotifyNewPhotos -> updateSettings { it.copy(notifyNewPhotos = action.enabled) }
@@ -251,10 +322,12 @@ class SettingsViewModel @Inject constructor(
 
             SettingsAction.ConfirmDeleteAccount -> {
                 if (!_uiState.value.isDeleteConfirmEnabled) return
+                val userId = auth.currentUser.value?.id
                 _uiState.update { it.copy(showDeleteAccountDialog = false, deleteConfirmTextInput = "") }
                 viewModelScope.launch {
                     auth.deleteAccount().fold(
                         onSuccess = {
+                            userId?.let(accountContacts::clear)
                             _effects.send(SettingsEffect.NavigateToLogin)
                         },
                         onFailure = { error ->
@@ -264,6 +337,31 @@ class SettingsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun updateContacts(
+        closePhoneDialog: Boolean = false,
+        closeEmailDialog: Boolean = false,
+        transform: (AccountContactData) -> AccountContactData
+    ) {
+        val userId = auth.currentUser.value?.id
+        if (userId == null) {
+            _effects.trySend(SettingsEffect.ShowMessage("Bạn cần đăng nhập lại"))
+            return
+        }
+        accountContacts.update(userId, transform).fold(
+            onSuccess = { contacts ->
+                _uiState.update {
+                    it.copy(
+                        recoveryPhone = contacts.recoveryPhone,
+                        linkedEmails = contacts.linkedEmails,
+                        showRecoveryPhoneDialog = it.showRecoveryPhoneDialog && !closePhoneDialog,
+                        showLinkedEmailsDialog = it.showLinkedEmailsDialog && !closeEmailDialog
+                    )
+                }
+            },
+            onFailure = { _effects.trySend(SettingsEffect.ShowMessage("Không lưu được thông tin liên hệ, vui lòng thử lại")) }
+        )
     }
 
     /** Đổi ngay trên máy rồi lưu lên server (Repository tự trả lại giá trị cũ nếu lỗi). */

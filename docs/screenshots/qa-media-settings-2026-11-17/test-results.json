@@ -1,0 +1,185 @@
+{
+  "date": "2026-11-17",
+  "verification": {
+    "device": "HONOR AMM-AN00",
+    "serial": "AXSCVB5304005477",
+    "android": "16",
+    "api": 36,
+    "recorded_at": "2026-11-17T18:14:40+0700",
+    "version": [
+      "versionCode=1 minSdk=26 targetSdk=37",
+      "versionName=1.0",
+      "lastUpdateTime=2026-11-17 18:09:27"
+    ],
+    "sha256": "0424d315bba05cfde01111d6e9f935972715a2d3ceeb68713bffddbba9e1f280",
+    "installed_sha256": "0424d315bba05cfde01111d6e9f935972715a2d3ceeb68713bffddbba9e1f280",
+    "installed_matches_build": true,
+    "unit_tests": {
+      "tests": 246,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "unit_suites": 26,
+    "pid": "7008",
+    "log_has_fatal_exception": false,
+    "window_reports_no_anr_since_boot": true,
+    "focus": [
+      "mCurrentFocus=Window{48fd635 u0 vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}"
+    ]
+  },
+  "before_fix": "Code chưa có consumer cho hai cờ. Trên máy, bật tự lưu và chụp ảnh trước sửa không tạo ảnh thư viện (01–03).",
+  "changes": {
+    "data_saver": "Coil singleton + interceptor đọc cờ mỗi request, Cloudinary variant q_auto:eco/f_auto giới hạn640x640, tách cache.",
+    "auto_save": "Camera snapshot lựa chọn/filter lúc bấm chụp, chống callback lặp, MediaStore trên IO, publish khi ghi xong, phản hồi thành công/lỗi; giữ file soạn bài nếu lỗi."
+  },
+  "automated": {
+    "unit_tests": 246,
+    "added_unit_tests": 20,
+    "instrumentation_tests": 3,
+    "all_passed": true,
+    "unit_build_type": "release"
+  },
+  "network_measurement": {
+    "measurements": [
+      {
+        "image_sha256": "b62eace268fdbc9ca21146490039da65fae6de3546d74d9ba5a88aef4e7c2e93",
+        "full_bytes": 122325,
+        "saver_bytes": 32796,
+        "full_width": 1080,
+        "full_height": 1080,
+        "saver_width": 640,
+        "saver_height": 640,
+        "data_source": "NETWORK"
+      },
+      {
+        "image_sha256": "35a840a19aa2c5eeb57ec6e11f0f9d38587502720e4a5b873a4cef27a0e44a24",
+        "full_bytes": 77751,
+        "saver_bytes": 24831,
+        "full_width": 1080,
+        "full_height": 1080,
+        "saver_width": 640,
+        "saver_height": 640,
+        "data_source": "NETWORK"
+      },
+      {
+        "image_sha256": "33279ad1c4e6accf481a8d864cdfca962ba6db402327de8dc7ee0e0f8dbc19f8",
+        "full_bytes": 90933,
+        "saver_bytes": 26799,
+        "full_width": 1080,
+        "full_height": 1080,
+        "saver_width": 640,
+        "saver_height": 640,
+        "data_source": "NETWORK"
+      }
+    ],
+    "cache_variants_separated": true,
+    "total_full_bytes": 291009,
+    "total_saver_bytes": 84426,
+    "saving_percent": 70.9885261280579,
+    "scope": "Byte nội dung tải của 3 ảnh hiện có, không phải toàn bộ lưu lượng ứng dụng; bỏ qua memory/disk cache, nguồn NETWORK."
+  },
+  "saved_photo": {
+    "media_id": 1000010474,
+    "filename": "Lokap_1794913909437_437cf9ff-3f45-465c-9ba3-c2a4f9f08556.jpg",
+    "size_bytes": 297034,
+    "format": "JPEG",
+    "dimensions": [
+      2448,
+      3264
+    ],
+    "sha256": "582bd8f0591d5bb858b372607ca9be430fca726fa15efa00209132262c2a77c8",
+    "max_red_green_difference": 0,
+    "max_green_blue_difference": 0
+  },
+  "cases": [
+    {
+      "id": "MEDIA-001",
+      "status": "PASS",
+      "description": "Đo tải 3 ảnh hiện có qua production SingletonImageLoader, cùng URL gốc khi OFF/ON; cache bị tắt để đo byte mạng thực. Ảnh 1080x1080 thành640x640, byte giảm từng ảnh; custom memory cache key tách 2 mức và OFF trở lại bản full.",
+      "evidence": [
+        "instrumentation-results.txt"
+      ]
+    },
+    {
+      "id": "MEDIA-002",
+      "status": "PASS",
+      "description": "Bật công tắc tiết kiệm dữ liệu qua UI, restart vẫn bật và ảnh feed hiển thị.",
+      "evidence": [
+        "07-fixed-both-on.xml",
+        "08-saver-feed-after-restart.png",
+        "09-both-on-after-restart.xml"
+      ]
+    },
+    {
+      "id": "MEDIA-003",
+      "status": "PASS",
+      "description": "Auto-save OFF: chụp thật vào Composer, thư viện Pictures/Lokap không có ảnh; hủy soạn bài, không đăng.",
+      "evidence": [
+        "05-fixed-settings-off.xml",
+        "06-fixed-capture-off.png",
+        "06-gallery-off.txt"
+      ]
+    },
+    {
+      "id": "MEDIA-004",
+      "status": "PASS",
+      "description": "Auto-save ON giữ sau restart; chọn bộ lọc Đen trắng, chụp thật: tạo đúng1 JPEG trong Pictures/Lokap, is_pending=0, owner vn.nhom2.lokap. JPEG đọc được; các kênh R/G/B bằng nhau phù hợp bộ lọc chọn.",
+      "evidence": [
+        "09-both-on-after-restart.xml",
+        "11-mono-filter-selected.xml",
+        "12-auto-save-on-capture.png",
+        "12-gallery-on.txt",
+        "13-saved-photo-validation.json"
+      ]
+    },
+    {
+      "id": "MEDIA-005",
+      "status": "PASS",
+      "description": "Hủy Composer rồi restart: vẫn đúng một ảnh/ID, không tạo bản sao của ảnh cũ.",
+      "evidence": [
+        "14-gallery-after-restart.txt"
+      ]
+    },
+    {
+      "id": "MEDIA-006",
+      "status": "PASS",
+      "description": "Tắt auto-save lại rồi chụp mới: thư viện vẫn chỉ có ảnh thử cũ, không thêm ảnh.",
+      "evidence": [
+        "15-fixed-both-off.xml",
+        "16-capture-after-turning-off.png",
+        "16-gallery-after-turning-off.txt"
+      ]
+    },
+    {
+      "id": "MEDIA-007",
+      "status": "PASS",
+      "description": "2 instrumentation test: MediaStore lưu nguyên byte JPEG tổng hợp, MIME/path/is_pending/kích thước đúng và giữ nguồn; nguồn không tồn tại trả lỗi không tạo row. Fixtures tự xóa đúng URI.",
+      "evidence": [
+        "instrumentation-results.txt"
+      ]
+    }
+  ],
+  "cleanup": {
+    "toggles": {
+      "data_saver": false,
+      "auto_save": false
+    },
+    "test_gallery_image_deleted": true,
+    "gallery_query_after_cleanup": "No result found.",
+    "test_apk_uninstalled": true,
+    "composer_captures_cancelled": true,
+    "posts_or_messages_sent": false,
+    "signed_in_session_preserved": true,
+    "final_screen": "Khám phá"
+  },
+  "limits": [
+    "Tiết kiệm dữ liệu áp dụng cho tải ảnh Cloudinary public unsigned có version qua Coil, trên mọi mạng khi bật. Không thay đổi dung lượng upload, tile bản đồ VietMap hoặc dữ liệu Firestore; URL local/signed/query-sensitive và transform khác giữ nguyên.",
+    "70,99% là kết quả 3 ảnh đo thử; mức tiết kiệm phụ thuộc ảnh, không đại diện toàn bộ lưu lượng của ứng dụng.",
+    "Tự lưu chạy khi chụp ảnh mới, lưu bản sau filter trước khi soạn/đăng bài. Ảnh đã có/import không được lưu lại tự động. Hủy soạn bài sau chụp không xóa bản đã lưu thư viện.",
+    "Máy thật dùng Android16. Nhánh xin quyền lưu Android26–28 được kiểm bằng unit test, chưa thử trên thiết bị API26–28.",
+    "Lỗi thiếu file và luồng lỗi/từ chối quyền đã kiểm tự động; chưa mô phỏng thiết bị đầy bộ nhớ."
+  ],
+  "runtime": "Không quan sát crash/ANR; log PID cuối không có FATAL EXCEPTION. Lịch sử thoát sau cài chỉ có kết thúc instrumentation và2 force-stop chủ động. Log này không chứng minh mọi chức năng hoặc backend đều không lỗi.",
+  "source_state": "Chưa commit/push; giữ nguyên các thay đổi có sẵn."
+}

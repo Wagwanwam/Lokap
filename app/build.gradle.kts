@@ -70,6 +70,14 @@ val releaseSigningReady = listOf(
 
 android {
     namespace = "vn.nhom2.lokap"
+    // Opt-in instrumentation on the installed release, without replacing it with a debug-signed app.
+    testBuildType = providers.gradleProperty("lokapTestBuildType").orElse("debug").get()
+    if (testBuildType == "release") {
+        // The release QA suite is isolated from Firebase CRUD tests that depend on src/debug.
+        sourceSets.getByName("androidTest").kotlin.setSrcDirs(listOf("src/mediaSettingsTest/java"))
+    } else if (testBuildType == "qa") {
+        sourceSets.getByName("androidTest").kotlin.setSrcDirs(listOf("src/socialTest/java"))
+    }
     compileSdk {
         version = release(37)
     }
@@ -119,6 +127,11 @@ android {
             optimization {
                 enable = false
             }
+        }
+        create("qa") {
+            initWith(getByName("release"))
+            isDebuggable = true
+            matchingFallbacks += "release"
         }
     }
     compileOptions {

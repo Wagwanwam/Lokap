@@ -147,25 +147,25 @@ class FriendsViewModel @Inject constructor(
                 _effects.trySend(FriendsEffect.NavigateToProfile(action.userId))
             }
 
-            is FriendsAction.SendRequest -> perform {
+            is FriendsAction.SendRequest -> perform(action.userId, FriendStatus.NONE) {
                 social.sendFriendRequest(action.userId).map { status ->
                     if (status == FriendStatus.FRIENDS) "Đã thêm vào hội bạn thân!" else "Đã gửi lời mời kết bạn"
                 }
             }
 
-            is FriendsAction.CancelSentRequest -> perform {
+            is FriendsAction.CancelSentRequest -> perform(action.userId, FriendStatus.REQUEST_SENT) {
                 social.cancelFriendRequest(action.userId).map { "Đã thu hồi lời mời kết bạn" }
             }
 
-            is FriendsAction.AcceptRequest -> perform {
+            is FriendsAction.AcceptRequest -> perform(action.userId, FriendStatus.REQUEST_RECEIVED) {
                 social.acceptFriendRequest(action.userId).map { "Đã thêm vào hội bạn thân!" }
             }
 
-            is FriendsAction.DeclineRequest -> perform {
+            is FriendsAction.DeclineRequest -> perform(action.userId, FriendStatus.REQUEST_RECEIVED) {
                 social.declineFriendRequest(action.userId).map { "Đã từ chối lời mời" }
             }
 
-            is FriendsAction.UnblockUser -> perform {
+            is FriendsAction.UnblockUser -> perform(action.userId, FriendStatus.BLOCKED) {
                 social.unblock(action.userId).map { "Đã bỏ chặn người dùng" }
             }
 
@@ -199,11 +199,11 @@ class FriendsViewModel @Inject constructor(
                 val pending = _uiState.value.pendingConfirmation ?: return
                 _uiState.update { it.copy(pendingConfirmation = null) }
                 when (pending.actionType) {
-                    FriendConfirmActionType.UNFRIEND -> perform {
+                    FriendConfirmActionType.UNFRIEND -> perform(pending.user.id, FriendStatus.FRIENDS) {
                         social.unfriend(pending.user.id).map { "Đã huỷ kết bạn với ${pending.user.displayName}" }
                     }
 
-                    FriendConfirmActionType.BLOCK -> perform {
+                    FriendConfirmActionType.BLOCK -> perform(pending.user.id) {
                         social.block(pending.user.id).map { "Đã chặn ${pending.user.displayName}" }
                     }
                 }
@@ -212,9 +212,17 @@ class FriendsViewModel @Inject constructor(
     }
 
     /** Gọi server rồi báo một câu; trạng thái mới tự về qua graph. Lỗi (đủ 20 bạn, mất mạng…) báo đúng câu của server. */
-    private fun perform(block: suspend () -> Result<String>) {
+    private fun perform(userId: String, expected: FriendStatus? = null, block: suspend () -> Result<String>) {
+        if (userId in _uiState.value.workingUserIds) return
+        if (expected != null && social.graph.value.statusOf(userId) != expected) return
+        // Khoá đồng bộ trước launch: hai lần chạm trong cùng frame chỉ chạy một lời gọi.
+        _uiState.update { it.copy(workingUserIds = it.workingUserIds + userId) }
         viewModelScope.launch {
-            block().onFailure { _effects.trySend(FriendsEffect.ShowMessage(it.message ?: "Không thực hiện được")) }
+            try {
+                block().onFailure { _effects.trySend(FriendsEffect.ShowMessage(it.message ?: "Không thực hiện được")) }
+            } finally {
+                _uiState.update { it.copy(workingUserIds = it.workingUserIds - userId) }
+            }
         }
     }
 }

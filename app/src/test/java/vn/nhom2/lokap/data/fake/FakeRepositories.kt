@@ -99,7 +99,7 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
         return Result.success(SampleSocialData.getCurrentUser())
     }
 
-    override suspend fun changePassword(newPassword: String): Result<Unit> {
+    override suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> {
         delay(400)
         return Result.success(Unit)
     }

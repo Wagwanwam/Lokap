@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Temporary physical-device QA only. Production release has no cleartext exception. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <application android:networkSecurityConfig="@xml/qa_network_security_config" />
+</manifest>

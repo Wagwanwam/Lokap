@@ -1,0 +1,68 @@
+ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)
+Last Timestamp of Persistence Into Persistent Storage: 2026-11-17 18:13:54.023
+  package: vn.nhom2.lokap
+    Historical Process Exit for uid=10365
+        ApplicationExitInfo #0:
+          timestamp=2026-11-17 18:12:38.605 pid=5376 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to from pid 6960by app state=empty trace=null
+        ApplicationExitInfo #1:
+          timestamp=2026-11-17 18:10:56.062 pid=2876 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to from pid 5325by app state=empty trace=null
+        ApplicationExitInfo #2:
+          timestamp=2026-11-17 18:09:44.014 pid=1996 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=125 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to finished inst state=empty trace=null
+        ApplicationExitInfo #3:
+          timestamp=2026-11-17 18:09:27.135 pid=28141 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to installPackageLI state=empty trace=null
+        ApplicationExitInfo #4:
+          timestamp=2026-11-17 17:52:29.422 pid=27439 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to from pid 28112by app state=empty trace=null
+        ApplicationExitInfo #5:
+          timestamp=2026-11-17 17:51:33.848 pid=24836 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to from pid 27412by app state=empty trace=null
+        ApplicationExitInfo #6:
+          timestamp=2026-11-17 17:47:49.972 pid=24189 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to from pid 24721by app state=empty trace=null
+        ApplicationExitInfo #7:
+          timestamp=2026-11-17 17:46:49.261 pid=20058 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to installPackageLI state=empty trace=null
+        ApplicationExitInfo #8:
+          timestamp=2026-11-17 17:32:11.590 pid=17791 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to from pid 20029by app state=empty trace=null
+        ApplicationExitInfo #9:
+          timestamp=2026-11-17 17:28:28.052 pid=16801 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=0,00 rss=0,00 description=stop vn.nhom2.lokap due to from pid 17765by app state=empty trace=null
+        ApplicationExitInfo #10:
+          timestamp=2026-11-17 16:37:30.350 pid=18975 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=400 pss=0,00 rss=181MB description=stop vn.nhom2.lokap due to from pid 3034 (system) iAwareF[SystemManagerSwipeUp] 2211536ms state=empty trace=null
+        ApplicationExitInfo #11:
+          timestamp=2026-11-17 13:54:55.869 pid=13590 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=400 pss=0,00 rss=151MB description=stop vn.nhom2.lokap due to from pid 3034 (system) iAwareF[SystemManagerSwipeUp] 103743ms state=empty trace=null
+        ApplicationExitInfo #12:
+          timestamp=2026-11-17 13:39:10.285 pid=22532 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=400 pss=0,00 rss=578MB description=stop vn.nhom2.lokap due to installPackageLI state=empty trace=null
+        ApplicationExitInfo #13:
+          timestamp=2026-11-16 16:32:16.711 pid=17861 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=400 pss=0,00 rss=239MB description=stop com.google.android.gms due to installPackageLI state=empty trace=null
+        ApplicationExitInfo #14:
+          timestamp=2026-11-15 22:43:05.975 pid=17268 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=2 (SIGNALED) subreason=0 (UNKNOWN) status=9
+          importance=400 pss=0,00 rss=152MB description=iAwareF[LowMem](cch-act) -1ms state=empty trace=null
+        ApplicationExitInfo #15:
+          timestamp=2026-11-15 18:47:18.177 pid=6555 realUid=10365 packageUid=10365 definingUid=10365 user=0
+          process=vn.nhom2.lokap reason=16 (PACKAGE UPDATED) subreason=0 (UNKNOWN) status=0
+          importance=400 pss=0,00 rss=155MB description=stop vn.nhom2.lokap due to installPackageLI state=empty trace=null

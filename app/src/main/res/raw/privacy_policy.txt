@@ -1,0 +1,52 @@
+Chính sách quyền riêng tư
+
+Ứng dụng Lokap (gói vn.nhom2.lokap) · Hiệu lực từ 15/11/2026
+
+Lokap là ứng dụng chia sẻ ảnh với bạn bè theo địa điểm, do Nhóm 2 phát triển. Trang này nói rõ Lokap thu thập dữ liệu gì, dùng vào việc gì, ai nhìn thấy và cách bạn xoá dữ liệu.
+
+1. Dữ liệu Lokap thu thập
+
+• Tài khoản: email và mật khẩu (Firebase Authentication lưu, nhóm không xem được mật khẩu). Nếu đăng nhập bằng Google: email, tên và ảnh đại diện của tài khoản Google.
+• Hồ sơ: tên người dùng, tên hiển thị, ảnh đại diện, giới thiệu, năm sinh, tỉnh/thành quê quán, cài đặt thông báo và mức vị trí mặc định.
+• Bài đăng: ảnh, chú thích, người được xem, thời điểm chụp, thời gian hẹn hiện công khai.
+• Vị trí: khi bạn đăng bài, app lấy vị trí chính xác (vĩ độ, kinh độ, độ chính xác). Toạ độ chính xác chỉ lưu ở vùng riêng mà chỉ bạn đọc được. Người khác chỉ thấy vị trí đã làm mờ theo mức bạn chọn: địa danh, phường/xã, tỉnh/thành hoặc chỉ "Việt Nam". App chỉ lấy vị trí khi đang mở, không theo dõi nền.
+• Hoạt động xã hội: lời mời và danh sách bạn bè, danh sách chặn, tin nhắn, bình luận, cảm xúc, thông báo, báo cáo vi phạm và địa danh bạn tạo.
+• Thông tin thiết bị và sử dụng: Firebase Analytics ghi nhận mã cài đặt ứng dụng, loại máy, phiên bản Android và các sự kiện sử dụng cơ bản để nhóm biết app có chạy ổn hay không.
+
+2. Quyền truy cập trên máy
+
+• Máy ảnh: chỉ để chụp ảnh đăng bài và quét mã QR kết bạn.
+• Vị trí: để gắn tỉnh/phường/địa danh cho bài và hiện bản đồ. Bạn có thể từ chối và vẫn đăng bài ở mức "Việt Nam".
+• Thông báo: để báo tin nhắn, lời mời kết bạn, cảm xúc mới.
+
+3. Ai nhìn thấy dữ liệu của bạn
+
+• Bài bạn bè chỉ bạn bè lúc đăng thấy; bài riêng chỉ người nhận thấy; bài công khai mọi người dùng Lokap thấy (có thể hẹn giờ mới hiện).
+• Tên người dùng, tên hiển thị, ảnh đại diện và giới thiệu hiện với người dùng khác để tìm và kết bạn.
+• Tin nhắn chỉ hai người trong cuộc trò chuyện đọc được, và chỉ nhắn được giữa bạn bè.
+• Ảnh lưu dưới đường dẫn công khai khó đoán: ai có đúng đường dẫn thì mở được ảnh.
+
+4. Bên thứ ba xử lý dữ liệu
+
+Lokap không bán dữ liệu và không dùng dữ liệu cho quảng cáo. Dữ liệu được lưu và xử lý bởi:
+
+• Google Firebase (Authentication, Cloud Firestore, Analytics): tài khoản, hồ sơ, bài đăng, tin nhắn.
+• Cloudinary: lưu và phân phối ảnh.
+• VietMap: tìm địa điểm và đổi toạ độ thành tỉnh/phường; toạ độ được gửi tới VietMap khi bạn đăng bài hoặc mở bản đồ.
+• Google Play services: lấy vị trí và đăng nhập bằng Google.
+
+Mọi dữ liệu truyền qua kết nối mã hoá (HTTPS). Quyền đọc/ghi trên máy chủ được giới hạn bằng Firebase Security Rules.
+
+5. Lưu giữ và xoá dữ liệu
+
+Dữ liệu được giữ đến khi bạn xoá. Bạn xoá tài khoản ngay trong app: Hồ sơ → Cài đặt → Xoá tài khoản vĩnh viễn.
+
+Khi xoá, Lokap xoá ngay: tài khoản đăng nhập, hồ sơ, tên người dùng, bài đăng của bạn kèm toạ độ chính xác, quan hệ bạn bè và danh sách chặn. Phiên bản hiện tại chưa xoá: ảnh trên Cloudinary, tin nhắn, bình luận và cảm xúc trên bài của người khác, thông báo, báo cáo vi phạm và địa danh bạn đã tạo. Dữ liệu tạm trên máy bị xoá khi bạn gỡ app.
+
+6. Trẻ em
+
+Lokap dành cho người từ 13 tuổi trở lên. Nếu biết một tài khoản thuộc về trẻ dưới 13 tuổi, nhóm sẽ xoá tài khoản đó.
+
+7. Thay đổi chính sách
+
+Khi chính sách thay đổi, nhóm cập nhật trang này và ngày hiệu lực ở đầu trang.

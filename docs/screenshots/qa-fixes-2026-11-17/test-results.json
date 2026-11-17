@@ -1,0 +1,190 @@
+{
+  "source_report": "/Users/nguyenduythuan/vscode/Mobile/BaoCao/Bao-cao-loi-Lokap-co-hinh.docx",
+  "verification": {
+    "device": {
+      "serial": "AXSCVB5304005477",
+      "manufacturer": "HONOR",
+      "model": "AMM-AN00",
+      "android": "16",
+      "api": "36"
+    },
+    "recorded_at_device": "2026-11-17T17:56:47+0700",
+    "package": "vn.nhom2.lokap",
+    "package_metadata": [
+      "versionCode=1 minSdk=26 targetSdk=37",
+      "versionName=1.0",
+      "lastUpdateTime=2026-11-17 17:46:49",
+      "firstInstallTime=2026-11-15 11:05:25",
+      "firstInstallTime=2026-11-15 11:05:25",
+      "firstInstallTime=2026-11-15 11:05:25"
+    ],
+    "local_apk": "/Users/nguyenduythuan/vscode/Mobile/Lokap/app/build/outputs/apk/release/app-release.apk",
+    "sha256": "86dfa4c9a201f7040847873be253c6dcfe869b628e51738576119dd895556b42",
+    "installed_sha256": "86dfa4c9a201f7040847873be253c6dcfe869b628e51738576119dd895556b42",
+    "apk_matches_installed": true,
+    "unit_tests": {
+      "tests": 226,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "unit_test_suites": 23,
+    "pid": "28141",
+    "focus": "mCurrentFocus=Window{326c9d3 u0 vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}",
+    "window_reports_no_anr_since_boot": true,
+    "logcat_lines": 50
+  },
+  "build": {
+    "assembleRelease": "PASS",
+    "testDebugUnitTest": "PASS",
+    "tests": 226,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "added_regression_tests": 21,
+    "firebase_rules": "Không sửa Rules trong lượt này; không chạy lại. Lượt trước 54/54 đạt."
+  },
+  "physical_test_summary": {
+    "pass_scoped": 9,
+    "fail": 0,
+    "not_tested_on_device": 1,
+    "previously_failing_fixed_and_passed": 7
+  },
+  "cases": [
+    {
+      "id": "LQA-001",
+      "status": "PASS_SCOPED",
+      "title": "Lưu chế độ giao diện",
+      "change": "ThemeManager đọc/lưu lựa chọn qua SharedPreferences, nạp khi Application khởi động.",
+      "observed": "Chọn Tối, rời/vào lại Cài đặt và force-stop/mở lại vẫn Tối. Khôi phục Theo hệ thống, restart vẫn giữ đúng.",
+      "evidence": [
+        "02-settings-enabled",
+        "03-settings-reenter",
+        "04-settings-after-restart",
+        "18-restored-after-restart"
+      ]
+    },
+    {
+      "id": "LQA-002",
+      "status": "PASS_SCOPED",
+      "title": "Lưu trạng thái Tiết kiệm dữ liệu",
+      "change": "Đưa trạng thái vào PersistentDeviceSettingsRepository, quan sát bằng StateFlow.",
+      "observed": "Bật công tắc, rời/vào lại và restart vẫn bật. Sau khôi phục tắt và restart vẫn tắt. Chỉ kiểm lưu trạng thái; chưa kiểm tác động giảm lưu lượng.",
+      "evidence": [
+        "02-settings-enabled",
+        "03-settings-reenter",
+        "04-settings-after-restart",
+        "18-restored-after-restart"
+      ]
+    },
+    {
+      "id": "LQA-003",
+      "status": "PASS_SCOPED",
+      "title": "Xóa bộ nhớ đệm ảnh",
+      "change": "Thay placeholder bằng xóa memory/disk cache của Coil; chặn nhấn lặp khi đang chạy và phản hồi theo kết quả thực tế. Không xóa bản nháp, phiên đăng nhập hoặc hàng đợi upload.",
+      "observed": "Trên máy, nút báo Đã xoá bộ nhớ đệm ảnh. Hai unit test dùng cache Coil thực kiểm tra xóa và giữ file ngoài phạm vi. Không đo byte cache trên điện thoại release.",
+      "evidence": [
+        "11-settings-lower",
+        "12-cache-cleared"
+      ]
+    },
+    {
+      "id": "LQA-004",
+      "status": "NOT_TESTED_ON_DEVICE",
+      "title": "Phản hồi đổi mật khẩu",
+      "change": "Truyền mật khẩu hiện tại để Firebase reauthenticate trước updatePassword; thêm trạng thái chờ, ngăn gửi lặp, giữ form khi lỗi; thành công đóng form và phát thông báo Đã đổi mật khẩu thành công.",
+      "observed": "Đã kiểm thử tự động nhánh thành công, thất bại/thử lại, chặn thao tác đang chờ và đầu vào không hợp lệ. Không đổi mật khẩu tài khoản thật, theo lựa chọn của người dùng; chưa xác nhận luồng Firebase thành công trên thiết bị.",
+      "evidence": []
+    },
+    {
+      "id": "LQA-005",
+      "status": "PASS_SCOPED",
+      "title": "Kiểm tra số điện thoại",
+      "change": "Validator dùng chung tại UI và ViewModel, chuẩn hóa số hợp lệ, lỗi rõ ràng và vô hiệu nút Lưu với đầu vào sai.",
+      "observed": "abcdefghi bị báo lỗi và nút Lưu bị vô hiệu; 0912345678 mở nút Lưu. Đã Hủy, không lưu số thử. Không kiểm lưu bền vững/xác minh tài khoản.",
+      "evidence": [
+        "05-phone-empty",
+        "06-phone-invalid",
+        "07-phone-valid"
+      ]
+    },
+    {
+      "id": "LQA-006",
+      "status": "PASS_SCOPED",
+      "title": "Kiểm tra email",
+      "change": "Siết validator email, dùng tại UI và ViewModel, trim và tránh trùng không phân biệt hoa thường.",
+      "observed": "@.com bị báo lỗi và nút Thêm bị vô hiệu; qa+lokap@mail.com hợp lệ, nút bật. Đã Đóng, không thêm email thử. Không kiểm lưu bền vững/xác minh tài khoản.",
+      "evidence": [
+        "08-email-empty",
+        "09-email-invalid",
+        "10-email-valid"
+      ]
+    },
+    {
+      "id": "LQA-007",
+      "status": "PASS_SCOPED",
+      "title": "Lưu trạng thái Lưu ảnh vào máy",
+      "change": "Lưu công tắc qua PersistentDeviceSettingsRepository; đồng thời lưu cờ chất lượng tải lên trong cùng repository.",
+      "observed": "Bật công tắc, rời/vào lại và restart vẫn bật; sau khôi phục tắt và restart vẫn tắt. Chỉ kiểm lưu trạng thái, chưa kiểm xuất ảnh vào thư viện.",
+      "evidence": [
+        "02-settings-enabled",
+        "03-settings-reenter",
+        "04-settings-after-restart",
+        "18-restored-after-restart"
+      ]
+    },
+    {
+      "id": "LQA-008",
+      "status": "PASS_SCOPED",
+      "title": "Mở chính sách bảo mật",
+      "change": "Mở dialog cuộn đọc nội dung chính sách sẵn có trong firebase/public/privacy.html, đóng gói bằng tài nguyên local. Đổi nhãn thành Chính sách bảo mật cho đúng nội dung được cung cấp.",
+      "observed": "Mở được, cuộn đọc được, nút Đóng luôn truy cập được và đóng về Cài đặt. Không bổ sung nội dung điều khoản sử dụng mới.",
+      "evidence": [
+        "13-policy-open",
+        "14-policy-scrolled",
+        "15-policy-end"
+      ]
+    },
+    {
+      "id": "LQA-009",
+      "status": "PASS_SCOPED",
+      "title": "Bố cục địa điểm dài",
+      "change": "Giữ phần sửa hiện có vì ca này đã đạt ở lượt trước; kiểm hồi quy trên APK mới.",
+      "observed": "Đúng bài Hội An Văn Phòng Xe Hội An Travel Bus Office · Đà Nẵng: tên dfthd nằm ngang, địa điểm một dòng có dấu rút gọn, không chồng lấn. Chạm mở album Phường Hội An Đông. Không thử sửa địa điểm hoặc cỡ chữ khác.",
+      "evidence": [
+        "27-long-location-detail",
+        "28-location-album"
+      ]
+    },
+    {
+      "id": "LQA-010",
+      "status": "PASS_SCOPED",
+      "title": "Bài đăng lại trong hồ sơ",
+      "change": "Giữ phần sửa hiện có vì ca này đã đạt ở lượt trước; kiểm hồi quy trên APK mới.",
+      "observed": "Bài public Vĩnh Long: lượt đăng lại 0→1, hồ sơ 2→3 bài; sau force-stop/mở lại vẫn có 3 bài. Đã bỏ đăng lại, lượt về 0 và hồ sơ về 2 bài gốc.",
+      "evidence": [
+        "19-reposts-before",
+        "20-repost-selected",
+        "21-reposts-after",
+        "22-reposts-after-restart",
+        "23-repost-detail",
+        "24-repost-removed",
+        "25-reposts-restored"
+      ]
+    }
+  ],
+  "cleanup": [
+    "Giao diện Theo hệ thống; Tiết kiệm dữ liệu và Lưu ảnh vào máy tắt, xác nhận lại sau restart.",
+    "Số điện thoại/email thử đã hủy; không đổi mật khẩu.",
+    "Đã gỡ lượt đăng lại thử nghiệm và giữ nguyên 2 bài đăng lại gốc.",
+    "Ứng dụng đang ở màn Khám phá, phiên đăng nhập giữ nguyên."
+  ],
+  "limits": [
+    "RecoveryPhone/linkedEmails hiện vẫn chỉ nằm trong UiState; lần sửa này xử lý validation trong báo cáo, chưa triển khai lưu bền vững hoặc xác minh danh tính.",
+    "Các cờ Tiết kiệm dữ liệu/Lưu ảnh vào máy/Chất lượng tải lên đã được lưu; chưa thấy camera/upload sử dụng các cờ này. Không tuyên bố tính năng tiết kiệm dữ liệu hoặc tự lưu ảnh đã hoàn thiện.",
+    "Không kiểm toàn bộ chức năng, mọi thiết bị, cỡ chữ hoặc tải nặng.",
+    "LQA-004 chưa được kiểm thực tế với Firebase/tài khoản thật, theo lựa chọn của người dùng."
+  ],
+  "runtime": "Không quan sát crash khi thao tác. Lịch sử thoát sau cài chỉ có 3 FORCE STOP chủ động để kiểm persistence. Log PID cuối 28141 không có FATAL EXCEPTION/exception stack; chỉ có cảnh báo Compose/HONOR. Log thưa, không chứng minh mọi hoạt động backend đều không lỗi.",
+  "source_state": "Không commit/push; giữ nguyên các thay đổi có sẵn trước lượt sửa này."
+}

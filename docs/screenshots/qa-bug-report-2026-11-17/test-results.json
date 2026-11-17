@@ -1,0 +1,135 @@
+{
+  "date": "2026-11-17",
+  "device": "HONOR AMM-AN00, Android 16/API 36",
+  "apk_sha256": "0ce5c637aadd484aff5ecab3022af967eff3a796fa0be7e2c970f1c71af23e49",
+  "unit_tests": {
+    "tests": 282,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "instrumentation": {
+    "tests": 1,
+    "passed": 1,
+    "authentication": "in-memory stub, real SettingsRoute and ViewModel"
+  },
+  "cases": [
+    {
+      "id": "LQA-001",
+      "result": "PASS_SCOPED",
+      "scope": "Dark theme persists after screen recreation and force-stop",
+      "evidence": [
+        "22-fixed-all-saved",
+        "23-fixed-reenter",
+        "25-fixed-after-restart"
+      ]
+    },
+    {
+      "id": "LQA-002",
+      "result": "PASS_SCOPED",
+      "scope": "Data saver toggle persists; traffic measurement not repeated",
+      "evidence": [
+        "22-fixed-all-saved",
+        "23-fixed-reenter",
+        "25-fixed-after-restart"
+      ]
+    },
+    {
+      "id": "LQA-003",
+      "result": "PASS_SCOPED",
+      "scope": "UI success feedback and existing Coil memory/disk unit tests; device cache byte count not measured",
+      "evidence": [
+        "29-cache-feedback"
+      ]
+    },
+    {
+      "id": "LQA-004",
+      "result": "PASS_UI_STUB",
+      "scope": "Error/retry and visible success snackbar; no real Firebase password changed",
+      "evidence": [
+        "password-instrumentation.txt"
+      ]
+    },
+    {
+      "id": "LQA-005",
+      "before": "FAIL_PERSISTENCE",
+      "result": "PASS_SCOPED",
+      "scope": "Reject letters, accept digits, save locally per UID, screen reentry, force-stop, remove",
+      "evidence": [
+        "11-before-contacts-saved",
+        "13-before-contacts-lost",
+        "15-phone-empty",
+        "16-phone-invalid",
+        "17-phone-valid",
+        "25-fixed-after-restart",
+        "43-restored-after-restart"
+      ]
+    },
+    {
+      "id": "LQA-006",
+      "before": "FAIL_PERSISTENCE",
+      "result": "PASS_SCOPED",
+      "scope": "Reject a@.com, accept valid email, save locally per UID, screen reentry, force-stop, remove",
+      "evidence": [
+        "11-before-contacts-saved",
+        "13-before-contacts-lost",
+        "18-email-empty",
+        "19-email-invalid",
+        "20-email-valid",
+        "26-email-after-restart",
+        "43-restored-after-restart"
+      ]
+    },
+    {
+      "id": "LQA-007",
+      "result": "PASS_SCOPED",
+      "scope": "Auto-save toggle persists; taking a new gallery photo not repeated",
+      "evidence": [
+        "22-fixed-all-saved",
+        "23-fixed-reenter",
+        "25-fixed-after-restart"
+      ]
+    },
+    {
+      "id": "LQA-008",
+      "result": "PASS_SCOPED",
+      "scope": "Policy opens, scrolls, closes",
+      "evidence": [
+        "30-privacy-open",
+        "32-privacy-scrolled"
+      ]
+    },
+    {
+      "id": "LQA-010",
+      "result": "PASS_SCOPED",
+      "scope": "Repost count 0->1, profile 2->3, force-stop persists, undo restores 2",
+      "evidence": [
+        "33-reposts-before",
+        "34-repost-selected",
+        "36-reposts-after",
+        "38-reposts-after-restart",
+        "39-repost-removed",
+        "40-reposts-restored"
+      ]
+    },
+    {
+      "id": "INFO-001",
+      "result": "EXPECTED_CODE_REVIEW",
+      "scope": "Existing empty state when a landmark has no photos; no new defect"
+    }
+  ],
+  "cleanup": {
+    "test_contacts_removed": true,
+    "theme": "SYSTEM",
+    "data_saver": false,
+    "auto_save": false,
+    "original_reposts": 2,
+    "test_apk_uninstalled": true,
+    "real_password_changed": false
+  },
+  "limitations": [
+    "Contact data is local to this device and account; not verified or used for authentication/recovery.",
+    "LQA-004 does not validate real Firebase password updating or login with a new password.",
+    "Firebase rules unchanged and not rerun or deployed."
+  ]
+}

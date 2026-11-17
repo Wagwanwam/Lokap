@@ -15,6 +15,7 @@ data class SettingsUiState(
     val editDisplayNameError: String? = null,
     val editUsernameError: String? = null,
     val cacheSizeLabel: String = "",
+    val isClearingCache: Boolean = false,
     val dataSaverEnabled: Boolean = false,
     val autoSaveToGallery: Boolean = false,
     val highQualityUpload: Boolean = true,
@@ -40,7 +41,10 @@ data class SettingsUiState(
     val showBlockedUsersDialog: Boolean = false,
     val showRecoveryPhoneDialog: Boolean = false,
     val showLinkedEmailsDialog: Boolean = false,
-    val showChangePasswordDialog: Boolean = false
+    val showChangePasswordDialog: Boolean = false,
+    val isChangingPassword: Boolean = false,
+    val changePasswordError: String? = null,
+    val showPrivacyPolicy: Boolean = false
 ) {
     val isDeleteConfirmEnabled: Boolean
         get() = java.text.Normalizer.normalize(deleteConfirmTextInput.trim(), java.text.Normalizer.Form.NFC) in
@@ -65,9 +69,11 @@ sealed interface SettingsAction {
     data object OpenRecoveryPhoneDialog : SettingsAction
     data object DismissRecoveryPhoneDialog : SettingsAction
     data class SaveRecoveryPhone(val phone: String) : SettingsAction
+    data object RemoveRecoveryPhone : SettingsAction
     data object OpenLinkedEmailsDialog : SettingsAction
     data object DismissLinkedEmailsDialog : SettingsAction
     data class AddLinkedEmail(val email: String) : SettingsAction
+    data class RemoveLinkedEmail(val email: String) : SettingsAction
     data object OpenChangePasswordDialog : SettingsAction
     data object DismissChangePasswordDialog : SettingsAction
     data class ConfirmChangePassword(val oldPass: String, val newPass: String) : SettingsAction
@@ -80,6 +86,8 @@ sealed interface SettingsAction {
     data object SaveEditProfile : SettingsAction
 
     data object ClearCache : SettingsAction
+    data object OpenPrivacyPolicy : SettingsAction
+    data object DismissPrivacyPolicy : SettingsAction
     data class ToggleDataSaver(val enabled: Boolean) : SettingsAction
     data class ToggleAutoSave(val enabled: Boolean) : SettingsAction
     data class ToggleHighQuality(val enabled: Boolean) : SettingsAction

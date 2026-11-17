@@ -31,6 +31,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.*
 import androidx.navigation.compose.composable
@@ -101,6 +104,21 @@ fun ChatRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val lifecycle = lifecycleOwner.lifecycle
+        fun updateVisibility() = viewModel.onAction(
+            ChatAction.VisibilityChanged(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+        )
+        val observer = LifecycleEventObserver { _, _ -> updateVisibility() }
+        lifecycle.addObserver(observer)
+        updateVisibility()
+        onDispose {
+            lifecycle.removeObserver(observer)
+            viewModel.onAction(ChatAction.VisibilityChanged(false))
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->

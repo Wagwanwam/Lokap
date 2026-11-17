@@ -43,6 +43,7 @@ class AddFriendViewModel @Inject constructor(
     val effects: Flow<AddFriendEffect> = _effects.receiveAsFlow()
 
     private var lookupJob: Job? = null
+    private val workingUserIds = mutableSetOf<String>()
 
     init {
         viewModelScope.launch {
@@ -90,15 +91,15 @@ class AddFriendViewModel @Inject constructor(
                 lookupJob?.cancel()
                 _uiState.update { it.copy(lookup = null) }
             }
-            AddFriendAction.SendRequest -> withFound { userId ->
+            AddFriendAction.SendRequest -> withFound(FriendStatus.NONE) { userId ->
                 social.sendFriendRequest(userId).map { status ->
                     if (status == FriendStatus.FRIENDS) "Hai bạn đã là bạn bè" else "Đã gửi lời mời"
                 }
             }
-            AddFriendAction.CancelRequest -> withFound { userId ->
+            AddFriendAction.CancelRequest -> withFound(FriendStatus.REQUEST_SENT) { userId ->
                 social.cancelFriendRequest(userId).map { "Đã thu hồi lời mời" }
             }
-            AddFriendAction.AcceptRequest -> withFound { userId ->
+            AddFriendAction.AcceptRequest -> withFound(FriendStatus.REQUEST_RECEIVED) { userId ->
                 social.acceptFriendRequest(userId).map { "Hai bạn đã là bạn bè" }
             }
             is AddFriendAction.OpenProfile -> {
@@ -120,7 +121,7 @@ class AddFriendViewModel @Inject constructor(
                     when {
                         user == null -> FriendLookup.NotFound(name)
                         user.id == myId -> FriendLookup.Found(user, FriendStatus.NONE, isSelf = true)
-                        else -> FriendLookup.Found(user, social.graph.value.statusOf(user.id), isSelf = false)
+                        else -> FriendLookup.Found(user, social.graph.value.statusOf(user.id), isSelf = false, isWorking = user.id in workingUserIds)
                     }
                 },
                 onFailure = { FriendLookup.Failed(name, it.message ?: "Không mở được mã, thử lại sau") }
@@ -130,20 +131,27 @@ class AddFriendViewModel @Inject constructor(
     }
 
     /** Gọi server cho người đang hiện trong sheet; trạng thái mới tự về qua graph. */
-    private fun withFound(block: suspend (String) -> Result<String>) {
+    private fun withFound(expected: FriendStatus, block: suspend (String) -> Result<String>) {
         val found = _uiState.value.lookup as? FriendLookup.Found ?: return
-        if (found.isSelf || found.isWorking) return
-        setWorking(true)
+        if (found.isSelf || found.user.id in workingUserIds) return
+        if (social.graph.value.statusOf(found.user.id) != expected) return
+        setWorking(found.user.id, true)
         viewModelScope.launch {
-            val result = block(found.user.id)
-            setWorking(false)
-            result.onFailure { _effects.trySend(AddFriendEffect.ShowMessage(it.message ?: "Không thực hiện được")) }
+            try {
+                block(found.user.id).onFailure {
+                    _effects.trySend(AddFriendEffect.ShowMessage(it.message ?: "Không thực hiện được"))
+                }
+            } finally {
+                setWorking(found.user.id, false)
+            }
         }
     }
 
-    private fun setWorking(working: Boolean) {
+    private fun setWorking(userId: String, working: Boolean) {
+        if (working) workingUserIds.add(userId) else workingUserIds.remove(userId)
         _uiState.update { state ->
             val found = state.lookup as? FriendLookup.Found ?: return@update state
+            if (found.user.id != userId) return@update state
             state.copy(lookup = found.copy(isWorking = working))
         }
     }

@@ -1,16 +1,28 @@
 package vn.nhom2.lokap.feature.auth
 
 object AuthValidators {
-    private val EMAIL_REGEX = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+    private val EMAIL_LOCAL_PART_REGEX = Regex("^[A-Za-z0-9!#\$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#\$%&'*+/=?^_`{|}~-]+)*$")
+    private val EMAIL_DOMAIN_LABEL_REGEX = Regex("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+    private val EMAIL_TLD_REGEX = Regex("^[A-Za-z]{2,63}$")
     private val USERNAME_REGEX = Regex("^[a-z0-9._]{3,20}$")
 
     fun validateEmail(email: String): String? {
         val trimmed = email.trim()
         return when {
             trimmed.isEmpty() -> "Email không được để trống"
-            !EMAIL_REGEX.matches(trimmed) -> "Email sai định dạng (ví dụ: ban@lokap.vn)"
+            !isValidEmailAddress(trimmed) -> "Email sai định dạng (ví dụ: ban@lokap.vn)"
             else -> null
         }
+    }
+
+    private fun isValidEmailAddress(email: String): Boolean {
+        if (email.length > 254 || email.count { it == '@' } != 1) return false
+        val localPart = email.substringBefore('@')
+        val domain = email.substringAfter('@')
+        if (localPart.length !in 1..64 || !EMAIL_LOCAL_PART_REGEX.matches(localPart)) return false
+        val labels = domain.split('.')
+        return labels.size >= 2 && labels.all(EMAIL_DOMAIN_LABEL_REGEX::matches) &&
+            EMAIL_TLD_REGEX.matches(labels.last())
     }
 
     fun validatePassword(password: String): String? {

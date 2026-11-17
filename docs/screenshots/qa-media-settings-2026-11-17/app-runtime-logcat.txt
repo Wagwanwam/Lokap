@@ -1,0 +1,22 @@
+--------- beginning of (HKS)77F6693847F197C9590CD34F705C839511E3CC9658FA9BBDA2C4FAFD97FE3DBBC1F9298DAD4233FF7EC155C595FEAD0C32DC537CBDFDC53204B326DE33D98A6A9052C9917E18145B9F204EFF3A2D6070F0F79E3C6F92A57A4690CC630AEA9CE2BA4F1C96DD7A79BD4D11C23EB604513A4FDC3F95AD85CC5FDD5875F0794328FCEFD32EAB3F8CB276682BE9C69D43DB51EEEBFF320275092C0258570A9F3AD60EB7024D7962B862FB2787992DC6EB52E4DA3DB314046079D73E93F19810ABAE85BE97D7F00890CA6611733E0AB0A61CE81C7E8BD783458FC6A7A216390FD91486331BE435DA9F4781B504625B7F861BAD65D7274BAFC1899A5A1333CFD94B344A(HKE)
+--------- beginning of system
+11-17 18:12:38.907  7008  7008 I ActivityThread: initHwArgs result ok for mw or virtual
+11-17 18:12:38.909  7008  7008 D ActivityThread: Attach thread to application
+11-17 18:12:38.956  7008  7046 I ActivityThread: Init compatible state: true
+11-17 18:12:38.992  7008  7008 I HwActivityThreadImpl: acceptPreloadedApplication  mPreloadStatus: 0
+11-17 18:12:39.044  7008  7008 I ActivityThread: finishPreloaded preloadStatus 0
+11-17 18:12:39.046  7008  7008 V ActivityThread: Handling launch of ActivityRecord{4dbc35b token=android.os.BinderProxy@1922855 {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}}
+11-17 18:12:39.058  7008  7093 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+11-17 18:12:39.072  7008  7008 V ActivityThread: callActivityOnCreate
+11-17 18:12:39.101  7008  7008 I ActivityThread: add activity client record, r= ActivityRecord{4dbc35b token=android.os.BinderProxy@1922855 {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}} token= android.os.BinderProxy@1922855
+11-17 18:12:39.136  7008  7008 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:12:39.266  7008  7008 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:12:39.282  7008  7008 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:12:39.287  7008  7008 I HwForceDarkManager: setAllowedHwForceDark:false package:vn.nhom2.lokap mCurrProcessState:0 mIsPackageNameChange:false hwForceDarkState:0 isViewAllowedForceDark:true isLastHonorForceDark:false
+11-17 18:12:39.296  7008  7008 I HnPgAppThreadImpl: late FAS register
+11-17 18:12:39.299  7008  7008 I RtgSchedEvent: current pid:7008 AppType:-1
+11-17 18:12:39.305  7008  7008 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:12:39.317  7008  7008 I VRI[MainActivity]: send MSG_WINDOW_FOCUS_CHANGED msg
+11-17 18:12:39.934  7008  7008 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:12:52.551  7008  7425 W HwApsManager: HwApsManagerService, registerCallback, start !
+11-17 18:12:59.911  7008  7645 I HwDeviceMangerFactory: Create actual factory for mdm part.

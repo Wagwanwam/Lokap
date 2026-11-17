@@ -1,0 +1,199 @@
+{
+  "date": "2026-11-17",
+  "package": "vn.nhom2.lokap",
+  "versionName": "1.0",
+  "versionCode": 1,
+  "source": "current working tree including pre-existing uncommitted edits",
+  "releaseBuild": "PASS",
+  "apkSha256": "01b2b60cef345cb359e66a43cace53fcd7e0a5fdfe626fa042cc0d9d7405eecb",
+  "unitTestCommand": "./gradlew :app:cleanTestDebugUnitTest :app:testDebugUnitTest --console=plain",
+  "unitTests": {
+    "tests": 205,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "deviceTests": {
+    "summary": {
+      "failed": 7,
+      "passedInTestedScope": 2,
+      "notTested": 1
+    },
+    "cases": [
+      {
+        "id": "LQA-001",
+        "status": "FAIL",
+        "observed": "Chọn Tối rồi force-stop/mở lại: trở về Theo hệ thống.",
+        "evidence": [
+          "06-before-restart.png",
+          "07-after-restart.png",
+          "06-before-restart.xml",
+          "07-after-restart.xml"
+        ]
+      },
+      {
+        "id": "LQA-002",
+        "status": "FAIL",
+        "observed": "Tiết kiệm dữ liệu bật rồi tự tắt khi rời/vào lại Cài đặt, và sau restart.",
+        "evidence": [
+          "04-settings-enabled.png",
+          "05-settings-reenter.png",
+          "06-before-restart.png",
+          "07-after-restart.png",
+          "04-settings-enabled.xml",
+          "05-settings-reenter.xml",
+          "06-before-restart.xml",
+          "07-after-restart.xml"
+        ]
+      },
+      {
+        "id": "LQA-003",
+        "status": "FAIL",
+        "observed": "Xoá cache chỉ hiện snackbar Chưa khả dụng; không đo dung lượng cache.",
+        "evidence": [
+          "13-cache-feedback.png",
+          "13-cache-feedback.xml"
+        ]
+      },
+      {
+        "id": "LQA-004",
+        "status": "NOT_TESTED",
+        "observed": "Chưa thực hiện đổi mật khẩu thành công theo lựa chọn của người dùng; chỉ mở form trống, không gửi thay đổi.",
+        "evidence": [
+          "17-password-empty.png",
+          "17-password-empty.xml"
+        ]
+      },
+      {
+        "id": "LQA-005",
+        "status": "FAIL",
+        "observed": "Số điện thoại abcdefghi (9 chữ) bật nút Lưu; ô trống tắt nút. Đã Huỷ, không kiểm ghi backend.",
+        "evidence": [
+          "08-phone-empty.png",
+          "09-phone-invalid.png",
+          "08-phone-empty.xml",
+          "09-phone-invalid.xml"
+        ]
+      },
+      {
+        "id": "LQA-006",
+        "status": "FAIL",
+        "observed": "Email @.com bật nút Thêm; ô trống tắt nút. Đã Đóng, không thêm email.",
+        "evidence": [
+          "10-email-empty.png",
+          "11-email-invalid.png",
+          "10-email-empty.xml",
+          "11-email-invalid.xml"
+        ]
+      },
+      {
+        "id": "LQA-007",
+        "status": "FAIL",
+        "observed": "Lưu ảnh vào máy bật rồi tự tắt khi rời/vào lại Cài đặt, và sau restart; chưa kiểm xuất ảnh.",
+        "evidence": [
+          "04-settings-enabled.png",
+          "05-settings-reenter.png",
+          "06-before-restart.png",
+          "07-after-restart.png",
+          "04-settings-enabled.xml",
+          "05-settings-reenter.xml",
+          "06-before-restart.xml",
+          "07-after-restart.xml"
+        ]
+      },
+      {
+        "id": "LQA-008",
+        "status": "FAIL",
+        "observed": "Chạm Điều khoản & Chính sách bảo mật vẫn ở Cài đặt, không mở nội dung.",
+        "evidence": [
+          "12-settings-lower.png",
+          "14-policy-after-tap.png",
+          "12-settings-lower.xml",
+          "14-policy-after-tap.xml"
+        ]
+      },
+      {
+        "id": "LQA-009",
+        "status": "PASS_SCOPED",
+        "observed": "Mở đúng bài của dfthd có địa điểm Hội An Văn Phòng Xe Hội An Travel Bus Office · Đà Nẵng: tên tác giả nằm ngang, địa điểm một dòng rút gọn, không chồng lấn. Link mở album Phường Hội An Đông. Chỉ tái kiểm hiển thị bài đã có địa điểm; không sửa địa điểm lại hoặc kiểm cỡ chữ khác.",
+        "evidence": [
+          "27-long-location-detail.png",
+          "28-location-album.png",
+          "27-long-location-detail.xml",
+          "28-location-album.xml"
+        ]
+      },
+      {
+        "id": "LQA-010",
+        "status": "PASS_SCOPED",
+        "observed": "Bài public của dfthd: 0→1 lượt đăng lại; hồ sơ tăng từ 2→3 bài, bài mới vẫn còn sau restart. Đã bỏ đăng lại, số về 0 và hồ sơ về đúng 2 bài ban đầu.",
+        "evidence": [
+          "18-reposts-before.png",
+          "19-feed-before-repost.png",
+          "20-repost-selected.png",
+          "21-reposts-after.png",
+          "22-reposts-after-restart.png",
+          "24-repost-removed.png",
+          "25-reposts-restored.png",
+          "29-final-feed.png",
+          "18-reposts-before.xml",
+          "19-feed-before-repost.xml",
+          "20-repost-selected.xml",
+          "21-reposts-after.xml",
+          "22-reposts-after-restart.xml",
+          "24-repost-removed.xml",
+          "25-reposts-restored.xml",
+          "29-final-feed.xml"
+        ]
+      }
+    ]
+  },
+  "firebaseRulesTests": {
+    "tests": 54,
+    "suites": 9,
+    "failures": 0,
+    "skipped": 0,
+    "backend": "isolated local Firestore emulator 127.0.0.1:18080"
+  },
+  "device": {
+    "model": "HONOR AMM-AN00",
+    "android": "16",
+    "api": 36,
+    "display": "1200x2664",
+    "connection": "USB ADB",
+    "installedUpdateTime": "2026-11-17 17:26:40 Asia/Ho_Chi_Minh"
+  },
+  "installation": {
+    "method": "adb install -r",
+    "result": "Success",
+    "dataPreserved": true,
+    "installedApkSha256": "01b2b60cef345cb359e66a43cace53fcd7e0a5fdfe626fa042cc0d9d7405eecb",
+    "installedApkMatchesTestedApk": true
+  },
+  "cleanup": {
+    "preferences": "Restored to initial SYSTEM/false/false by verified restart",
+    "phoneEmailInputs": "Canceled, not saved",
+    "password": "Unchanged",
+    "temporaryRepost": "Removed; original two reposts retained",
+    "finalScreen": "Khám phá"
+  },
+  "runtimeEvidence": {
+    "observedUiCrash": false,
+    "crashOrAnrRecordedForTestSession": false,
+    "currentPidLogWindow": "17:32:11–17:34:25",
+    "exitReasonsAfterInstall": [
+      "USER REQUESTED / FORCE STOP 17:28:28",
+      "USER REQUESTED / FORCE STOP 17:32:11"
+    ],
+    "warnings": [
+      "Compose Missing inline cache",
+      "HONOR callback warning"
+    ],
+    "limits": "Sparse log from one PID; cannot certify all backend activity error-free",
+    "files": [
+      "app-runtime-logcat.txt",
+      "app-exit-info.txt",
+      "runtime-logcat.txt"
+    ]
+  }
+}

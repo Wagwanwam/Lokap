@@ -258,6 +258,22 @@ describe('Bạn bè và chặn', () => {
     await assertSucceeds(getDocs(query(collection(as('bob'), 'blocks'), where('blockerId', '==', 'bob'))));
   });
 
+  // Lỗi "Bạn không có quyền…" khi bấm ✓ ở thông báo cũ: lời mời đã bị thu hồi thì ghi chấp nhận bị từ chối.
+  // App đọc lại lời mời trong transaction trước khi ghi (đọc document chưa có vẫn được) để báo đúng câu.
+  test('lời mời đã thu hồi thì không chấp nhận được nhưng vẫn đọc lại được', async () => {
+    await assertSucceeds(request(as('carol'), 'carol', 'bob'));
+    await assertSucceeds(deleteDoc(doc(as('carol'), 'friendships/bob_carol')));
+    await assertSucceeds(getDoc(doc(as('bob'), 'friendships/bob_carol')));
+    const bob = as('bob');
+    const accept = writeBatch(bob);
+    accept.update(doc(bob, 'friendships/bob_carol'), { status: 'accepted', acceptedAt: serverTimestamp() });
+    accept.set(doc(bob, 'users/carol/notifications/acceptOld'), {
+      type: 'FRIEND_ACCEPTED', actorId: 'bob', sourceId: 'bob_carol', postId: null, conversationId: null,
+      createdAt: serverTimestamp(), isRead: false
+    });
+    await assertFails(accept.commit());
+  });
+
   test('người ngoài không xoá được quan hệ của người khác', async () => {
     await assertFails(deleteDoc(doc(as('carol'), 'friendships/alice_bob')));
     await assertSucceeds(deleteDoc(doc(as('bob'), 'friendships/alice_bob')));
@@ -359,6 +375,9 @@ describe('Live social content',()=>{
   const reply=(over={})=>({...msg(),senderId:'bob',replyTo:{postId:'friends',authorId:'alice',imageUrl:url,caption:null,takenAt:ago(60_000),...over}});
   await assertSucceeds(setDoc(doc(b,'conversations/alice_bob/messages/r1'),reply()));
   await assertSucceeds(setDoc(doc(b,'conversations/alice_bob/messages/r2'),reply({postId:'direct',caption:'chào'})));
+  // Ảnh công khai của bạn bè (đã hiện hoặc đang hẹn giờ) cũng nhắn kèm được
+  await assertSucceeds(setDoc(doc(b,'conversations/alice_bob/messages/r8'),reply({postId:'publicNow'})));
+  await assertSucceeds(setDoc(doc(b,'conversations/alice_bob/messages/r9'),reply({postId:'publicLater'})));
   await assertFails(setDoc(doc(b,'conversations/alice_bob/messages/r3'),reply({imageUrl:'https://evil.example/x.jpg'})));
   await assertFails(setDoc(doc(b,'conversations/alice_bob/messages/r4'),reply({authorId:'carol'})));
   await assertFails(setDoc(doc(b,'conversations/alice_bob/messages/r5'),reply({postId:'hidden'})));

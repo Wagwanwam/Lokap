@@ -248,7 +248,9 @@ fun PhotoMessageBar(
     reactions: List<Reaction>,
     myReaction: String?,
     onReact: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** false: ảnh công khai đã có hàng ❤ 💬 ↻ ngay trên, thanh chỉ còn ô nhập + nút Gửi. */
+    showQuickReactions: Boolean = true
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -301,7 +303,7 @@ fun PhotoMessageBar(
             )
         }
 
-        if (text.isBlank() && !isSending) {
+        if (text.isBlank() && !isSending && showQuickReactions) {
             QUICK_REACTIONS.forEach { emoji ->
                 val isSelected = emoji == myReaction
                 Box(

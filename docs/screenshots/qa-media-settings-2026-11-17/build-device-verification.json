@@ -1,0 +1,28 @@
+{
+  "device": "HONOR AMM-AN00",
+  "serial": "AXSCVB5304005477",
+  "android": "16",
+  "api": 36,
+  "recorded_at": "2026-11-17T18:14:40+0700",
+  "version": [
+    "versionCode=1 minSdk=26 targetSdk=37",
+    "versionName=1.0",
+    "lastUpdateTime=2026-11-17 18:09:27"
+  ],
+  "sha256": "0424d315bba05cfde01111d6e9f935972715a2d3ceeb68713bffddbba9e1f280",
+  "installed_sha256": "0424d315bba05cfde01111d6e9f935972715a2d3ceeb68713bffddbba9e1f280",
+  "installed_matches_build": true,
+  "unit_tests": {
+    "tests": 246,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "unit_suites": 26,
+  "pid": "7008",
+  "log_has_fatal_exception": false,
+  "window_reports_no_anr_since_boot": true,
+  "focus": [
+    "mCurrentFocus=Window{48fd635 u0 vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}"
+  ]
+}

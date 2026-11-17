@@ -95,6 +95,6 @@ interface PostRepository {
 
     suspend fun reportPost(postId: String, reason: String): Result<Unit>
 
-    /** Sau khi chặn: bỏ ngay mọi bài của người đó khỏi máy. */
+    /** Sau khi chặn / huỷ kết bạn: bỏ ngay mọi bài của người đó khỏi máy. */
     suspend fun hidePostsByAuthor(authorId: String)
 }

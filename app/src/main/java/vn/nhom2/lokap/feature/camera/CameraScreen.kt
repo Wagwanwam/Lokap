@@ -11,10 +11,12 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.util.Size
 import android.view.Surface
 import android.view.View
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
@@ -119,6 +121,10 @@ fun CameraRoute(
         )
     }
 
+    val galleryPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted -> viewModel.onAction(CameraAction.OnGalleryPermissionResult(granted)) }
+
     fun requestCameraPermission() {
         rationaleBeforeRequest[0] = shouldShowRationale()
         permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -163,6 +169,16 @@ fun CameraRoute(
                 CameraEffect.TriggerCapture -> {
                     captureTriggerTick++
                 }
+
+                CameraEffect.RequestGalleryWritePermission -> {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                        galleryPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    } else {
+                        viewModel.onAction(CameraAction.OnGalleryPermissionResult(true))
+                    }
+                }
+
+                is CameraEffect.ShowMessage -> Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
 
                 is CameraEffect.NavigateToComposer -> onNavigateToComposer(effect.imagePath)
                 CameraEffect.NavigateToFeed -> onNavigateToFeed()

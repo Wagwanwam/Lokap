@@ -112,7 +112,6 @@ sealed interface FeedAction {
     data class OnToggleRepost(val postId: String) : FeedAction
     data class OnOpenComments(val postId: String) : FeedAction
     data object OnDismissComments : FeedAction
-    data class OnShareLink(val post: Post) : FeedAction
 
     data class OnSearchQueryChange(val query: String) : FeedAction
     data class OnToggleFriendRequest(val userId: String) : FeedAction

@@ -27,7 +27,10 @@ class ChatViewModel @Inject constructor(savedStateHandle: SavedStateHandle,
     private val _effects = Channel<ChatEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
     private var observer: Job? = null
-    private var latestIncoming: String? = null
+    private var isVisible = false
+    private var latestChat: ChatData? = null
+    private var acknowledgedIncoming: String? = null
+    private var isMarkingRead = false
     init {
         observe()
         viewModelScope.launch { social.refresh() }
@@ -38,35 +41,64 @@ class ChatViewModel @Inject constructor(savedStateHandle: SavedStateHandle,
         observer = viewModelScope.launch {
             combine(messages.observeChat(conversationId), social.graph) { result, graph -> result to graph }.collect { (result, graph) ->
                 result.fold(onSuccess = { chat ->
+                    latestChat = chat
                     val conv = chat.conversation
                     val uid = auth.currentUser.value?.id.orEmpty()
                     _uiState.update { it.copy(isLoading = false,
                         errorMessage = if (conv == null) "Không tìm thấy cuộc trò chuyện" else null,
                         friend = conv?.friend, isFriendStatusValid = conv != null && graph.statusOf(conv.friend.id) == FriendStatus.FRIENDS,
                         timelineItems = buildReverseTimeline(chat.messages, uid, Instant.now()), now = Instant.now()) }
-                    val incoming = chat.messages.lastOrNull { it.senderId != uid }?.id
-                    if (incoming != null && incoming != latestIncoming) {
-                        latestIncoming = incoming
-                        // Chỉ ghi readAt khi thật sự có tin chưa đọc: ghi thừa làm document hội thoại đổi, Hộp thư tính lại
-                        if ((conv?.unreadCount ?: 0) > 0) {
-                            messages.markRead(conversationId).onFailure { error -> _uiState.update { it.copy(errorMessage = error.message) } }
-                        }
-                    }
+                    markVisibleConversationRead()
                 }, onFailure = { error -> _uiState.update { it.copy(isLoading = false, errorMessage = error.message) } })
             }
         }
     }
-    private fun perform(block: suspend () -> Result<Unit>) { viewModelScope.launch {
+    /** A retained ViewModel must not acknowledge messages while another screen or app is visible. */
+    private fun markVisibleConversationRead() {
+        if (!isVisible || isMarkingRead) return
+        val chat = latestChat ?: return
+        if ((chat.conversation?.unreadCount ?: 0) == 0) return
+        val uid = auth.currentUser.value?.id ?: return
+        val incoming = chat.messages.lastOrNull { it.senderId != uid }?.id ?: return
+        if (incoming == acknowledgedIncoming) return
+        isMarkingRead = true
+        viewModelScope.launch {
+            var succeeded = false
+            try {
+                messages.markRead(conversationId).fold(
+                    onSuccess = { acknowledgedIncoming = incoming; succeeded = true },
+                    onFailure = { error -> _uiState.update { it.copy(errorMessage = error.message) } }
+                )
+            } finally {
+                isMarkingRead = false
+            }
+            // A second incoming message may have arrived while the first receipt was pending.
+            if (succeeded) markVisibleConversationRead()
+        }
+    }
+    private fun perform(block: suspend () -> Result<Unit>) {
+        // Set before scheduling work so rapid events cannot enqueue two mutations.
+        if (_uiState.value.isSaving) return
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
-        val result = block()
-        _uiState.update { it.copy(isSaving = false, errorMessage = result.exceptionOrNull()?.message) }
-    } }
+        viewModelScope.launch {
+            try {
+                val result = block()
+                _uiState.update { it.copy(errorMessage = result.exceptionOrNull()?.message) }
+            } finally { _uiState.update { it.copy(isSaving = false) } }
+        }
+    }
     fun onAction(action: ChatAction) {
         when(action) {
+            is ChatAction.VisibilityChanged -> {
+                isVisible = action.visible
+                if (isVisible) markVisibleConversationRead()
+            }
             is ChatAction.InputChanged -> _uiState.update { it.copy(inputText = action.text.take(1000)) }
             ChatAction.SendMessage -> if (_uiState.value.canSend) {
                 val text = _uiState.value.inputText
-                perform { messages.send(conversationId, text).onSuccess { _uiState.update { it.copy(inputText = "") } } }
+                perform { messages.send(conversationId, text).onSuccess {
+                    _uiState.update { if (it.inputText == text) it.copy(inputText = "") else it }
+                } }
             }
             is ChatAction.EditMessage -> _uiState.update { it.copy(editingMessage = action.message, editText = action.message.body.orEmpty()) }
             is ChatAction.EditTextChanged -> _uiState.update { it.copy(editText = action.text.take(1000)) }
