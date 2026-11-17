@@ -33,6 +33,9 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHost
+import kotlinx.coroutines.launch
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -93,6 +96,7 @@ fun NotificationsRoute(
     viewModel: NotificationsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
@@ -102,14 +106,32 @@ fun NotificationsRoute(
                 NotificationsEffect.NavigateToInbox -> onNavigateToInbox()
                 is NotificationsEffect.NavigateToChat -> onNavigateToChat(effect.conversationId)
                 NotificationsEffect.NavigateBack -> onNavigateBack()
+                is NotificationsEffect.ShowMessage -> {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    launch {
+                        val result = snackbarHostState.showSnackbar(effect.message,
+                            actionLabel = if (effect.retryFriendStatuses) "Thử lại" else null)
+                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                            viewModel.onAction(NotificationsAction.Retry)
+                        }
+                    }
+                }
             }
         }
     }
 
-    NotificationsScreen(
-        uiState = uiState,
-        onAction = viewModel::onAction
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        NotificationsScreen(
+            uiState = uiState,
+            onAction = viewModel::onAction
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+        )
+    }
 }
 
 @Composable
@@ -252,6 +274,7 @@ fun NotificationsScreen(
                                     notification = notification,
                                     now = uiState.now,
                                     friendRequestDecision = uiState.friendRequestDecision(notification),
+                                    isRequestBusy = !uiState.isGraphChecked || notification.actor?.id in uiState.pendingFriendRequestActorIds,
                                     onToggleRead = { onAction(NotificationsAction.ToggleRead(notification)) },
                                     onDelete = { onAction(NotificationsAction.DeleteNotification(notification.id)) },
                                     onClick = {
@@ -279,6 +302,7 @@ fun NotificationsScreen(
                                     notification = notification,
                                     now = uiState.now,
                                     friendRequestDecision = uiState.friendRequestDecision(notification),
+                                    isRequestBusy = !uiState.isGraphChecked || notification.actor?.id in uiState.pendingFriendRequestActorIds,
                                     onToggleRead = { onAction(NotificationsAction.ToggleRead(notification)) },
                                     onDelete = { onAction(NotificationsAction.DeleteNotification(notification.id)) },
                                     onClick = {
@@ -401,6 +425,7 @@ private fun NotificationRowItem(
     notification: AppNotification,
     now: java.time.Instant,
     friendRequestDecision: Boolean?,
+    isRequestBusy: Boolean = false,
     onClick: () -> Unit,
     onAcceptFriend: () -> Unit,
     onDeclineFriend: () -> Unit,
@@ -515,7 +540,7 @@ private fun NotificationRowItem(
                     if (isFriendRequest && friendRequestDecision != null) {
                         Icon(
                             imageVector = if (friendRequestDecision) Icons.Rounded.Check else Icons.Rounded.Close,
-                            contentDescription = if (friendRequestDecision) "Đã kết bạn" else "Đã từ chối",
+                            contentDescription = if (friendRequestDecision) "Đã kết bạn" else "Lời mời đã đóng",
                             tint = if (friendRequestDecision) colors.success else colors.textTertiary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -535,12 +560,14 @@ private fun NotificationRowItem(
                         icon = Icons.Rounded.Close,
                         description = "Từ chối lời mời kết bạn",
                         highlighted = false,
+                        enabled = !isRequestBusy,
                         onClick = onDeclineFriend
                     )
                     RequestDecisionButton(
                         icon = Icons.Rounded.Check,
                         description = "Chấp nhận lời mời kết bạn",
                         highlighted = true,
+                        enabled = !isRequestBusy,
                         onClick = onAcceptFriend
                     )
                 }
@@ -562,6 +589,7 @@ private fun RequestDecisionButton(
     icon: ImageVector,
     description: String,
     highlighted: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val colors = LokapTheme.colors
@@ -569,16 +597,16 @@ private fun RequestDecisionButton(
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .background(if (highlighted) colors.primary else colors.surface)
-            .border(1.5.dp, if (highlighted) colors.primary else colors.outline, CircleShape)
-            .clickable(role = Role.Button, onClick = onClick)
+            .background(if (highlighted && enabled) colors.primary else colors.surface)
+            .border(1.5.dp, if (highlighted && enabled) colors.primary else colors.outline, CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (highlighted) colors.onPrimary else colors.textPrimary,
+            tint = if (!enabled) colors.textTertiary else if (highlighted) colors.onPrimary else colors.textPrimary,
             modifier = Modifier.size(26.dp)
         )
     }

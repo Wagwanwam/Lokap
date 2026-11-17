@@ -44,6 +44,7 @@ import vn.nhom2.lokap.core.designsystem.theme.LokapTheme
 import vn.nhom2.lokap.core.navigation.Route
 import vn.nhom2.lokap.core.navigation.navigateSingleTop
 import vn.nhom2.lokap.core.navigation.popBackStackSafely
+import vn.nhom2.lokap.domain.model.Audience
 import vn.nhom2.lokap.domain.model.POST_CAPTION_MAX_LENGTH
 import vn.nhom2.lokap.domain.model.ReportReasons
 import vn.nhom2.lokap.feature.post.PhotoMessageBar
@@ -210,7 +211,8 @@ fun PostDetailScreen(
                             onSend = { onAction(PostDetailAction.OnSendMessage) },
                             reactions = post.reactions,
                             myReaction = post.myReaction,
-                            onReact = { emoji -> onAction(PostDetailAction.OnReact(emoji)) }
+                            onReact = { emoji -> onAction(PostDetailAction.OnReact(emoji)) },
+                            showQuickReactions = post.audience != Audience.PUBLIC
                         )
                     }
                 } else null

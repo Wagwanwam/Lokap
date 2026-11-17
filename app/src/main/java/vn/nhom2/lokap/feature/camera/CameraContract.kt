@@ -68,6 +68,7 @@ sealed interface CameraAction {
     /** TalkBack: nhấn giữ nút chụp để chuyển sang bộ lọc kế tiếp. */
     data object OnCycleFilter : CameraAction
     data class OnPhotoSaved(val imagePath: String) : CameraAction
+    data class OnGalleryPermissionResult(val granted: Boolean) : CameraAction
     data class OnCameraError(val message: String) : CameraAction
     data object OnRetryCamera : CameraAction
     data object OnSwipeUpToFeed : CameraAction
@@ -81,6 +82,8 @@ sealed interface CameraEffect {
     data object LaunchPermissionRequest : CameraEffect
     data object OpenAppSettings : CameraEffect
     data object TriggerCapture : CameraEffect
+    data object RequestGalleryWritePermission : CameraEffect
+    data class ShowMessage(val message: String) : CameraEffect
     data class NavigateToComposer(val imagePath: String) : CameraEffect
     data object NavigateToFeed : CameraEffect
     data object NavigateToMap : CameraEffect

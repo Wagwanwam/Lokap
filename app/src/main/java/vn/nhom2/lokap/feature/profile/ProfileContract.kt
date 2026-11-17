@@ -29,6 +29,7 @@ data class ProfileUiState(
     val isMe: Boolean = true,
     val user: User? = null,
     val friendStatus: FriendStatus = FriendStatus.NONE,
+    val isUpdatingFriendship: Boolean = false,
     val visitedProvincesCount: Int = 0,
     val totalProvincesCount: Int = 34,
     val postCount: Int = 0,
@@ -53,7 +54,8 @@ data class ProfileUiState(
     val editBioInput: String = "",
     val editDisplayNameError: String? = null,
     val editUsernameError: String? = null,
-    val isSavingProfile: Boolean = false
+    val isSavingProfile: Boolean = false,
+    val isBlockDialogOpen: Boolean = false
 )
 
 sealed interface ProfileAction {
@@ -81,6 +83,9 @@ sealed interface ProfileAction {
     data object DeclineFriendRequest : ProfileAction
     data object Unfriend : ProfileAction
     data object Unblock : ProfileAction
+    data object OpenBlockDialog : ProfileAction
+    data object DismissBlockDialog : ProfileAction
+    data object ConfirmBlock : ProfileAction
     data object MessageUser : ProfileAction
 }
 

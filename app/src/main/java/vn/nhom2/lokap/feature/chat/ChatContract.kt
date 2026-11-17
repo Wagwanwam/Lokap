@@ -40,10 +40,11 @@ data class ChatUiState(
     val isThemeSheetVisible: Boolean = false
 ) {
     val canSend: Boolean
-        get() = !isSaving && isFriendStatusValid && inputText.trim().isNotEmpty() && inputText.length <= 1000
+        get() = !isLoading && !isSaving && isFriendStatusValid && inputText.trim().isNotEmpty() && inputText.length <= 1000
 }
 
 sealed interface ChatAction {
+    data class VisibilityChanged(val visible: Boolean) : ChatAction
     data class InputChanged(val text: String) : ChatAction
     data class EditMessage(val message: Message) : ChatAction
     data class EditTextChanged(val text: String) : ChatAction

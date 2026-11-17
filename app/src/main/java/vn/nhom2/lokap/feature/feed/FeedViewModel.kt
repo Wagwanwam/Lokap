@@ -300,11 +300,6 @@ class FeedViewModel @Inject constructor(
                 _uiState.update { it.copy(activeCommentPostId = null) }
             }
 
-            is FeedAction.OnShareLink -> {
-                val shareUrl = "https://lokap.vn/p/${action.post.id}"
-                sendEffect(FeedEffect.ShowMessage("Đã sao chép"))
-            }
-
             is FeedAction.OnSearchQueryChange -> {
                 _uiState.update { it.copy(searchQuery = action.query) }
                 searchUsers(action.query)

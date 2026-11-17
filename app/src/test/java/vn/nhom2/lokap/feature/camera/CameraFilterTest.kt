@@ -17,6 +17,7 @@ import vn.nhom2.lokap.data.fake.FakeAuthRepository
 import vn.nhom2.lokap.data.fake.FakeSocialRepository
 import vn.nhom2.lokap.data.fake.SampleSocialData
 import vn.nhom2.lokap.feature.ContentTestRepository
+import vn.nhom2.lokap.feature.TestDeviceSettingsRepository
 
 /** Vòng bộ lọc khi nhấn giữ nút chụp: hình học chọn nút + luồng trạng thái trong CameraViewModel. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -32,7 +33,8 @@ class CameraFilterTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun camera() = CameraViewModel(
-        FakeAuthRepository(), FakeSocialRepository(), ContentTestRepository(), ImageProcessor()
+        FakeAuthRepository(), FakeSocialRepository(), ContentTestRepository(), ImageProcessor(),
+        TestDeviceSettingsRepository(), TestPhotoGalleryRepository()
     ).apply { onAction(CameraAction.OnPermissionResult(isGranted = true, shouldShowRationale = false, shouldShowRationaleBefore = false)) }
 
     // ---------- Hình học: 8 nút trên nửa vòng trên, trái (Gốc) → phải (Điện ảnh) ----------
@@ -101,7 +103,8 @@ class CameraFilterTest {
 
     @Test
     fun `chưa có quyền camera thì không mở vòng`() {
-        val vm = CameraViewModel(FakeAuthRepository(), FakeSocialRepository(), ContentTestRepository(), ImageProcessor())
+        val vm = CameraViewModel(FakeAuthRepository(), FakeSocialRepository(), ContentTestRepository(), ImageProcessor(),
+            TestDeviceSettingsRepository(), TestPhotoGalleryRepository())
         vm.onAction(CameraAction.OnFilterPickerOpen)
         assertFalse(vm.uiState.value.isFilterPickerOpen)
     }

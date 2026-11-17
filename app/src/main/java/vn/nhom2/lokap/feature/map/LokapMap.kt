@@ -114,7 +114,7 @@ fun LokapMap(
     topInset: Dp = 0.dp,
     /** Phần đáy bị thanh điều hướng hệ thống che (bong bóng không nằm dưới nút ◀ ● ■). */
     bottomInset: Dp = 0.dp,
-    /** Vị trí của tôi (sau khi bấm nút định vị): vẽ chấm đỏ, null = không vẽ. */
+    /** Vị trí của tôi (sau khi bấm nút định vị): vẽ chấm đỏ khi zoom ≥ 8, null = không vẽ. */
     myLocation: DeviceLocation? = null
 ) {
     // Có key Tilemap của VietMap: bản đồ thật (VietMap SDK). Chưa có key / đang Preview: bản đồ vẽ tay như tuần 2.
@@ -488,6 +488,8 @@ private fun MapMarkersLayer(
     project: (lat: Double, lng: Double, width: Int, height: Int) -> Offset
 ) {
     val visibleLandmarks = if (zoom >= 8f) landmarks else emptyList()
+    // Thu nhỏ ra mức cả nước / vùng (dưới mức thấy địa danh) thì ẩn chấm vị trí của tôi: chỉ còn bong bóng tỉnh
+    val dotLocation = myLocation?.takeIf { zoom >= 8f }
 
     Layout(
         modifier = Modifier.fillMaxSize(),
@@ -506,7 +508,7 @@ private fun MapMarkersLayer(
                 )
             }
             // Phần tử cuối: đặt sau cùng nên vẽ đè lên mọi bong bóng
-            if (myLocation != null) MyLocationDot()
+            if (dotLocation != null) MyLocationDot()
         }
     ) { measurables, constraints ->
         invalidation()
@@ -542,10 +544,10 @@ private fun MapMarkersLayer(
             resolveMapPlacement(candidates, width, height, zoom).forEach { c ->
                 placeables[c.index].placeRelative(c.rect.left, c.rect.top)
             }
-            // Chấm vị trí của tôi luôn hiện, không tham gia né chồng lấn (không che mất bong bóng nào vì không bắt chạm)
-            if (myLocation != null) {
+            // Chấm vị trí của tôi không tham gia né chồng lấn (không che mất bong bóng nào vì không bắt chạm)
+            if (dotLocation != null) {
                 val dot = placeables.last()
-                val rect = rectAt(myLocation.lat, myLocation.lng, dot.width, dot.height)
+                val rect = rectAt(dotLocation.lat, dotLocation.lng, dot.width, dot.height)
                 dot.placeRelative(rect.left, rect.top)
             }
         }

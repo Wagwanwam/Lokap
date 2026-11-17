@@ -1,0 +1,51 @@
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.SocialEmulatorDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+vn.nhom2.lokap.SocialEmulatorDeviceTest:
+INSTRUMENTATION_STATUS: test=duplicateInvitesNotificationsAndMessagesAcrossTwoVerifiedSessions
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: stream=
+SOCIAL_QA_PASS: repeated_friend_request — 8 parallel calls through 2 repository instances plus 3 retries produced 1 friendship and 1 incoming notification
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: stream=
+SOCIAL_QA_PASS: cancel_and_resend — Withdrawal closes the old request; a deliberate new invitation creates one new event and only its latest notification is actionable
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: stream=
+SOCIAL_QA_PASS: accept_and_stale_actions — Repeated accept creates 1 acceptance notice; stale cancel/decline cannot delete accepted friendship; sending again while friends creates no invitation
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: stream=
+SOCIAL_QA_PASS: message_delivery — Receiver chat, inbox unread count and NEW_MESSAGE notification all observe exactly one server-backed message
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: stream=
+SOCIAL_QA_PASS: read_receipts_and_notification_state — Receiver readAt clears inbox unread and sender sees receipt; notification read/unread changes persist on the server
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: stream=
+SOCIAL_QA_PASS: message_edit_delete — Edited body reaches receiver; sender delete removes message; receiver notification delete removes only that event
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: stream=
+SOCIAL_QA_RESULT={"backend":"demo-lokap-social","checks":[{"check":"repeated_friend_request","details":"8 parallel calls through 2 repository instances plus 3 retries produced 1 friendship and 1 incoming notification","status":"PASS"},{"check":"cancel_and_resend","details":"Withdrawal closes the old request; a deliberate new invitation creates one new event and only its latest notification is actionable","status":"PASS"},{"check":"accept_and_stale_actions","details":"Repeated accept creates 1 acceptance notice; stale cancel\/decline cannot delete accepted friendship; sending again while friends creates no invitation","status":"PASS"},{"check":"message_delivery","details":"Receiver chat, inbox unread count and NEW_MESSAGE notification all observe exactly one server-backed message","status":"PASS"},{"check":"read_receipts_and_notification_state","details":"Receiver readAt clears inbox unread and sender sees receipt; notification read\/unread changes persist on the server","status":"PASS"},{"check":"message_edit_delete","details":"Edited body reaches receiver; sender delete removes message; receiver notification delete removes only that event","status":"PASS"}],"default_session_preserved":true}
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.SocialEmulatorDeviceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=duplicateInvitesNotificationsAndMessagesAcrossTwoVerifiedSessions
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 5,59
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1

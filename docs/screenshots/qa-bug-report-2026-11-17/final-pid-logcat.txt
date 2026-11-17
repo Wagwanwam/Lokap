@@ -1,0 +1,221 @@
+--------- beginning of (HKS)6B5FB3EA7781144E48EFC27E3676DA17005B1B1600F5B98A01727812C8277BE06137DAD0381576B8634A2DD402DDDB518FD780AC7AC8DF0B7D98FECA7B8ACD4F6E39DE8FABC5D3F1FDAECB4ABCA8E3CAA3B26999D18DDE03816A6E47F5B6C15E28953EC8D1BC7B0CEBB04073217B4DEBE0372BC77C549594646A81CDAC1CFB2DBCC059362CDC791041136CECCB1B95035BE760E07C16085051E2670ADA6106FA3C61A6C789FC30A50F008D20AA237DFC44C125B9E8104AB01D8469BBD666ED9A5535E1EDBE52DFD3795140636A4B55FF2CA26F980DCF8F8B77BCDF833748D703534A7C17BDADF8CE9C5C059B77F402D38D1C65EFAA715B86AD405E26C913186C(HKE)
+--------- beginning of main
+11-17 18:58:43.302 27324 27324 I Zygote  : MountEmulatedStorage
+11-17 18:58:43.303 27324 27324 I Zygote  : mount_data_dirs
+11-17 18:58:43.304 27324 27324 I Zygote  : mount_storage_dirs
+11-17 18:58:43.305 27324 27324 I Zygote  : PreInitializeNativeBridge
+11-17 18:58:43.314 27324 27324 I Zygote  : CallStaticVoidMethod
+11-17 18:58:43.314 27324 27324 I vn.nhom2.lokap: Using CollectorTypeCC GC.
+11-17 18:58:43.315 27324 27324 I vn.nhom2.lokap: Reinit property: dalvik.vm.checkjni= false
+11-17 18:58:43.315 27324 27324 I vn.nhom2.lokap: ReInitProperties: persist.vm.debug.dumpapi= false
+11-17 18:58:43.320 27324 27324 E vn.nhom2.lokap: Not starting debugger since process cannot load the jdwp agent.
+11-17 18:58:43.323 27324 27324 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+11-17 18:58:43.326 27324 27332 I vn.nhom2.lokap: Is commercial user: 1
+11-17 18:58:43.328 27324 27324 E [VipSchedProxy:]: Vip Success open /proc/vip/ioctl
+11-17 18:58:43.328 27324 27324 I HwActivityThreadImpl: initHwArgs begin, args = [], length = 0
+--------- beginning of system
+11-17 18:58:43.328 27324 27324 I ActivityThread: initHwArgs result ok for mw or virtual
+11-17 18:58:43.330 27324 27324 D ActivityThread: Attach thread to application
+11-17 18:58:43.344 27324 27335 D nativeloader: Load libioperf_jni.so using system ns (caller=/system/framework/framework-magic.jar!classes2.dex): ok
+11-17 18:58:43.345 27324 27335 D IoPerfPtePrereadJni: do pte preread content 0 10365 27324 vn.nhom2.lokap /data/system/iaware/fmps/vn.nhom2.lokap/vn.nhom2.lokap
+11-17 18:58:43.353 27324 27324 I Typeface: setSystemFontMap SharedMemory
+11-17 18:58:43.354 27324 27324 I Typeface: setSystemFontMap Typaface
+11-17 18:58:43.356 27324 27324 I ResourcesManager: applyConfigurationToResources: smallestScreenWidthDp = 369mMaxBounds = Rect(0, 0 - 1200, 2664)
+11-17 18:58:43.367 27324 27324 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+11-17 18:58:43.367 27324 27324 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+11-17 18:58:43.379 27324 27324 D nativeloader: Configuring clns-9 for other apk /data/app/~~LKeeCh2Hh1vKXg_yu3LgKw==/vn.nhom2.lokap-XKdpFoZYF1vZaiaSrDbRRg==/base.apk. target_sdk_version=37, uses_libraries=, library_path=/data/app/~~LKeeCh2Hh1vKXg_yu3LgKw==/vn.nhom2.lokap-XKdpFoZYF1vZaiaSrDbRRg==/lib/arm64:/data/app/~~LKeeCh2Hh1vKXg_yu3LgKw==/vn.nhom2.lokap-XKdpFoZYF1vZaiaSrDbRRg==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/vn.nhom2.lokap
+11-17 18:58:43.380 27324 27334 I ActivityThread: Init compatible state: true
+11-17 18:58:43.382 27324 27324 I vn.nhom2.lokap: AssetManager2(0xb40000735d0fce78) locale list changing from [] to [vi-VN]
+11-17 18:58:43.385 27324 27324 W HwCust  : CUST VERSION = false, use class = class android.app.HwCustApplicationPackageManagerImpl
+11-17 18:58:43.386 27324 27324 V GraphicsEnvironment: Currently set values for:
+11-17 18:58:43.386 27324 27324 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+11-17 18:58:43.386 27324 27324 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+11-17 18:58:43.386 27324 27324 V GraphicsEnvironment: vn.nhom2.lokap is not listed in per-application setting
+11-17 18:58:43.386 27324 27324 V GraphicsEnvironment: ANGLE allowlist from config: com.dreamgames.royalmatch com.dts.freefiremax com.dxx.firenow com.gramgames.mergedragons com.ludo.king com.mojang.minecraftpe com.my.defense com.nintendo.zaka com.os.airforce com.playrix.fishdomdd.gplay io.teslatech.callbreak jp.konami.prospia net.peakgames.toonblast
+11-17 18:58:43.386 27324 27324 V GraphicsEnvironment: vn.nhom2.lokap is not listed in ANGLE allowlist or settings, returning default
+11-17 18:58:43.386 27324 27324 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-17 18:58:43.389 27324 27324 I [Smart Gc]: process: vn.nhom2.lokap enalbed: 1
+11-17 18:58:43.389 27324 27324 I [FusionMemory]: feature enable! process_name: vn.nhom2.lokap
+11-17 18:58:43.389 27324 27324 I HwActivityThreadImpl: acceptPreloadedApplication  mPreloadStatus: 0
+11-17 18:58:43.398 27324 27334 I AwareBitmapCacher: init processName:vn.nhom2.lokap pid=27324 uid=10365
+11-17 18:58:43.402 27324 27336 W FlutterAnimationAdvance: FlutterAnimationAdvance getInstance()
+11-17 18:58:43.402 27324 27324 I FirebaseApp: Device unlocked: initializing all Firebase APIs for app [DEFAULT]
+11-17 18:58:43.406 27324 27324 I FirebaseInitProvider: FirebaseApp initialization successful
+11-17 18:58:43.412 27324 27347 E AwareLog: AtomicFileUtils: readFileLines file not exist: AtomicFile[/data/user/0/vn.nhom2.lokap/files/hw_cached_resid.list]
+11-17 18:58:43.441 27324 27324 D nativeloader: Load /data/app/~~LKeeCh2Hh1vKXg_yu3LgKw==/vn.nhom2.lokap-XKdpFoZYF1vZaiaSrDbRRg==/base.apk!/lib/arm64-v8a/libmapbox-gl.so using class loader ns clns-9 (caller=/data/app/~~LKeeCh2Hh1vKXg_yu3LgKw==/vn.nhom2.lokap-XKdpFoZYF1vZaiaSrDbRRg==/base.apk!classes6.dex): ok
+11-17 18:58:43.447 27324 27324 I SystemFonts: loadHwSystemFonts, isNightMode false, fontWeightScale is 80
+11-17 18:58:43.448 27324 27324 I HwTypeface: update default font
+11-17 18:58:43.449 27324 27324 W HnAE_HnWindowExtensionsManagerImpl: forbidden enter magic window
+11-17 18:58:43.450 27324 27324 I ActivityThread: finishPreloaded preloadStatus 0
+11-17 18:58:43.451 27324 27324 E RtgSchedIpcFile: RtgSchedIpcFile xxx failed to open /proc/27324/rtg
+11-17 18:58:43.451 27324 27324 E RtgSchedIpcFile: RtgSchedIpcFile xxx success to open /proc/rtg_gki/ioctl.
+11-17 18:58:43.451 27324 27324 I RmeSchedManager: init Rme, version is: v1.0
+11-17 18:58:43.451 27324 27324 I RmeSchedManager: init Rme, version is: v1.0
+11-17 18:58:43.453 27324 27324 I RtgSchedEvent: current pid:27324 AppType:-1
+11-17 18:58:43.453 27324 27324 D RtgSchedIpcFile: setCommandByIoctl failed ret:-1, cmdid:22, errno:103
+11-17 18:58:43.455 27324 27324 V ActivityThread: Handling launch of ActivityRecord{4dbc35b token=android.os.BinderProxy@1922855 {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}}
+11-17 18:58:43.456 27324 27324 I HWUI    : RenderCache taget:vn.nhom2.lokap, enableRenderCache: 0
+11-17 18:58:43.456 27324 27324 I HWUI    : No RenderCache config, try to find property.
+11-17 18:58:43.456 27324 27324 I HWUI    : PrepareTreeOpt: 0, DirtyOpt: 1, VideoPlayOpaqueOpt: 0
+11-17 18:58:43.456 27324 27324 I HWUI    : FreedomWindowOpt: 0
+11-17 18:58:43.456 27324 27324 D HWUI    : disableOutlineDraw is true
+11-17 18:58:43.466 27324 27365 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+11-17 18:58:43.467 27324 27324 I vn.nhom2.lokap: AssetManager2(0xb40000735d105b18) locale list changing from [] to [vi-VN]
+11-17 18:58:43.469 27324 27365 E GamesAware: CheckInSupportList: 'vn.nhom2.lokap' is not a game.
+11-17 18:58:43.471 27324 27365 I GamesAware: [27324] registerMiniGameCallback succeeded
+11-17 18:58:43.473 27324 27365 I iGraphicsLoader: [~]A_pPipchG_giv{W$pipch$g_giv{$733214;/2MF~]
+11-17 18:58:43.473 27324 27365 I iGraphicsLoader: [~]44644<4eW$tj>$rj*jlig6*himct($t>$61560~]
+11-17 18:58:43.473 27324 27365 I vn.nhom2.lokap: HwCustType is 0
+11-17 18:58:43.473 27324 27365 E vn.nhom2.lokap: open file error
+11-17 18:58:43.473 27324 27365 I vn.nhom2.lokap: no cota live update cust policy found
+11-17 18:58:43.473 27324 27365 I vn.nhom2.lokap: GetCfgDirRealPolicyValue: custPolicyDirs: /system/magic/base:/system/magic/china:/system/magic/oversea:/system/magic/china_honor:/system/magic/oversea_honor:/vendor/etc:/odm/etc:/odm/hn_odm/AMM-AN00:/product_h/etc:/product_h/region_comm/china:/preas/china:/product_h/hn_oem/AMM-AN00:/preload/AMM-AN00/all/cn:/cust/global:/cust/def/cn:/version/cust/all/cn:/version/special_cust/AMM-AN00/all/cn:/cust/pcota:/cust/cotalite:/cust/ecota
+11-17 18:58:43.474 27324 27365 I vn.nhom2.lokap: HwCustType is 0
+11-17 18:58:43.474 27324 27365 E vn.nhom2.lokap: open file error
+11-17 18:58:43.474 27324 27365 I vn.nhom2.lokap: no cota live update cust policy found
+11-17 18:58:43.474 27324 27365 I vn.nhom2.lokap: GetCfgDirRealPolicyValue: custPolicyDirs: /system/magic/base:/system/magic/china:/system/magic/oversea:/system/magic/china_honor:/system/magic/oversea_honor:/vendor/etc:/odm/etc:/odm/hn_odm/AMM-AN00:/product_h/etc:/product_h/region_comm/china:/preas/china:/product_h/hn_oem/AMM-AN00:/preload/AMM-AN00/all/cn:/cust/global:/cust/def/cn:/version/cust/all/cn:/version/special_cust/AMM-AN00/all/cn:/cust/pcota:/cust/cotalite:/cust/ecota
+11-17 18:58:43.474 27324 27365 E iGraphics: [~]A_pHiechEijbka@ieog_jpBkh_W$Bckh$pi$bkj`$eoup$eijbka$bkh_~]
+11-17 18:58:43.474 27324 27365 I vn.nhom2.lokap: HwCustType is 0
+11-17 18:58:43.474 27324 27365 E vn.nhom2.lokap: open file error
+11-17 18:58:43.474 27324 27365 I vn.nhom2.lokap: no cota live update cust policy found
+11-17 18:58:43.474 27324 27365 I vn.nhom2.lokap: GetCfgDirRealPolicyValue: custPolicyDirs: /system/magic/base:/system/magic/china:/system/magic/oversea:/system/magic/china_honor:/system/magic/oversea_honor:/vendor/etc:/odm/etc:/odm/hn_odm/AMM-AN00:/product_h/etc:/product_h/region_comm/china:/preas/china:/product_h/hn_oem/AMM-AN00:/preload/AMM-AN00/all/cn:/cust/global:/cust/def/cn:/version/cust/all/cn:/version/special_cust/AMM-AN00/all/cn:/cust/pcota:/cust/cotalite:/cust/ecota
+11-17 18:58:43.474 27324 27365 I iGraphics: [~kjtop$ku$c$uiove_$bkh_~]
+11-17 18:58:43.474 27324 27365 E iGraphics: [~]@_ev{tpEijbka\ghW$It_j$bkh_$bckh_`~]
+11-17 18:58:43.474 27324 27365 W iGraphics: [~]A_pEhio`Eijbka@ieog_jpBkh_W$It_j$Ehioh`$bkh_$bckh_`~]
+11-17 18:58:43.474 27324 27365 I iGraphics: [~El_emEhio`EijbkaR_vukij$aYtv_u_pR_vukij$64$aYehio`R_vukij$4~]
+11-17 18:58:43.474 27324 27365 I iGraphicsLoader: [~rj*jlig6*himct$El_emQlkp_HkupCttJcg_Rchk`$el_em$hiech$kab|YcttYhkup$kuCumRmCtt$4~]
+11-17 18:58:43.475 27324 27365 I iGraphicsLoader: [~]44544<4eW$ji$utp$ctt>$rj*jlig6*himct~]
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: QUALCOMM build                   : 9dba639c3b, If7c6d3f5d6
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: Build Date                       : 04/09/26
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: OpenGL ES Shader Compiler Version: E031.41.03.67
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: Local Branch                     : 
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.13.2.0.11.00.00.856.062
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: Remote Branch                    : NONE
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: Reconstruct Branch               : NOTHING
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: Build Config                     : S P 14.1.4 AArch64
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+11-17 18:58:43.475 27324 27365 I AdrenoGLES-0: Driver Version                   : 0676.78.1
+11-17 18:58:43.477 27324 27324 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+11-17 18:58:43.481 27324 27348 I DynamiteModule: Considering local module com.google.android.gms.measurement.dynamite:185 and remote module com.google.android.gms.measurement.dynamite:219
+11-17 18:58:43.481 27324 27348 I DynamiteModule: Selected remote version of com.google.android.gms.measurement.dynamite, version >= 219
+11-17 18:58:43.481 27324 27324 V ActivityThread: callActivityOnCreate
+11-17 18:58:43.483 27324 27365 I AdrenoGLES-0: PFP: 0x01200182, ME: 0x00000000
+11-17 18:58:43.485 27324 27348 V DynamiteModule: Dynamite loader version >= 2, using loadModule2NoCrashUtils
+11-17 18:58:43.487 27324 27365 W Adreno-AppProfiles: Could not find QSPM HAL service. Skipping adreno profile processing.
+11-17 18:58:43.490 27324 27365 I AdrenoUtils: <ReadGpuID:407>: Reading chip ID through GSL
+11-17 18:58:43.492 27324 27368 I HnContentRecognizerManager: CacheHandlerThread onLooperPrepared, mHandler created
+11-17 18:58:43.503 27324 27324 D DesktopModeFlags: Toggle override initialized to: OVERRIDE_UNSET
+11-17 18:58:43.508 27324 27324 I ActivityThread: add activity client record, r= ActivityRecord{4dbc35b token=android.os.BinderProxy@1922855 {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}} token= android.os.BinderProxy@1922855
+11-17 18:58:43.509 27324 27348 W System  : ClassLoader referenced unknown path: 
+11-17 18:58:43.509 27324 27348 D nativeloader: Configuring clns-10 for other apk . target_sdk_version=37, uses_libraries=, library_path=/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/lib/arm64:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/base.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.ja.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.vi.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.xxhdpi.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms
+11-17 18:58:43.510 27324 27324 D nativeloader: Load libiawareperf_jni.so using system ns (caller=/system/framework/framework.jar!classes2.dex): ok
+11-17 18:58:43.511 27324 27324 W ServiceManagerCppClient: Failed to get isDeclared for vendor.honor.hardware.iawareperf.IUniPerfAidlInterface/default: Status(-1, EX_SECURITY): 'SELinux denied for service.'
+11-17 18:58:43.512 27324 27324 E uniperf client: vendor.honor.hardware.iawareperf.IUniPerfAidlInterface/default is not Declared
+11-17 18:58:43.512 27324 27324 D uniperf client: get uniperf service failed!
+11-17 18:58:43.513 27324 27324 W ServiceManagerCppClient: Failed to get isDeclared for vendor.honor.hardware.iawareperf.IUniPerfAidlInterface/default: Status(-1, EX_SECURITY): 'SELinux denied for service.'
+11-17 18:58:43.513 27324 27324 E uniperf client: vendor.honor.hardware.iawareperf.IUniPerfAidlInterface/default is not Declared
+11-17 18:58:43.514 27324 27324 D uniperf client: get uniperf service failed!
+11-17 18:58:43.517 27324 27348 I vn.nhom2.lokap: AssetManager2(0xb40000735d109fd8) locale list changing from [] to [vi-VN]
+11-17 18:58:43.518 27324 27324 I DecorView[]: set decor visibility 4
+11-17 18:58:43.525 27324 27324 W vn.nhom2.lokap: type=1400 audit(0.0:3993413): avc:  denied  { read } for  name="u:object_r:agp_support_pre_composite_prop:s0" dev="tmpfs" ino=224 scontext=u:r:untrusted_app:s0:c109,c257,c512,c768 tcontext=u:object_r:agp_support_pre_composite_prop:s0 tclass=file permissive=0
+11-17 18:58:43.529 27324 27324 W libc    : Access denied finding property "sys.use_pre_composite.switch"
+11-17 18:58:43.530 27324 27348 I vn.nhom2.lokap: AssetManager2(0xb40000735d10d4f8) locale list changing from [] to [vi-VN]
+11-17 18:58:43.534 27324 27348 I vn.nhom2.lokap: AssetManager2(0xb40000735d107a58) locale list changing from [] to [vi-VN]
+11-17 18:58:43.540 27324 27324 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:58:43.542 27324 27324 D InputEventReceiver: dispatchInputInterval 1000000
+11-17 18:58:43.543 27324 27324 I HwForceDarkManager: isSystemInDarkMode isResUiModeYes: false, isDarkMode: false
+11-17 18:58:43.543 27324 27324 I DecorView[]: set decor visibility 0
+11-17 18:58:43.544 27324 27324 D RtgSchedIpcFile: setCommandByIoctl failed ret:-1, cmdid:23, errno:103
+11-17 18:58:43.544 27324 27324 D RtgSchedIpcFile: setCommandByIoctl failed ret:-1, cmdid:22, errno:103
+11-17 18:58:43.544 27324 27324 D RtgSchedIpcFile: setCommandByIoctl failed ret:-1, cmdid:23, errno:103
+11-17 18:58:43.547 27324 27369 I AnimationPromotionUtils: vn.nhom2.lokap ensureViewAnimationPromotionEnabled: 0
+11-17 18:58:43.547 27324 27324 D PhoneWindow: onViewRootImplSet activityToken android.os.BinderProxy@1922855,activityClientRecord ActivityRecord{4dbc35b token=android.os.BinderProxy@1922855 {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}},isHnNavigationHide false isHidePrivateFlag = false
+11-17 18:58:43.547 27324 27324 D HwPhoneWindow: onViewRootImplSet activityToken android.os.BinderProxy@1922855,activityClientRecord ActivityRecord{4dbc35b token=android.os.BinderProxy@1922855 {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}},isHwNavigationHide false
+11-17 18:58:43.547 27324 27324 D HiTouch_PressGestureDetector: onAttached:1
+11-17 18:58:43.588 27324 27376 E vn.nhom2.lokap: No package ID 6b found for resource ID 0x6b0b0013.
+11-17 18:58:43.588 27324 27376 V Resource: printErrorResource, maybe not an error because module has entative action to load resource.
+11-17 18:58:43.592 27324 27376 I FA      : App measurement initialized, version: 195006
+11-17 18:58:43.592 27324 27376 I FA      : To enable debug logging run: adb shell setprop log.tag.FA VERBOSE
+11-17 18:58:43.592 27324 27376 I FA      : To enable faster debug mode event logging run:
+11-17 18:58:43.592 27324 27376 I FA      :   adb shell setprop debug.firebase.analytics.app vn.nhom2.lokap
+11-17 18:58:43.634 27324 27376 I FA      : Tag Manager is not found and thus will not be used
+11-17 18:58:43.659 27324 27324 D FirebaseAuth: Notifying id token listeners about user ( LLaFp80ZehgRXXpyXQ8OTJPxtDv1 ).
+11-17 18:58:43.667 27324 27324 W ViewTreeObserver: addOnGlobalLayoutListener:mOnGlobalLayoutListeners is null .
+11-17 18:58:43.668 27324 27324 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:58:43.681 27324 27324 D VRI[MainActivity]: relayoutWindow: mRelayoutRequested = true
+11-17 18:58:43.682 27324 27324 W libc    : Access denied finding property "sys.use_pre_composite.switch"
+11-17 18:58:43.683 27324 27324 I BufferQueueConsumer: [](id:6abc00000000,api:0,p:-1,c:27324) connect: controlledByApp=false
+11-17 18:58:43.683 27324 27324 I BufferQueueCore: BLASTBufferQueue : comm:vn.nhom2.lokap isTargetApp:0
+11-17 18:58:43.683 27324 27324 I VariableRefreshRateUtils: isEnabled featureEnabled: 0 logMode: 1
+11-17 18:58:43.686 27324 27324 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:58:43.686 27324 27324 V VRI[MainActivity]: Visible with new config: {1.0 452mcc4mnc [vi_VN,ja_VN] ldltr sw369dp w369dp h820dp 520dpi nrml long hdr widecg port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1200, 2664) mAppBounds=Rect(0, 0 - 1200, 2664) mMaxBounds=Rect(0, 0 - 1200, 2664) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOverMode=undefined} as.2 suim:4 fontWeightScale:80 changeUserFlag:0 changeUiModeFlag:0 fullScreenVideoFlag:0 splitScreenState:0 landScapeFreeformFlag:1 hoverMode:0 changeIconStyleFlag:0 changeThemeStyleFlag:0 transparentMode:1048576 s.2 fontWeightAdjustment=0}
+11-17 18:58:43.687 27324 27324 V VRI[MainActivity]: Applying new config to window vn.nhom2.lokap/vn.nhom2.lokap.MainActivity, globalConfig: {1.0 452mcc4mnc [vi_VN,ja_VN] ldltr sw369dp w369dp h820dp 520dpi nrml long hdr widecg port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1200, 2664) mAppBounds=Rect(0, 0 - 1200, 2664) mMaxBounds=Rect(0, 0 - 1200, 2664) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOverMode=undefined} as.2 suim:4 fontWeightScale:80 changeUserFlag:0 changeUiModeFlag:0 fullScreenVideoFlag:0 splitScreenState:0 landScapeFreeformFlag:1 hoverMode:0 changeIconStyleFlag:0 changeThemeStyleFlag:0 transparentMode:1048576 s.271313 fontWeightAdjustment=0}, overrideConfig: {1.0 452mcc4mnc [vi_VN,ja_VN] ldltr sw369dp w369dp h820dp 520dpi nrml long hdr widecg port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1200, 2664) mAppBounds=Rect(0, 0 - 1200, 2664) mMaxBounds=Rect(0, 0 - 1200, 2664) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mPopOverMode=undefined} as.2 suim:4 fontWeightScale:80 changeUserFlag:0 changeUiModeFlag:0 fullScreenVideoFlag:0 splitScreenState:0 landScapeFreeformFlag:1 hoverMode:0 changeIconStyleFlag:0 changeThemeStyleFlag:0 transparentMode:1048576 s.2 fontWeightAdjustment=0}
+11-17 18:58:43.688 27324 27365 D libEGL  : [eglCreateWindowSurface] start window is 0xb40000741d11c040
+11-17 18:58:43.688 27324 27365 I BufferQueueProducer: [VRI[MainActivity]#0(BLAST Consumer)0](id:6abc00000000,api:0,p:-1,c:27324) connect: api=1 producerControlledByApp=true
+11-17 18:58:43.692 27324 27324 I HwForceDarkManager: setAllowedHwForceDark:false package:vn.nhom2.lokap mCurrProcessState:0 mIsPackageNameChange:false hwForceDarkState:0 isViewAllowedForceDark:true isLastHonorForceDark:false
+11-17 18:58:43.699 27324 27324 I HwViewRootImpl: removeInvalidNode jank list is null
+11-17 18:58:43.700 27324 27324 I HnPgAppThreadImpl: late FAS register
+11-17 18:58:43.701 27324 27324 I RmeSchedManager: init Rme, version is: v1.0
+11-17 18:58:43.701 27324 27324 I RtgSchedEvent: current pid:27324 AppType:-1
+11-17 18:58:43.702 27324 27365 D HWUI    : disableOutlineDraw is true
+11-17 18:58:43.702 27324 27324 I DE_TS HnDisplayEngineManager: init eye protection mode:vn.nhom2.lokap/vn.nhom2.lokap.MainActivity
+11-17 18:58:43.706 27324 27324 D RtgSchedIpcFile: setCommandByIoctl failed ret:-1, cmdid:22, errno:103
+11-17 18:58:43.707 27324 27324 D RtgSchedIpcFile: setCommandByIoctl failed ret:-1, cmdid:23, errno:103
+11-17 18:58:43.725 27324 27324 I FixedFlowFrameManager: new FixedFlowFrameManager
+11-17 18:58:43.725 27324 27324 E FixedFlowFrameManager: initAndCheck: configType is 0, skip FixedFlowFrame
+11-17 18:58:43.725 27324 27324 I VRI[MainActivity]: send MSG_WINDOW_FOCUS_CHANGED msg
+11-17 18:58:43.725 27324 27324 I InputEventReceiver: consumeEvents focus, 1
+11-17 18:58:43.726 27324 27324 V ImeFocusController: onWindowFocus: com.android.internal.policy.DecorView{5541975 V.E...... R....... 0,0-1200,2664}[MainActivity] softInputMode=STATE_UNSPECIFIED|ADJUST_RESIZE|IS_FORWARD_NAVIGATION
+11-17 18:58:43.726 27324 27324 V InputMethodManager: Restarting due to mRestartOnNextWindowFocus as true
+11-17 18:58:43.726 27324 27324 W InputMethodManager: startInputReason = 1
+11-17 18:58:43.730 27324 27352 W DynamiteModule: Local module descriptor class for com.google.android.gms.providerinstaller.dynamite not found.
+11-17 18:58:43.732 27324 27324 I ImeTracker: vn.nhom2.lokap:f403d530: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+11-17 18:58:43.732 27324 27324 I InputMethodManager: handleMessage: MSG_SET_ACTIVE true, was false
+11-17 18:58:43.735 27324 27324 V InputMethodManager: Starting input: Bind result=InputBindResult{result=SUCCESS_WAITING_IME_SESSION method=null id=com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME sequence=63727 result=1 isInputMethodSuppressingSpellChecker=false}
+11-17 18:58:43.737 27324 27352 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:0 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-17 18:58:43.737 27324 27352 W ProviderInstaller: Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+11-17 18:58:43.747 27324 27324 I InputMethodManager: handleMessage: MSG_BIND 63727,com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME
+11-17 18:58:43.747 27324 27324 W InputMethodManager: startInputReason = 6
+11-17 18:58:43.748 27324 27324 V InputMethodManager: Starting input: finished by someone else. view=DecorView{5541975},focus=false,windowFocus=true,window=android.view.ViewRootImpl$W@c4d1398,displayId=0,temporaryDetach=false,hasImeFocus=true servedView=DecorView{5541975},focus=false,windowFocus=true,window=android.view.ViewRootImpl$W@c4d1398,displayId=0,temporaryDetach=false,hasImeFocus=true mServedConnecting=false
+11-17 18:58:43.748 27324 27352 D ApplicationLoaders: Returning zygote-cached class loader: /system/framework/org.apache.http.legacy.jar
+11-17 18:58:43.748 27324 27352 D ApplicationLoaders: Returning zygote-cached class loader: /system/framework/com.android.location.provider.jar
+11-17 18:58:43.748 27324 27352 D ApplicationLoaders: Returning zygote-cached class loader: /system/framework/com.android.media.remotedisplay.jar
+11-17 18:58:43.751 27324 27352 D nativeloader: Configuring clns-11 for other apk /system_ext/framework/com.android.extensions.appfunctions.jar. target_sdk_version=37, uses_libraries=ALL, library_path=/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/lib/arm64:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/base.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.ja.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.vi.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.xxhdpi.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms
+11-17 18:58:43.751 27324 27352 D nativeloader: Extending system_exposed_libraries: libautotune.honor.so:libteec.honor.so:libautotune.honor.so:libmediaalgoclient.honor.so:libIsfClient.honor.so:libteec_system.honor.so
+11-17 18:58:43.753 27324 27352 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+11-17 18:58:43.753 27324 27352 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+11-17 18:58:43.776 27324 27324 D RtgSchedIpcFile: setCommandByIoctl failed ret:-1, cmdid:22, errno:103
+11-17 18:58:43.776 27324 27324 I SurfaceControl: nativeRelease 0xb40000720d110130 count: 1 name: Surface(name=304033 NavigationBar0)/@0xc812b0 - animation-leash of insets_animation#984268
+11-17 18:58:43.776 27324 27324 I SurfaceControl: nativeRelease 0xb40000720d10e870 count: 1 name: Surface(name=2fce428 StatusBar)/@0x3488ae5 - animation-leash of insets_animation#984269
+11-17 18:58:43.777 27324 27324 D RtgSchedIpcFile: setCommandByIoctl failed ret:-1, cmdid:23, errno:103
+11-17 18:58:43.891 27324 27352 W vn.nhom2.lokap: Suspending all threads took: 51.637ms
+11-17 18:58:43.898 27324 27352 D nativeloader: Configuring clns-12 for other apk /data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/base.apk. target_sdk_version=37, uses_libraries=, library_path=/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/lib/arm64:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/base.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.ja.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.vi.apk!/lib/arm64-v8a:/data/app/~~A8gAYZisAukLT3joH8XUTg==/com.google.android.gms-bNkh3ksltzG-9ZNfgkltzw==/split_config.xxhdpi.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms
+11-17 18:58:43.923 27324 27352 I ProviderInstaller: Installed default security provider AndroidOpenSSL (via CompatProvider)
+11-17 18:58:44.369 27324 27324 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 18:58:44.376 27324 27324 W HWUI    : Image decoding logging dropped!
+11-17 18:58:44.499 27324 27440 D HWUI    : EGLUploader supports lossy compression
+11-17 18:58:44.503 27324 27363 W HWUI    : Image decoding logging dropped!
+11-17 18:58:44.507 27324 27362 W HWUI    : Image decoding logging dropped!
+11-17 18:58:46.156 27324 27324 I Hwaps   : APS: EventAnalyzed: initAPS: version is 11.0.0.4
+11-17 18:58:46.158 27324 27324 D Hwaps   : Fpsrequest create,type:EXACTLY_IDENTIFY
+11-17 18:58:46.158 27324 27324 D Hwaps   : Fpsrequest create,type:EXACTLY_IDENTIFY
+11-17 18:58:46.158 27324 27324 D Hwaps   : Fpsrequest create,type:OPENGL_SETTING
+11-17 18:58:46.158 27324 27324 D Hwaps   : FpsController create
+11-17 18:58:46.158 27324 27324 D Hwaps   : APS: EventAnalyzed: reInitFpsPara :mBaseFps = 120; mMaxFps = 120
+11-17 18:58:46.159 27324 27324 I HiTouch_PressGestureDetector: checkDoublePointerLimit: false
+11-17 18:58:46.162 27324 27324 D HwViewRootImpl: GPLOG: params  TraceInputParams 0 pkg empty self vn.nhom2.lokap
+11-17 18:58:46.162 27324 27324 D Hwaps   : APS: EventAnalyzed: registerCallbackInApsManagerService, mPkgName:vn.nhom2.lokap; result = false
+11-17 18:58:46.163 27324 27469 W HwApsManager: HwApsManagerService, registerCallback, start !
+11-17 18:58:46.237 27324 27445 W HWUI    : Image decoding logging dropped!
+11-17 18:58:46.242 27324 27447 W HWUI    : Image decoding logging dropped!
+11-17 18:58:46.246 27324 27446 W HWUI    : Image decoding logging dropped!
+11-17 18:58:46.248 27324 27429 W HWUI    : Image decoding logging dropped!
+11-17 18:58:46.247 27324 27430 W HWUI    : Image decoding logging dropped!
+11-17 18:58:46.257 27324 27443 W HWUI    : Image decoding logging dropped!
+11-17 18:58:46.494 27324 27327 W vn.nhom2.lokap: Missing inline cache for void kotlinx.coroutines.internal.DispatchedContinuationKt.resumeCancellableWith(kotlin.coroutines.Continuation, java.lang.Object)
+11-17 18:58:46.494 27324 27327 W vn.nhom2.lokap: Missing inline cache for void kotlinx.coroutines.internal.DispatchedContinuationKt.resumeCancellableWith(kotlin.coroutines.Continuation, java.lang.Object)
+11-17 18:58:46.906 27324 27324 I HiTouch_PressGestureDetector: checkDoublePointerLimit: false
+11-17 18:58:48.398 27324 27324 I AwareBitmapCacher: init lrucache size: 4194304 pid=27324
+11-17 18:58:48.399 27324 27324 V Resource: printErrorResource, maybe not an error because module has entative action to load resource.
+11-17 18:58:49.019 27324 27517 D ProfileInstaller: Skipping profile installation for vn.nhom2.lokap
+11-17 18:58:54.035 27324 27328 I [Smart Gc]: heap expand: 67108864
+11-17 18:58:54.035 27324 27328 I vn.nhom2.lokap: Background concurrent copying GC freed 25MB AllocSpace bytes, 32(848KB) LOS objects, 96% free, 7455KB/199MB, paused 73us,40us total 118.163ms, cpu time 116.182ms, interval 10.602s, foreground, allocated 39(1724KB) LOS objects

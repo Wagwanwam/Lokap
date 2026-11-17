@@ -15,8 +15,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Logout
@@ -72,6 +75,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
@@ -326,7 +330,7 @@ fun SettingsScreen(
                     SettingsItemRow(
                         icon = Icons.Rounded.Phone,
                         title = "Số điện thoại khôi phục",
-                        trailingText = uiState.recoveryPhone ?: "Chưa liên kết",
+                        trailingText = uiState.recoveryPhone ?: "Chưa lưu",
                         onClick = { onAction(SettingsAction.OpenRecoveryPhoneDialog) }
                     )
 
@@ -476,7 +480,7 @@ fun SettingsScreen(
                 SettingsGroup(title = "Dữ liệu") {
                     SettingsItemRow(
                         icon = Icons.Rounded.CleaningServices,
-                        title = "Bộ nhớ đệm",
+                        title = "Bộ nhớ đệm ảnh",
                         trailingContent = {
                             Surface(
                                 shape = CircleShape,
@@ -484,10 +488,10 @@ fun SettingsScreen(
                                 border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.3f)),
                                 modifier = Modifier
                                     .clip(CircleShape)
-                                    .clickable { onAction(SettingsAction.ClearCache) }
+                                    .clickable(enabled = !uiState.isClearingCache) { onAction(SettingsAction.ClearCache) }
                             ) {
                                 Text(
-                                    text = "Xoá cache",
+                                    text = if (uiState.isClearingCache) "Đang xoá…" else "Xoá cache",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 13.5.sp
@@ -506,8 +510,8 @@ fun SettingsScreen(
                 SettingsGroup(title = "Về Lokap & Tài khoản") {
                     SettingsItemRow(
                         icon = Icons.Rounded.Description,
-                        title = "Điều khoản & Chính sách bảo mật",
-                        onClick = {  }
+                        title = "Chính sách bảo mật",
+                        onClick = { onAction(SettingsAction.OpenPrivacyPolicy) }
                     )
 
                     SettingsItemRow(
@@ -794,6 +798,7 @@ fun SettingsScreen(
 
     if (uiState.showRecoveryPhoneDialog) {
         var phoneInput by remember { mutableStateOf(uiState.recoveryPhone ?: "") }
+        val phoneError = SettingsValidators.validateRecoveryPhone(phoneInput)
         AlertDialog(
             onDismissRequest = { onAction(SettingsAction.DismissRecoveryPhoneDialog) },
             containerColor = colors.surface,
@@ -806,13 +811,28 @@ fun SettingsScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Lưu riêng cho tài khoản này trên thiết bị. Số chưa được xác minh và chưa dùng để khôi phục tài khoản.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary
+                    )
                     OutlinedTextField(
                         value = phoneInput,
                         onValueChange = { phoneInput = it },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        isError = phoneInput.isNotEmpty() && phoneError != null,
+                        supportingText = {
+                            if (phoneInput.isNotEmpty() && phoneError != null) Text(phoneError)
+                        },
                         placeholder = { Text("0912 345 678", color = colors.textTertiary) },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (uiState.recoveryPhone != null) {
+                        TextButton(onClick = { onAction(SettingsAction.RemoveRecoveryPhone) }) {
+                            Text("Xóa số điện thoại", color = colors.error)
+                        }
+                    }
                 }
             },
             dismissButton = {
@@ -823,9 +843,9 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = { onAction(SettingsAction.SaveRecoveryPhone(phoneInput.trim())) },
-                    enabled = phoneInput.trim().length >= 9
+                    enabled = phoneError == null
                 ) {
-                    Text("Lưu", color = colors.primary, fontWeight = FontWeight.Bold)
+                    Text("Lưu", color = if (phoneError == null) colors.primary else colors.textTertiary, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -833,6 +853,7 @@ fun SettingsScreen(
 
     if (uiState.showLinkedEmailsDialog) {
         var newEmailInput by remember { mutableStateOf("") }
+        val emailError = SettingsValidators.validateLinkedEmail(newEmailInput)
         AlertDialog(
             onDismissRequest = { onAction(SettingsAction.DismissLinkedEmailsDialog) },
             containerColor = colors.surface,
@@ -844,9 +865,12 @@ fun SettingsScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
-                        text = "Danh sách email liên kết với tài khoản này:",
+                        text = "Lưu riêng cho tài khoản này trên thiết bị. Email chưa được xác minh và chưa dùng để đăng nhập hoặc khôi phục tài khoản.",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary
                     )
@@ -869,8 +893,12 @@ fun SettingsScreen(
                             Text(
                                 text = email,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = colors.textPrimary
+                                color = colors.textPrimary,
+                                modifier = Modifier.weight(1f)
                             )
+                            IconButton(onClick = { onAction(SettingsAction.RemoveLinkedEmail(email)) }) {
+                                Icon(Icons.Rounded.Close, contentDescription = "Xóa $email", tint = colors.error)
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
@@ -878,6 +906,11 @@ fun SettingsScreen(
                         value = newEmailInput,
                         onValueChange = { newEmailInput = it },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        isError = newEmailInput.isNotEmpty() && emailError != null,
+                        supportingText = {
+                            if (newEmailInput.isNotEmpty() && emailError != null) Text(emailError)
+                        },
                         placeholder = { Text("Thêm email phụ...", color = colors.textTertiary) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -891,14 +924,14 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (newEmailInput.contains("@") && newEmailInput.contains(".")) {
+                        if (emailError == null) {
                             onAction(SettingsAction.AddLinkedEmail(newEmailInput.trim()))
                             newEmailInput = ""
                         }
                     },
-                    enabled = newEmailInput.contains("@") && newEmailInput.contains(".")
+                    enabled = emailError == null
                 ) {
-                    Text("Thêm", color = colors.primary, fontWeight = FontWeight.Bold)
+                    Text("Thêm", color = if (emailError == null) colors.primary else colors.textTertiary, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -909,7 +942,7 @@ fun SettingsScreen(
         var newPassword by remember { mutableStateOf("") }
         var confirmPassword by remember { mutableStateOf("") }
         // Cùng luật với Đăng ký (AuthValidators): ≥ 8 ký tự, có cả chữ và số
-        val canSave = oldPassword.isNotBlank() && AuthValidators.validatePassword(newPassword) == null && newPassword == confirmPassword
+        val canSave = !uiState.isChangingPassword && oldPassword.isNotBlank() && AuthValidators.validatePassword(newPassword) == null && newPassword == confirmPassword
 
         AlertDialog(
             onDismissRequest = { onAction(SettingsAction.DismissChangePasswordDialog) },
@@ -926,6 +959,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = oldPassword,
                         onValueChange = { oldPassword = it },
+                        enabled = !uiState.isChangingPassword,
                         label = { Text("Mật khẩu hiện tại") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
@@ -934,6 +968,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = newPassword,
                         onValueChange = { newPassword = it },
+                        enabled = !uiState.isChangingPassword,
                         label = { Text("Mật khẩu mới (≥ 8 ký tự, có chữ và số)") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
@@ -942,16 +977,23 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
+                        enabled = !uiState.isChangingPassword,
                         label = { Text("Xác nhận mật khẩu mới") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         isError = confirmPassword.isNotEmpty() && confirmPassword != newPassword,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    uiState.changePasswordError?.let { message ->
+                        Text(message, color = colors.error, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onAction(SettingsAction.DismissChangePasswordDialog) }) {
+                TextButton(
+                    enabled = !uiState.isChangingPassword,
+                    onClick = { onAction(SettingsAction.DismissChangePasswordDialog) }
+                ) {
                     Text("Huỷ", color = colors.textSecondary)
                 }
             },
@@ -960,10 +1002,14 @@ fun SettingsScreen(
                     onClick = { onAction(SettingsAction.ConfirmChangePassword(oldPassword, newPassword)) },
                     enabled = canSave
                 ) {
-                    Text("Lưu", color = colors.primary, fontWeight = FontWeight.Bold)
+                    Text(if (uiState.isChangingPassword) "Đang lưu…" else "Lưu", color = if (canSave) colors.primary else colors.textTertiary, fontWeight = FontWeight.Bold)
                 }
             }
         )
+    }
+
+    if (uiState.showPrivacyPolicy) {
+        PrivacyPolicyDialog(onDismiss = { onAction(SettingsAction.DismissPrivacyPolicy) })
     }
 
     if (uiState.showLogoutDialog) {

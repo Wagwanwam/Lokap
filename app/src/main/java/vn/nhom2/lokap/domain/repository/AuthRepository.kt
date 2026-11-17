@@ -69,7 +69,8 @@ interface AuthRepository {
     /** Sửa hồ sơ (màn Hồ sơ / Cài đặt). Username trùng → AuthStoreException.UsernameAlreadyTaken. */
     suspend fun updateProfile(displayName: String, username: String, bio: String): Result<User>
 
-    suspend fun changePassword(newPassword: String): Result<Unit>
+    /** Xác thực lại mật khẩu hiện tại trước khi đổi; không tự thêm mật khẩu cho tài khoản Google. */
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit>
 
     suspend fun resetPassword(email: String): Result<Unit>
 

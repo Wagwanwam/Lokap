@@ -307,30 +307,40 @@ class ProfileViewModel @Inject constructor(
 
             ProfileAction.SaveEditProfile -> saveProfile()
 
-            ProfileAction.SendFriendRequest -> withTarget { user ->
+            ProfileAction.SendFriendRequest -> withTarget(FriendStatus.NONE) { user ->
                 social.sendFriendRequest(user.id).map { status ->
                     if (status == FriendStatus.FRIENDS) "Hai bạn đã trở thành bạn bè!" else "Đã gửi lời mời kết bạn"
                 }
             }
 
-            ProfileAction.CancelFriendRequest -> withTarget { user ->
+            ProfileAction.CancelFriendRequest -> withTarget(FriendStatus.REQUEST_SENT) { user ->
                 social.cancelFriendRequest(user.id).map { "Đã huỷ lời mời kết bạn" }
             }
 
-            ProfileAction.AcceptFriendRequest -> withTarget { user ->
+            ProfileAction.AcceptFriendRequest -> withTarget(FriendStatus.REQUEST_RECEIVED) { user ->
                 social.acceptFriendRequest(user.id).map { "Hai bạn đã trở thành bạn bè!" }
             }
 
-            ProfileAction.DeclineFriendRequest -> withTarget { user ->
+            ProfileAction.DeclineFriendRequest -> withTarget(FriendStatus.REQUEST_RECEIVED) { user ->
                 social.declineFriendRequest(user.id).map { "Đã từ chối lời mời" }
             }
 
-            ProfileAction.Unfriend -> withTarget { user ->
+            ProfileAction.Unfriend -> withTarget(FriendStatus.FRIENDS) { user ->
                 social.unfriend(user.id).map { "Đã huỷ kết bạn với ${user.displayName}" }
             }
 
-            ProfileAction.Unblock -> withTarget { user ->
+            ProfileAction.Unblock -> withTarget(FriendStatus.BLOCKED) { user ->
                 social.unblock(user.id).map { "Đã bỏ chặn ${user.displayName}" }
+            }
+
+            ProfileAction.OpenBlockDialog -> _uiState.update { it.copy(isBlockDialogOpen = true) }
+
+            ProfileAction.DismissBlockDialog -> _uiState.update { it.copy(isBlockDialogOpen = false) }
+
+            // Chặn: xoá quan hệ bạn, rút tên khỏi viewerIds hai phía, bỏ bài của họ khỏi máy (SocialRepository)
+            ProfileAction.ConfirmBlock -> {
+                _uiState.update { it.copy(isBlockDialogOpen = false) }
+                withTarget { user -> social.block(user.id).map { "Đã chặn ${user.displayName}" } }
             }
 
             ProfileAction.MessageUser -> {
@@ -343,10 +353,18 @@ class ProfileViewModel @Inject constructor(
     }
 
     /** Thao tác bạn bè với người đang xem: thành công hay lỗi đều báo một câu; trạng thái mới tự về qua graph. */
-    private fun withTarget(block: suspend (User) -> Result<String>) {
-        val targetUser = _uiState.value.user ?: return
+    private fun withTarget(expected: FriendStatus? = null, block: suspend (User) -> Result<String>) {
+        val state = _uiState.value
+        val targetUser = state.user ?: return
+        if (state.isMe || state.isUpdatingFriendship) return
+        if (expected != null && social.graph.value.statusOf(targetUser.id) != expected) return
+        _uiState.update { it.copy(isUpdatingFriendship = true) }
         viewModelScope.launch {
-            block(targetUser).onFailure { _effects.trySend(ProfileEffect.ShowMessage(it.message ?: "Không thực hiện được")) }
+            try {
+                block(targetUser).onFailure { _effects.trySend(ProfileEffect.ShowMessage(it.message ?: "Không thực hiện được")) }
+            } finally {
+                _uiState.update { it.copy(isUpdatingFriendship = false) }
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package vn.nhom2.lokap.domain.repository
 
+import java.time.Instant
 import kotlinx.coroutines.flow.StateFlow
 import vn.nhom2.lokap.domain.model.FriendStatus
 import vn.nhom2.lokap.domain.model.User
@@ -7,7 +8,9 @@ import vn.nhom2.lokap.domain.model.User
 /** Quan hệ của người đang đăng nhập với những người khác. */
 data class SocialGraph(
     val statuses: Map<String, FriendStatus> = emptyMap(),
-    val users: Map<String, User> = emptyMap()
+    val users: Map<String, User> = emptyMap(),
+    /** Server creation time of the current received invitation, keyed by its sender. */
+    val pendingRequestCreatedAt: Map<String, Instant> = emptyMap()
 ) {
     fun statusOf(userId: String): FriendStatus = statuses[userId] ?: FriendStatus.NONE
 

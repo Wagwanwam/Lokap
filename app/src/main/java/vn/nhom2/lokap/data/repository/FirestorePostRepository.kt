@@ -232,13 +232,16 @@ class FirestorePostRepository @Inject constructor(
         // Vừa kết bạn / đổi tên: cập nhật người xem + tên trên bài của mình (lỗi thì để lần làm mới sau)
         runCatching { graph.reconcileMyPosts(me, friendIds) }
 
+        // Chỉ giữ bài của mình + bạn hiện tại: người đã huỷ kết bạn mà viewerIds còn tên mình (rút tên lỗi lúc
+        // mất mạng, máy bên kia đăng bài khi chưa biết đã hết là bạn) cũng không hiện ở feed Bạn bè nữa
+        val authors = friendIds.toSet() + me.id
         val friend = posts
             .whereArrayContains(Fs.VIEWER_IDS, me.id)
             .whereEqualTo(Fs.STATUS, Fs.ACTIVE)
             .orderBy(Fs.CREATED_AT, Query.Direction.DESCENDING)
             .limit(FEED_LIMIT)
             .get().await().documents
-            .filterNot { it.getString(Fs.AUTHOR_ID) in blocked }
+            .filter { it.getString(Fs.AUTHOR_ID) in authors }
         val public = publicVisible(posts.whereEqualTo(Fs.AUDIENCE, AUDIENCE_PUBLIC))
             .filterNot { it.getString(Fs.AUTHOR_ID) in blocked }
 

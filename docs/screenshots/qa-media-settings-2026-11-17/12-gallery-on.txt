@@ -1,0 +1,1 @@
+Row: 0 _id=1000010474, _display_name=Lokap_1794913909437_437cf9ff-3f45-465c-9ba3-c2a4f9f08556.jpg, relative_path=Pictures/Lokap/, _size=297034, width=2448, height=3264, mime_type=image/jpeg, is_pending=0, owner_package_name=vn.nhom2.lokap

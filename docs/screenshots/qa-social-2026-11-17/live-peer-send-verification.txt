@@ -1,0 +1,27 @@
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.AuthorizedPeerReadOnlyTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+vn.nhom2.lokap.AuthorizedPeerReadOnlyTest:
+INSTRUMENTATION_STATUS: test=verifyAuthorizedMessageOnServer
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: stream=
+LIVE_PEER_READ_ONLY={"peer_username":"ffd","message_id":"HgO57l2G1pHTz1A21WfQ","matching_message_count":1,"server_confirmed":true,"friendship_preserved":true,"peer_read_receipt":false,"default_account_preserved":true}
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.AuthorizedPeerReadOnlyTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=verifyAuthorizedMessageOnServer
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 1,287
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1

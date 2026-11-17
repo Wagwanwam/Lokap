@@ -1,0 +1,50 @@
+--------- beginning of (HKS)6CE151702CB3A36EC466006F69894F189891159380E4E269E04CD3D233E5C778CFDA5242CD6DF51466467BE189FF77F11882BE3582261E0BD28295C4D93F621E30E83990B36A14EED0115230D3F8FE344D4414534357E1280578C13752BEE4058CD1A40AA6909E63698E3E891A3CEA6A68BECA2E7A703E03FA825E39A2084F6523FD9C718CD9ACA22BC3C77C0C09EC6DDC252E5C2AE50EE75D42A0BC2F35263C765D4F735923F5E53D0481603FEAB1820D55801946DD7F51E111338BED92F298F5BA4F099C5620335FDB2849DBD6FF36A3BEBDA9F08B4CF3F39AF4724859FFF2CB6B79F8C50CA1A446F1402659147C32A73AAB7278079F301D895BF8BE9032EC(HKE)
+--------- beginning of system
+11-17 17:52:29.607 28141 28141 I ActivityThread: initHwArgs result ok for mw or virtual
+11-17 17:52:29.608 28141 28141 D ActivityThread: Attach thread to application
+11-17 17:52:29.630 28141 28154 I ActivityThread: Init compatible state: true
+11-17 17:52:29.650 28141 28141 I HwActivityThreadImpl: acceptPreloadedApplication  mPreloadStatus: 0
+11-17 17:52:29.704 28141 28141 I ActivityThread: finishPreloaded preloadStatus 0
+11-17 17:52:29.706 28141 28141 V ActivityThread: Handling launch of ActivityRecord{4dbc35b token=android.os.BinderProxy@1922855 {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}}
+11-17 17:52:29.714 28141 28195 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+11-17 17:52:29.748 28141 28141 V ActivityThread: callActivityOnCreate
+11-17 17:52:29.775 28141 28141 I ActivityThread: add activity client record, r= ActivityRecord{4dbc35b token=android.os.BinderProxy@1922855 {vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}} token= android.os.BinderProxy@1922855
+11-17 17:52:29.806 28141 28141 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 17:52:29.928 28141 28141 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 17:52:29.945 28141 28141 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 17:52:29.949 28141 28141 I HwForceDarkManager: setAllowedHwForceDark:false package:vn.nhom2.lokap mCurrProcessState:0 mIsPackageNameChange:false hwForceDarkState:0 isViewAllowedForceDark:true isLastHonorForceDark:false
+11-17 17:52:29.957 28141 28141 I HnPgAppThreadImpl: late FAS register
+11-17 17:52:29.961 28141 28141 I RtgSchedEvent: current pid:28141 AppType:-1
+11-17 17:52:29.978 28141 28141 I VRI[MainActivity]: send MSG_WINDOW_FOCUS_CHANGED msg
+11-17 17:52:30.618 28141 28141 D FullScreenUtils: isNeedToHideStatusBar: splitscreenstate=0
+11-17 17:54:39.907 28141 28859 W HwApsManager: HwApsManagerService, registerCallback, start !
+--------- beginning of main
+11-17 17:55:58.742 28141 28141 I HiTouch_PressGestureDetector: checkDoublePointerLimit: false
+11-17 17:55:58.776 28141 28144 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:55:58.776 28141 28144 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:55:58.776 28141 28144 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:55:58.776 28141 28144 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:55:58.776 28141 28144 W vn.nhom2.lokap: Missing inline cache for void androidx.compose.animation.AnimatedContentKt.AnimatedContent(androidx.compose.animation.core.Transition, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1, androidx.compose.ui.Alignment, kotlin.jvm.functions.Function1, kotlin.jvm.functions.Function4, androidx.compose.runtime.Composer, int, int)
+11-17 17:56:12.903 28141 28141 V InputMethodManager: dispatchInputEvent
+11-17 17:56:12.903 28141 28141 V InputMethodManager: DISPATCH INPUT EVENT: com.android.internal.inputmethod.IInputMethodSession$Stub$Proxy@4d2c7fc
+11-17 17:56:12.903 28141 28141 I HwInputManager: isTouchKeyboardDeviceFromCient begin
+11-17 17:56:12.907 28141 28141 V InputMethodManager: dispatchInputEvent
+11-17 17:56:12.907 28141 28141 V InputMethodManager: DISPATCH INPUT EVENT: com.android.internal.inputmethod.IInputMethodSession$Stub$Proxy@4d2c7fc
+11-17 17:56:12.907 28141 28141 I HwInputManager: isTouchKeyboardDeviceFromCient begin
+11-17 17:56:12.908 28141 28141 D HiTouch_PressGestureDetector: handleBackKey@Deprecated
+11-17 17:56:12.942 28141 28141 I HwViewRootImpl: removeInvalidNode all the node in jank list is out of time
+11-17 17:56:13.734 28141 28141 V InputMethodManager: dispatchInputEvent
+11-17 17:56:13.734 28141 28141 V InputMethodManager: DISPATCH INPUT EVENT: com.android.internal.inputmethod.IInputMethodSession$Stub$Proxy@4d2c7fc
+11-17 17:56:13.734 28141 28141 I HwInputManager: isTouchKeyboardDeviceFromCient begin
+11-17 17:56:13.738 28141 28141 V InputMethodManager: dispatchInputEvent
+11-17 17:56:13.738 28141 28141 V InputMethodManager: DISPATCH INPUT EVENT: com.android.internal.inputmethod.IInputMethodSession$Stub$Proxy@4d2c7fc
+11-17 17:56:13.738 28141 28141 I HwInputManager: isTouchKeyboardDeviceFromCient begin
+11-17 17:56:13.738 28141 28141 D HiTouch_PressGestureDetector: handleBackKey@Deprecated
+11-17 17:56:14.558 28141 28141 V InputMethodManager: dispatchInputEvent
+11-17 17:56:14.558 28141 28141 V InputMethodManager: DISPATCH INPUT EVENT: com.android.internal.inputmethod.IInputMethodSession$Stub$Proxy@4d2c7fc
+11-17 17:56:14.558 28141 28141 I HwInputManager: isTouchKeyboardDeviceFromCient begin
+11-17 17:56:14.562 28141 28141 V InputMethodManager: dispatchInputEvent
+11-17 17:56:14.562 28141 28141 V InputMethodManager: DISPATCH INPUT EVENT: com.android.internal.inputmethod.IInputMethodSession$Stub$Proxy@4d2c7fc
+11-17 17:56:14.562 28141 28141 I HwInputManager: isTouchKeyboardDeviceFromCient begin
+11-17 17:56:14.562 28141 28141 D HiTouch_PressGestureDetector: handleBackKey@Deprecated
+11-17 17:56:14.576 28141 28141 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=androidx.navigationevent.OnBackInvokedInput$createOnBackAnimationCallback$1@3291c7

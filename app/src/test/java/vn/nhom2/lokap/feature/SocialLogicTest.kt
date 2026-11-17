@@ -76,7 +76,11 @@ class SocialLogicTest {
 
     private fun friends() = FriendsViewModel(FakeSocialRepository())
 
-    private fun settings() = SettingsViewModel(FakeAuthRepository(), FakeSettingsRepository(), FakeSocialRepository())
+    private fun settings() = SettingsViewModel(
+        FakeAuthRepository(), FakeSettingsRepository(), FakeSocialRepository(),
+        TestDeviceSettingsRepository(), TestAppCacheRepository(),
+        vn.nhom2.lokap.data.local.PersistentAccountContactRepository(TestContactPreferences())
+    )
 
     private fun search() = SearchViewModel(FakeSocialRepository(), FakeLocationRepository())
 

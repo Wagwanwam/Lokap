@@ -1,0 +1,34 @@
+{
+  "device": {
+    "serial": "AXSCVB5304005477",
+    "manufacturer": "HONOR",
+    "model": "AMM-AN00",
+    "android": "16",
+    "api": "36"
+  },
+  "recorded_at_device": "2026-11-17T17:56:47+0700",
+  "package": "vn.nhom2.lokap",
+  "package_metadata": [
+    "versionCode=1 minSdk=26 targetSdk=37",
+    "versionName=1.0",
+    "lastUpdateTime=2026-11-17 17:46:49",
+    "firstInstallTime=2026-11-15 11:05:25",
+    "firstInstallTime=2026-11-15 11:05:25",
+    "firstInstallTime=2026-11-15 11:05:25"
+  ],
+  "local_apk": "/Users/nguyenduythuan/vscode/Mobile/Lokap/app/build/outputs/apk/release/app-release.apk",
+  "sha256": "86dfa4c9a201f7040847873be253c6dcfe869b628e51738576119dd895556b42",
+  "installed_sha256": "86dfa4c9a201f7040847873be253c6dcfe869b628e51738576119dd895556b42",
+  "apk_matches_installed": true,
+  "unit_tests": {
+    "tests": 226,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "unit_test_suites": 23,
+  "pid": "28141",
+  "focus": "mCurrentFocus=Window{326c9d3 u0 vn.nhom2.lokap/vn.nhom2.lokap.MainActivity}",
+  "window_reports_no_anr_since_boot": true,
+  "logcat_lines": 50
+}

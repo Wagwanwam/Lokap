@@ -1,0 +1,56 @@
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.MediaSettingsDataSaverTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+vn.nhom2.lokap.MediaSettingsDataSaverTest:
+INSTRUMENTATION_STATUS: test=productionImageLoaderDownloadsSmallerImagesAndSeparatesCache
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: stream=
+MEDIA_DATA_SAVER={"measurements":[{"image_sha256":"b62eace268fdbc9ca21146490039da65fae6de3546d74d9ba5a88aef4e7c2e93","full_bytes":122325,"saver_bytes":32796,"full_width":1080,"full_height":1080,"saver_width":640,"saver_height":640,"data_source":"NETWORK"},{"image_sha256":"35a840a19aa2c5eeb57ec6e11f0f9d38587502720e4a5b873a4cef27a0e44a24","full_bytes":77751,"saver_bytes":24831,"full_width":1080,"full_height":1080,"saver_width":640,"saver_height":640,"data_source":"NETWORK"},{"image_sha256":"33279ad1c4e6accf481a8d864cdfca962ba6db402327de8dc7ee0e0f8dbc19f8","full_bytes":90933,"saver_bytes":26799,"full_width":1080,"full_height":1080,"saver_width":640,"saver_height":640,"data_source":"NETWORK"}],"cache_variants_separated":true}
+
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.MediaSettingsDataSaverTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=productionImageLoaderDownloadsSmallerImagesAndSeparatesCache
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.core.image.GallerySaverInstrumentedTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+vn.nhom2.lokap.core.image.GallerySaverInstrumentedTest:
+INSTRUMENTATION_STATUS: test=publishesJpegWithOriginalBytesAndLeavesDraftIntact
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.core.image.GallerySaverInstrumentedTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=publishesJpegWithOriginalBytesAndLeavesDraftIntact
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.core.image.GallerySaverInstrumentedTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=missingCaptureFailsWithoutCreatingGalleryRow
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=vn.nhom2.lokap.core.image.GallerySaverInstrumentedTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=missingCaptureFailsWithoutCreatingGalleryRow
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 4,714
+
+OK (3 tests)
+
+
+INSTRUMENTATION_CODE: -1

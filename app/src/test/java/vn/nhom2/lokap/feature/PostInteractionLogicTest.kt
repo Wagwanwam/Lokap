@@ -60,10 +60,12 @@ class PostInteractionLogicTest {
 
     // p_01: bạn bè đăng công khai · p_02: bạn bè đăng cho bạn bè · p_04: bài của mình
     @Test
-    fun `chi anh ban be khong cong khai moi co thanh nhan tin`() {
+    fun `moi anh cua ban be deu co thanh nhan tin, ke ca anh cong khai`() {
         val state = feed().uiState.value
         assertEquals(Audience.PUBLIC, post("p_01").audience)
-        assertFalse("Ảnh công khai của người khác: không nhắn tin", state.canMessage(post("p_01")))
+        assertTrue("Ảnh công khai của bạn bè: nhắn tin được", state.canMessage(post("p_01")))
+        val stranger = post("p_01").let { it.copy(author = it.author.copy(id = "user_nguoi_la")) }
+        assertFalse("Ảnh công khai của người lạ: không nhắn tin", state.canMessage(stranger))
         assertTrue(state.canMessage(post("p_02")))
         assertFalse("Ảnh của mình: không nhắn cho chính mình", state.canMessage(post("p_04")))
     }
@@ -91,12 +93,18 @@ class PostInteractionLogicTest {
     }
 
     @Test
-    fun `anh cong khai cua nguoi khac khong gui duoc tin`() {
+    fun `anh cong khai cua nguoi la khong gui duoc tin, cua ban be thi gui kem anh`() {
         val vm = feed()
-        val photo = post("p_01")
-        vm.onAction(FeedAction.OnMessageDraftChange(photo.id, "Chào"))
-        vm.onAction(FeedAction.OnSendPhotoMessage(photo))
+        val strangerPhoto = post("p_01").let { it.copy(author = it.author.copy(id = "user_nguoi_la")) }
+        vm.onAction(FeedAction.OnMessageDraftChange(strangerPhoto.id, "Chào"))
+        vm.onAction(FeedAction.OnSendPhotoMessage(strangerPhoto))
         assertEquals(0, content.sendCount)
+
+        val friendPublic = post("p_01")
+        vm.onAction(FeedAction.OnMessageDraftChange(friendPublic.id, "Chào"))
+        vm.onAction(FeedAction.OnSendPhotoMessage(friendPublic))
+        assertEquals(1, content.sendCount)
+        assertEquals("p_01", content.lastReplyTo?.id)
     }
 
     @Test
@@ -143,9 +151,9 @@ class PostInteractionLogicTest {
     }
 
     @Test
-    fun `trang anh - anh cong khai cua nguoi khac khong co nhan tin`() {
+    fun `trang anh - anh cong khai cua ban be co ca binh luan lan nhan tin`() {
         val vm = viewer("p_01")
-        assertFalse(vm.uiState.value.canMessage)
+        assertTrue(vm.uiState.value.canMessage)
         assertTrue("Bài công khai có bình luận", vm.uiState.value.showComments)
     }
 

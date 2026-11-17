@@ -20,6 +20,8 @@ import vn.nhom2.lokap.core.image.ImageProcessor
 import vn.nhom2.lokap.core.image.PhotoColorFilter
 import vn.nhom2.lokap.domain.repository.MessagingRepository
 import vn.nhom2.lokap.domain.repository.AuthRepository
+import vn.nhom2.lokap.domain.repository.DeviceSettingsRepository
+import vn.nhom2.lokap.domain.repository.PhotoGalleryRepository
 import vn.nhom2.lokap.domain.repository.SocialRepository
 
 @HiltViewModel
@@ -27,7 +29,9 @@ class CameraViewModel @Inject constructor(
     auth: AuthRepository,
     social: SocialRepository,
     messages: MessagingRepository,
-    private val imageProcessor: ImageProcessor
+    private val imageProcessor: ImageProcessor,
+    private val deviceSettings: DeviceSettingsRepository,
+    private val photoGallery: PhotoGalleryRepository
 ) : ViewModel() {
 
     /** Luồng xử lý ảnh (đổi được trong test). */
@@ -38,6 +42,10 @@ class CameraViewModel @Inject constructor(
 
     private val _effects = Channel<CameraEffect>(Channel.BUFFERED)
     val effects: Flow<CameraEffect> = _effects.receiveAsFlow()
+
+    private data class CaptureRequest(val filter: PhotoColorFilter, val autoSave: Boolean)
+    private var captureRequest: CaptureRequest? = null
+    private var pendingGalleryPath: String? = null
 
     init {
         // Avatar góc trên: người đang đăng nhập
@@ -120,6 +128,7 @@ class CameraViewModel @Inject constructor(
                     !current.isCapturing &&
                     current.cameraError == null
                 ) {
+                    captureRequest = CaptureRequest(current.selectedFilter, deviceSettings.settings.value.autoSaveToGallery)
                     _uiState.update { it.copy(isCapturing = true) }
                     sendEffect(CameraEffect.TriggerCapture)
                 }
@@ -158,7 +167,18 @@ class CameraViewModel @Inject constructor(
 
             is CameraAction.OnPhotoSaved -> applyFilterThenCompose(action.imagePath)
 
+            is CameraAction.OnGalleryPermissionResult -> {
+                // Consume once: a repeated activity result must not export or navigate twice.
+                val path = pendingGalleryPath ?: return
+                pendingGalleryPath = null
+                viewModelScope.launch {
+                    if (action.granted) saveThenCompose(path)
+                    else finishCapture(path, "Chưa có quyền lưu vào thư viện. Ảnh vẫn được giữ để soạn bài.")
+                }
+            }
+
             is CameraAction.OnCameraError -> {
+                captureRequest = null
                 _uiState.update {
                     it.copy(isCapturing = false, cameraError = action.message)
                 }
@@ -191,27 +211,43 @@ class CameraViewModel @Inject constructor(
         }
     }
 
-    /** Có bộ lọc thì áp thẳng vào file ảnh (bài đăng mang đúng màu đã xem trước), rồi mới sang màn soạn bài. */
+    /** Export the processed capture exactly once, using the choice made at shutter time. */
     private fun applyFilterThenCompose(imagePath: String) {
-        val filter = _uiState.value.selectedFilter
-        if (filter == PhotoColorFilter.ORIGINAL) {
-            _uiState.update { it.copy(isCapturing = false) }
-            sendEffect(CameraEffect.NavigateToComposer(imagePath))
-            return
-        }
+        val request = captureRequest ?: return
+        captureRequest = null
         viewModelScope.launch {
-            val finalPath = withContext(imageDispatcher) {
+            val finalPath = if (request.filter == PhotoColorFilter.ORIGINAL) imagePath else withContext(imageDispatcher) {
                 runCatching {
                     val input = File(imagePath)
-                    val output = File(input.parentFile, input.nameWithoutExtension + "_${filter.name.lowercase()}.jpg")
-                    imageProcessor.applyColorFilter(input, output, filter)
+                    val output = File(input.parentFile, input.nameWithoutExtension + "_${request.filter.name.lowercase()}.jpg")
+                    imageProcessor.applyColorFilter(input, output, request.filter)
                     input.delete()
                     output.absolutePath
                 }.getOrDefault(imagePath) // lỗi xử lý: vẫn giữ ảnh gốc, không mất khoảnh khắc
             }
-            _uiState.update { it.copy(isCapturing = false) }
-            sendEffect(CameraEffect.NavigateToComposer(finalPath))
+            when {
+                !request.autoSave -> finishCapture(finalPath)
+                photoGallery.requiresWritePermission() -> {
+                    pendingGalleryPath = finalPath
+                    _effects.send(CameraEffect.RequestGalleryWritePermission)
+                }
+                else -> saveThenCompose(finalPath)
+            }
         }
+    }
+
+    private suspend fun saveThenCompose(imagePath: String) {
+        val message = photoGallery.savePhoto(imagePath).fold(
+            onSuccess = { "Đã lưu ảnh vào thư viện" },
+            onFailure = { "Không lưu được vào thư viện. Ảnh vẫn được giữ để soạn bài." }
+        )
+        finishCapture(imagePath, message)
+    }
+
+    private suspend fun finishCapture(imagePath: String, message: String? = null) {
+        _uiState.update { it.copy(isCapturing = false) }
+        if (message != null) _effects.send(CameraEffect.ShowMessage(message))
+        _effects.send(CameraEffect.NavigateToComposer(imagePath))
     }
 
     private fun sendEffect(effect: CameraEffect) {

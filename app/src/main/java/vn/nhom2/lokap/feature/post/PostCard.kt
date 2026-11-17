@@ -14,10 +14,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -74,7 +72,6 @@ fun PostCard(
     onOpenComments: () -> Unit = {},
     onLocationClick: (() -> Unit)? = null,
     repost: RepostToggle? = null,
-    onShare: (() -> Unit)? = null,
     headerTrailing: (@Composable () -> Unit)? = null,
     footer: (@Composable () -> Unit)? = null
 ) {
@@ -251,16 +248,6 @@ fun PostCard(
                     enabled = repost.enabled,
                     onClick = repost.onToggle
                 )
-            }
-            if (onShare != null) {
-                IconButton(onClick = onShare, modifier = Modifier.size(48.dp)) {
-                    Icon(
-                        imageVector = Icons.Filled.Share,
-                        contentDescription = "Chia sẻ liên kết",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
             }
         }
 

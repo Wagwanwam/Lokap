@@ -36,20 +36,34 @@ class MessagingLogicTest {
  }
  @Test fun `notification failure does not navigate or mark read`() = runTest(dispatcher) {
   val n=AppNotification("n",NotificationType.NEW_MESSAGE,conv.friend,null,"message",Instant.now(),false,conv.id);content.notices.value=Result.success(listOf(n));content.failure=AppException("offline")
-  val vm=NotificationsViewModel(content,FakeSocialRepository());vm.onAction(NotificationsAction.ClickNotification(n));assertNull(withTimeoutOrNull(100){vm.effects.first()});assertFalse(content.notices.value.getOrThrow().single().isRead)
+  val vm=NotificationsViewModel(content,FakeSocialRepository(),FakeAuthRepository());vm.onAction(NotificationsAction.ClickNotification(n));assertEquals(NotificationsEffect.ShowMessage("offline"),withTimeoutOrNull(100){vm.effects.first()});assertFalse(content.notices.value.getOrThrow().single().isRead);assertNull(vm.uiState.value.errorMessage)
  }
  @Test fun `notification click uses stored conversation id and marks read`() = runTest(dispatcher) {
   val n=AppNotification("n",NotificationType.NEW_MESSAGE,conv.friend,null,"message",Instant.now(),false,conv.id);content.notices.value=Result.success(listOf(n))
-  val vm=NotificationsViewModel(content,FakeSocialRepository());vm.onAction(NotificationsAction.ClickNotification(n));assertEquals(NotificationsEffect.NavigateToChat(conv.id),vm.effects.first());assertTrue(content.notices.value.getOrThrow().single().isRead)
+  val vm=NotificationsViewModel(content,FakeSocialRepository(),FakeAuthRepository());vm.onAction(NotificationsAction.ClickNotification(n));assertEquals(NotificationsEffect.NavigateToChat(conv.id),vm.effects.first());assertTrue(content.notices.value.getOrThrow().single().isRead)
  }
  @Test fun `friend request from someone already a friend shows as accepted, not pending`() {
   val friend=AppNotification("f",NotificationType.FRIEND_REQUEST,conv.friend,null,"lời mời",Instant.now(),false,null)
   val stranger=User(id="u_la",username="nguoila",displayName="Người lạ",avatarUrl=null)
   val pending=AppNotification("p",NotificationType.FRIEND_REQUEST,stranger,null,"lời mời",Instant.now(),false,null)
+  SampleSocialData.setFriendStatusesForTest(SampleSocialData.friendStatuses.value+(stranger.id to FriendStatus.REQUEST_RECEIVED))
   content.notices.value=Result.success(listOf(friend,pending))
-  val state=NotificationsViewModel(content,FakeSocialRepository()).uiState.value
+  val state=NotificationsViewModel(content,FakeSocialRepository(),FakeAuthRepository()).uiState.value
   assertEquals(true,state.friendRequestDecision(friend))
   assertNull(state.friendRequestDecision(pending))
+ }
+ @Test fun `withdrawn friend request no longer offers accept after graph refresh`() {
+  val stranger=User(id="u_la",username="nguoila",displayName="Người lạ",avatarUrl=null)
+  val stale=AppNotification("s",NotificationType.FRIEND_REQUEST,stranger,null,"lời mời",Instant.now(),false,null)
+  content.notices.value=Result.success(listOf(stale))
+  val state=NotificationsViewModel(content,FakeSocialRepository(),FakeAuthRepository()).uiState.value
+  assertTrue(state.isGraphChecked)
+  assertEquals(false,state.friendRequestDecision(stale))
+ }
+ @Test fun `before the graph is checked a new request still shows accept`() {
+  val stranger=User(id="u_la",username="nguoila",displayName="Người lạ",avatarUrl=null)
+  val fresh=AppNotification("n",NotificationType.FRIEND_REQUEST,stranger,null,"lời mời",Instant.now(),false,null)
+  assertNull(NotificationsUiState(isGraphChecked=false).friendRequestDecision(fresh))
  }
  @Test fun `timeline orders messages newest first and labels today`() {
   val m=Message("m",conv.id,"me","hello",null,null,Instant.now(),PostSendState.SENT,false);val timeline=ChatViewModel.buildReverseTimeline(listOf(m),"me",Instant.now());assertEquals("m",(timeline.first() as ChatTimelineItem.MessageNode).message.id);assertEquals("Hôm nay",(timeline.last() as ChatTimelineItem.DateHeader).label)

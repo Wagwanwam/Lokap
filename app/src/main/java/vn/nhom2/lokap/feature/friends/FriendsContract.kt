@@ -33,7 +33,8 @@ data class FriendsUiState(
     /** Số bạn thật (server đếm), có thể khác friends.size khi chưa tải xong hồ sơ của từng người. */
     val friendCount: Int = 0,
     val maxFriends: Int = 20,
-    val pendingConfirmation: PendingFriendConfirmation? = null
+    val pendingConfirmation: PendingFriendConfirmation? = null,
+    val workingUserIds: Set<String> = emptySet()
 ) {
     val isFriendLimitReached: Boolean
         get() = friendCount >= maxFriends

@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -172,8 +173,12 @@ fun ProfileScreen(
             ProfileTopBar(
                 username = uiState.user?.username,
                 isMe = uiState.isMe,
+                hasUser = uiState.user != null,
+                isBlocked = uiState.friendStatus == FriendStatus.BLOCKED,
                 onBackClick = { onAction(ProfileAction.NavigateBack) },
-                onSettingsClick = { onAction(ProfileAction.OpenSettings) }
+                onSettingsClick = { onAction(ProfileAction.OpenSettings) },
+                onBlockClick = { onAction(ProfileAction.OpenBlockDialog) },
+                onUnblockClick = { onAction(ProfileAction.Unblock) }
             )
         }
     ) { innerPadding ->
@@ -339,6 +344,14 @@ fun ProfileScreen(
         }
     }
 
+    if (uiState.isBlockDialogOpen) {
+        BlockUserDialog(
+            displayName = uiState.user?.displayName.orEmpty(),
+            onConfirm = { onAction(ProfileAction.ConfirmBlock) },
+            onDismiss = { onAction(ProfileAction.DismissBlockDialog) }
+        )
+    }
+
     if (uiState.isEditSheetOpen) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
@@ -370,7 +383,11 @@ private fun ProfileTopBar(
     username: String?,
     isMe: Boolean,
     onBackClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    hasUser: Boolean = false,
+    isBlocked: Boolean = false,
+    onBlockClick: () -> Unit = {},
+    onUnblockClick: () -> Unit = {}
 ) {
     val colors = LokapTheme.colors
     val spacing = LokapTheme.spacing
@@ -406,23 +423,69 @@ private fun ProfileTopBar(
         )
 
         if (isMe) {
-            Surface(
-                shape = CircleShape,
-                color = colors.surfaceHigh,
-                border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.25f)),
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onSettingsClick)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = "Cài đặt",
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(25.dp)
+            SettingsCircleButton(contentDescription = "Cài đặt", onClick = onSettingsClick)
+        } else if (hasUser) {
+            // Hồ sơ người khác: nút cài đặt cùng chỗ với hồ sơ của mình, mở menu Chặn / Bỏ chặn
+            var menuExpanded by remember { mutableStateOf(false) }
+            Box {
+                SettingsCircleButton(
+                    contentDescription = "Tuỳ chọn với người này",
+                    onClick = { menuExpanded = true }
+                )
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.background(colors.surfaceHigh)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (isBlocked) "Bỏ chặn" else "Chặn",
+                                color = if (isBlocked) colors.textPrimary else colors.error
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Block,
+                                contentDescription = null,
+                                tint = if (isBlocked) colors.textPrimary else colors.error
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            if (isBlocked) onUnblockClick() else onBlockClick()
+                        }
                     )
                 }
+            }
+        }
+    }
+}
+
+/** Nút tròn bánh răng 38dp (vùng chạm 48dp) ở góc phải thanh trên của hồ sơ. */
+@Composable
+private fun SettingsCircleButton(contentDescription: String, onClick: () -> Unit) {
+    val colors = LokapTheme.colors
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = colors.surfaceHigh,
+            border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.25f)),
+            modifier = Modifier.size(38.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Rounded.Settings,
+                    contentDescription = contentDescription,
+                    tint = colors.textPrimary,
+                    modifier = Modifier.size(25.dp)
+                )
             }
         }
     }
@@ -633,6 +696,7 @@ private fun ProfileHeaderSection(
                 } else {
                     OtherUserRelationshipBar(
                         friendStatus = uiState.friendStatus,
+                        isWorking = uiState.isUpdatingFriendship,
                         isFriendLimitReached = uiState.isFriendLimitReached,
                         onAction = onAction
                     )
@@ -680,6 +744,7 @@ private fun ProfileStatItem(
 @Composable
 private fun OtherUserRelationshipBar(
     friendStatus: FriendStatus,
+    isWorking: Boolean,
     isFriendLimitReached: Boolean,
     onAction: (ProfileAction) -> Unit
 ) {
@@ -694,7 +759,7 @@ private fun OtherUserRelationshipBar(
                 PinkButton(
                     text = "Kết bạn",
                     leadingIcon = Icons.Default.Add,
-                    enabled = !isFriendLimitReached,
+                    enabled = !isFriendLimitReached && !isWorking,
                     onClick = { onAction(ProfileAction.SendFriendRequest) },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -713,6 +778,7 @@ private fun OtherUserRelationshipBar(
             GhostButton(
                 text = "Đã gửi lời mời · Huỷ",
                 leadingIcon = Icons.Default.Close,
+                enabled = !isWorking,
                 onClick = { onAction(ProfileAction.CancelFriendRequest) },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -727,13 +793,14 @@ private fun OtherUserRelationshipBar(
                     PinkButton(
                         text = "Chấp nhận",
                         leadingIcon = Icons.Default.Check,
-                        enabled = !isFriendLimitReached,
+                        enabled = !isFriendLimitReached && !isWorking,
                         onClick = { onAction(ProfileAction.AcceptFriendRequest) },
                         modifier = Modifier.weight(1f)
                     )
                     GhostButton(
                         text = "Từ chối",
                         leadingIcon = Icons.Default.Close,
+                        enabled = !isWorking,
                         onClick = { onAction(ProfileAction.DeclineFriendRequest) },
                         modifier = Modifier.weight(1f)
                     )
@@ -763,6 +830,7 @@ private fun OtherUserRelationshipBar(
                     GhostButton(
                         text = "Bạn bè",
                         leadingIcon = Icons.Default.Person,
+                        enabled = !isWorking,
                         onClick = { friendMenuExpanded = true },
                         modifier = Modifier.weight(1f)
                     )
@@ -804,6 +872,7 @@ private fun OtherUserRelationshipBar(
         FriendStatus.BLOCKED -> {
             GhostButton(
                 text = "Đã chặn · Bỏ chặn",
+                enabled = !isWorking,
                 onClick = { onAction(ProfileAction.Unblock) },
                 modifier = Modifier.fillMaxWidth()
             )

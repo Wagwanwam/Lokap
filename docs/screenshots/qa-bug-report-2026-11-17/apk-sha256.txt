@@ -1,0 +1,3 @@
+Local release APK: 0ce5c637aadd484aff5ecab3022af967eff3a796fa0be7e2c970f1c71af23e49
+Installed APK: 0ce5c637aadd484aff5ecab3022af967eff3a796fa0be7e2c970f1c71af23e49
+MATCH

@@ -30,7 +30,8 @@ class CameraPermissionTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun camera() = CameraViewModel(FakeAuthRepository(), FakeSocialRepository(), vn.nhom2.lokap.feature.ContentTestRepository(), vn.nhom2.lokap.core.image.ImageProcessor())
+    private fun camera() = CameraViewModel(FakeAuthRepository(), FakeSocialRepository(), vn.nhom2.lokap.feature.ContentTestRepository(), vn.nhom2.lokap.core.image.ImageProcessor(),
+        vn.nhom2.lokap.feature.TestDeviceSettingsRepository(), TestPhotoGalleryRepository())
 
     private fun CameraViewModel.result(granted: Boolean, after: Boolean, before: Boolean) =
         onAction(CameraAction.OnPermissionResult(granted, after, before))

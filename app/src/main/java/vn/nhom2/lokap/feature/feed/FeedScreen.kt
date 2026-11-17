@@ -612,6 +612,7 @@ private val FEED_BOTTOM_NAV_HEIGHT = 64.dp
 /**
  * 1 ảnh ở tab Bạn bè (kiểu Locket): không mở màn nào khác.
  * Ảnh bạn bè (không công khai): thanh "Gửi tin nhắn…" + thả emoji. Ảnh của mình / ảnh công khai: số cảm xúc (+ bình luận).
+ * Ảnh công khai của bạn bè: cả hàng số cảm xúc/bình luận/đăng lại lẫn thanh "Gửi tin nhắn…".
  */
 @Composable
 private fun LocketFriendPageItem(
@@ -872,8 +873,10 @@ private fun LocketFriendPageItem(
 
         Spacer(modifier = Modifier.height(spacing.md))
 
+        // Ảnh công khai của bạn bè: hàng ❤ 💬 ↻ rồi thanh nhắn tin (bỏ emoji nhanh vì đã có nút ❤ ở trên)
+        val publicWithMessage = canMessage && post.audience == Audience.PUBLIC
         when {
-            canMessage -> PhotoMessageBar(
+            canMessage && !publicWithMessage -> PhotoMessageBar(
                 text = messageDraft,
                 onTextChange = { onAction(FeedAction.OnMessageDraftChange(post.id, it)) },
                 isSending = isSendingMessage,
@@ -917,6 +920,20 @@ private fun LocketFriendPageItem(
 
             // Ảnh đang gửi / gửi lỗi: giữ chỗ để ảnh không nhảy khi gửi xong
             else -> Spacer(modifier = Modifier.height(56.dp))
+        }
+
+        if (publicWithMessage) {
+            PhotoMessageBar(
+                text = messageDraft,
+                onTextChange = { onAction(FeedAction.OnMessageDraftChange(post.id, it)) },
+                isSending = isSendingMessage,
+                onSend = { onAction(FeedAction.OnSendPhotoMessage(post)) },
+                reactions = post.reactions,
+                myReaction = post.myReaction,
+                onReact = { emoji -> onAction(FeedAction.OnReact(post.id, emoji)) },
+                showQuickReactions = false,
+                modifier = Modifier.padding(bottom = spacing.sm)
+            )
         }
     }
 }
@@ -1112,8 +1129,7 @@ private fun TwitterExploreFeed(
                         isReposted = repostState.isMine,
                         count = repostState.count,
                         enabled = canRepost(post)
-                    ) { onAction(FeedAction.OnToggleRepost(post.id)) },
-                    onShare = { onAction(FeedAction.OnShareLink(post)) }
+                    ) { onAction(FeedAction.OnToggleRepost(post.id)) }
                 )
             }
         }
