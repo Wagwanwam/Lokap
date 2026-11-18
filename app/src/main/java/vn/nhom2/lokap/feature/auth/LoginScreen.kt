@@ -270,7 +270,7 @@ fun LoginScreen(
             ) {
                 Text(
                     text = "Quên mật khẩu?",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                     color = forgotPasswordLinkColor(LokapTheme.colors)
                 )
             }
